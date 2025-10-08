@@ -609,3 +609,24 @@ func (cfg *APIConfig) GetEventAnalytics(w http.ResponseWriter, r *http.Request) 
 
 	utils.RespondWithJSON(w, http.StatusOK, response)
 }
+
+func (cfg *APIConfig) GetPlatformOverview(w http.ResponseWriter, r *http.Request) {
+	overview, err := cfg.DB.GetPlatformOverview(r.Context())
+	if err != nil {
+		cfg.Logger.Error("Failed to fetch platform overview", "error", err)
+		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to fetch platform overview")
+		return
+	}
+	utils.RespondWithJSON(w, http.StatusOK, overview)
+}
+
+func (cfg *APIConfig) GetTopEvents(w http.ResponseWriter, r *http.Request) {
+	limit := int32(10)
+	topEvents, err := cfg.DB.GetTopEventsByTicketsSold(r.Context(), limit)
+	if err != nil {
+		cfg.Logger.Error("Failed to fetch top events", "error", err)
+		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to fetch top events")
+		return
+	}
+	utils.RespondWithJSON(w, http.StatusOK, topEvents)
+}

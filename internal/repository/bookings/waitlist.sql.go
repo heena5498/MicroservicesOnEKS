@@ -13,9 +13,10 @@ import (
 )
 
 const getEventWaitlist = `-- name: GetEventWaitlist :many
-SELECT waitlist_id, event_id, user_id, position, quantity_requested, status, joined_at, offered_at, expires_at, converted_at, created_at, updated_at FROM waitlist
+SELECT waitlist_id, event_id, user_id, quantity_requested, status, joined_at, offered_at, expires_at, converted_at, created_at, updated_at
+FROM waitlist
 WHERE event_id = $1 AND status = 'waiting'
-ORDER BY position ASC
+ORDER BY joined_at ASC
 LIMIT $2
 `
 
@@ -24,20 +25,33 @@ type GetEventWaitlistParams struct {
 	Limit   int32     `json:"limit"`
 }
 
-func (q *Queries) GetEventWaitlist(ctx context.Context, db DBTX, arg GetEventWaitlistParams) ([]Waitlist, error) {
+type GetEventWaitlistRow struct {
+	WaitlistID        uuid.UUID      `json:"waitlist_id"`
+	EventID           uuid.UUID      `json:"event_id"`
+	UserID            uuid.UUID      `json:"user_id"`
+	QuantityRequested int32          `json:"quantity_requested"`
+	Status            sql.NullString `json:"status"`
+	JoinedAt          sql.NullTime   `json:"joined_at"`
+	OfferedAt         sql.NullTime   `json:"offered_at"`
+	ExpiresAt         sql.NullTime   `json:"expires_at"`
+	ConvertedAt       sql.NullTime   `json:"converted_at"`
+	CreatedAt         sql.NullTime   `json:"created_at"`
+	UpdatedAt         sql.NullTime   `json:"updated_at"`
+}
+
+func (q *Queries) GetEventWaitlist(ctx context.Context, db DBTX, arg GetEventWaitlistParams) ([]GetEventWaitlistRow, error) {
 	rows, err := db.QueryContext(ctx, getEventWaitlist, arg.EventID, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Waitlist{}
+	items := []GetEventWaitlistRow{}
 	for rows.Next() {
-		var i Waitlist
+		var i GetEventWaitlistRow
 		if err := rows.Scan(
 			&i.WaitlistID,
 			&i.EventID,
 			&i.UserID,
-			&i.Position,
 			&i.QuantityRequested,
 			&i.Status,
 			&i.JoinedAt,
@@ -61,26 +75,40 @@ func (q *Queries) GetEventWaitlist(ctx context.Context, db DBTX, arg GetEventWai
 }
 
 const getExpiredWaitlistOffers = `-- name: GetExpiredWaitlistOffers :many
-SELECT waitlist_id, event_id, user_id, position, quantity_requested, status, joined_at, offered_at, expires_at, converted_at, created_at, updated_at FROM waitlist
+SELECT waitlist_id, event_id, user_id, quantity_requested, status, joined_at, offered_at, expires_at, converted_at, created_at, updated_at
+FROM waitlist
 WHERE status = 'offered'
     AND expires_at IS NOT NULL
     AND expires_at < CURRENT_TIMESTAMP
 `
 
-func (q *Queries) GetExpiredWaitlistOffers(ctx context.Context, db DBTX) ([]Waitlist, error) {
+type GetExpiredWaitlistOffersRow struct {
+	WaitlistID        uuid.UUID      `json:"waitlist_id"`
+	EventID           uuid.UUID      `json:"event_id"`
+	UserID            uuid.UUID      `json:"user_id"`
+	QuantityRequested int32          `json:"quantity_requested"`
+	Status            sql.NullString `json:"status"`
+	JoinedAt          sql.NullTime   `json:"joined_at"`
+	OfferedAt         sql.NullTime   `json:"offered_at"`
+	ExpiresAt         sql.NullTime   `json:"expires_at"`
+	ConvertedAt       sql.NullTime   `json:"converted_at"`
+	CreatedAt         sql.NullTime   `json:"created_at"`
+	UpdatedAt         sql.NullTime   `json:"updated_at"`
+}
+
+func (q *Queries) GetExpiredWaitlistOffers(ctx context.Context, db DBTX) ([]GetExpiredWaitlistOffersRow, error) {
 	rows, err := db.QueryContext(ctx, getExpiredWaitlistOffers)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Waitlist{}
+	items := []GetExpiredWaitlistOffersRow{}
 	for rows.Next() {
-		var i Waitlist
+		var i GetExpiredWaitlistOffersRow
 		if err := rows.Scan(
 			&i.WaitlistID,
 			&i.EventID,
 			&i.UserID,
-			&i.Position,
 			&i.QuantityRequested,
 			&i.Status,
 			&i.JoinedAt,
@@ -104,9 +132,10 @@ func (q *Queries) GetExpiredWaitlistOffers(ctx context.Context, db DBTX) ([]Wait
 }
 
 const getNextWaitlistEntries = `-- name: GetNextWaitlistEntries :many
-SELECT waitlist_id, event_id, user_id, position, quantity_requested, status, joined_at, offered_at, expires_at, converted_at, created_at, updated_at FROM waitlist
+SELECT waitlist_id, event_id, user_id, quantity_requested, status, joined_at, offered_at, expires_at, converted_at, created_at, updated_at
+FROM waitlist
 WHERE event_id = $1 AND status = 'waiting'
-ORDER BY position ASC
+ORDER BY joined_at ASC
 LIMIT $2
 `
 
@@ -115,20 +144,33 @@ type GetNextWaitlistEntriesParams struct {
 	Limit   int32     `json:"limit"`
 }
 
-func (q *Queries) GetNextWaitlistEntries(ctx context.Context, db DBTX, arg GetNextWaitlistEntriesParams) ([]Waitlist, error) {
+type GetNextWaitlistEntriesRow struct {
+	WaitlistID        uuid.UUID      `json:"waitlist_id"`
+	EventID           uuid.UUID      `json:"event_id"`
+	UserID            uuid.UUID      `json:"user_id"`
+	QuantityRequested int32          `json:"quantity_requested"`
+	Status            sql.NullString `json:"status"`
+	JoinedAt          sql.NullTime   `json:"joined_at"`
+	OfferedAt         sql.NullTime   `json:"offered_at"`
+	ExpiresAt         sql.NullTime   `json:"expires_at"`
+	ConvertedAt       sql.NullTime   `json:"converted_at"`
+	CreatedAt         sql.NullTime   `json:"created_at"`
+	UpdatedAt         sql.NullTime   `json:"updated_at"`
+}
+
+func (q *Queries) GetNextWaitlistEntries(ctx context.Context, db DBTX, arg GetNextWaitlistEntriesParams) ([]GetNextWaitlistEntriesRow, error) {
 	rows, err := db.QueryContext(ctx, getNextWaitlistEntries, arg.EventID, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Waitlist{}
+	items := []GetNextWaitlistEntriesRow{}
 	for rows.Next() {
-		var i Waitlist
+		var i GetNextWaitlistEntriesRow
 		if err := rows.Scan(
 			&i.WaitlistID,
 			&i.EventID,
 			&i.UserID,
-			&i.Position,
 			&i.QuantityRequested,
 			&i.Status,
 			&i.JoinedAt,
@@ -152,24 +194,38 @@ func (q *Queries) GetNextWaitlistEntries(ctx context.Context, db DBTX, arg GetNe
 }
 
 const getOfferedWaitlistEntries = `-- name: GetOfferedWaitlistEntries :many
-SELECT waitlist_id, event_id, user_id, position, quantity_requested, status, joined_at, offered_at, expires_at, converted_at, created_at, updated_at FROM waitlist
+SELECT waitlist_id, event_id, user_id, quantity_requested, status, joined_at, offered_at, expires_at, converted_at, created_at, updated_at
+FROM waitlist
 WHERE status = 'offered' AND expires_at < CURRENT_TIMESTAMP
 `
 
-func (q *Queries) GetOfferedWaitlistEntries(ctx context.Context, db DBTX) ([]Waitlist, error) {
+type GetOfferedWaitlistEntriesRow struct {
+	WaitlistID        uuid.UUID      `json:"waitlist_id"`
+	EventID           uuid.UUID      `json:"event_id"`
+	UserID            uuid.UUID      `json:"user_id"`
+	QuantityRequested int32          `json:"quantity_requested"`
+	Status            sql.NullString `json:"status"`
+	JoinedAt          sql.NullTime   `json:"joined_at"`
+	OfferedAt         sql.NullTime   `json:"offered_at"`
+	ExpiresAt         sql.NullTime   `json:"expires_at"`
+	ConvertedAt       sql.NullTime   `json:"converted_at"`
+	CreatedAt         sql.NullTime   `json:"created_at"`
+	UpdatedAt         sql.NullTime   `json:"updated_at"`
+}
+
+func (q *Queries) GetOfferedWaitlistEntries(ctx context.Context, db DBTX) ([]GetOfferedWaitlistEntriesRow, error) {
 	rows, err := db.QueryContext(ctx, getOfferedWaitlistEntries)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Waitlist{}
+	items := []GetOfferedWaitlistEntriesRow{}
 	for rows.Next() {
-		var i Waitlist
+		var i GetOfferedWaitlistEntriesRow
 		if err := rows.Scan(
 			&i.WaitlistID,
 			&i.EventID,
 			&i.UserID,
-			&i.Position,
 			&i.QuantityRequested,
 			&i.Status,
 			&i.JoinedAt,
@@ -193,7 +249,8 @@ func (q *Queries) GetOfferedWaitlistEntries(ctx context.Context, db DBTX) ([]Wai
 }
 
 const getUserWaitlistEntry = `-- name: GetUserWaitlistEntry :one
-SELECT waitlist_id, event_id, user_id, position, quantity_requested, status, joined_at, offered_at, expires_at, converted_at, created_at, updated_at FROM waitlist WHERE user_id = $1 AND event_id = $2
+SELECT waitlist_id, event_id, user_id, quantity_requested, status, joined_at, offered_at, expires_at, converted_at, created_at, updated_at
+FROM waitlist WHERE user_id = $1 AND event_id = $2
 `
 
 type GetUserWaitlistEntryParams struct {
@@ -201,14 +258,27 @@ type GetUserWaitlistEntryParams struct {
 	EventID uuid.UUID `json:"event_id"`
 }
 
-func (q *Queries) GetUserWaitlistEntry(ctx context.Context, db DBTX, arg GetUserWaitlistEntryParams) (Waitlist, error) {
+type GetUserWaitlistEntryRow struct {
+	WaitlistID        uuid.UUID      `json:"waitlist_id"`
+	EventID           uuid.UUID      `json:"event_id"`
+	UserID            uuid.UUID      `json:"user_id"`
+	QuantityRequested int32          `json:"quantity_requested"`
+	Status            sql.NullString `json:"status"`
+	JoinedAt          sql.NullTime   `json:"joined_at"`
+	OfferedAt         sql.NullTime   `json:"offered_at"`
+	ExpiresAt         sql.NullTime   `json:"expires_at"`
+	ConvertedAt       sql.NullTime   `json:"converted_at"`
+	CreatedAt         sql.NullTime   `json:"created_at"`
+	UpdatedAt         sql.NullTime   `json:"updated_at"`
+}
+
+func (q *Queries) GetUserWaitlistEntry(ctx context.Context, db DBTX, arg GetUserWaitlistEntryParams) (GetUserWaitlistEntryRow, error) {
 	row := db.QueryRowContext(ctx, getUserWaitlistEntry, arg.UserID, arg.EventID)
-	var i Waitlist
+	var i GetUserWaitlistEntryRow
 	err := row.Scan(
 		&i.WaitlistID,
 		&i.EventID,
 		&i.UserID,
-		&i.Position,
 		&i.QuantityRequested,
 		&i.Status,
 		&i.JoinedAt,
@@ -222,17 +292,31 @@ func (q *Queries) GetUserWaitlistEntry(ctx context.Context, db DBTX, arg GetUser
 }
 
 const getWaitlistEntry = `-- name: GetWaitlistEntry :one
-SELECT waitlist_id, event_id, user_id, position, quantity_requested, status, joined_at, offered_at, expires_at, converted_at, created_at, updated_at FROM waitlist WHERE waitlist_id = $1
+SELECT waitlist_id, event_id, user_id, quantity_requested, status, joined_at, offered_at, expires_at, converted_at, created_at, updated_at
+FROM waitlist WHERE waitlist_id = $1
 `
 
-func (q *Queries) GetWaitlistEntry(ctx context.Context, db DBTX, waitlistID uuid.UUID) (Waitlist, error) {
+type GetWaitlistEntryRow struct {
+	WaitlistID        uuid.UUID      `json:"waitlist_id"`
+	EventID           uuid.UUID      `json:"event_id"`
+	UserID            uuid.UUID      `json:"user_id"`
+	QuantityRequested int32          `json:"quantity_requested"`
+	Status            sql.NullString `json:"status"`
+	JoinedAt          sql.NullTime   `json:"joined_at"`
+	OfferedAt         sql.NullTime   `json:"offered_at"`
+	ExpiresAt         sql.NullTime   `json:"expires_at"`
+	ConvertedAt       sql.NullTime   `json:"converted_at"`
+	CreatedAt         sql.NullTime   `json:"created_at"`
+	UpdatedAt         sql.NullTime   `json:"updated_at"`
+}
+
+func (q *Queries) GetWaitlistEntry(ctx context.Context, db DBTX, waitlistID uuid.UUID) (GetWaitlistEntryRow, error) {
 	row := db.QueryRowContext(ctx, getWaitlistEntry, waitlistID)
-	var i Waitlist
+	var i GetWaitlistEntryRow
 	err := row.Scan(
 		&i.WaitlistID,
 		&i.EventID,
 		&i.UserID,
-		&i.Position,
 		&i.QuantityRequested,
 		&i.Status,
 		&i.JoinedAt,
@@ -246,7 +330,8 @@ func (q *Queries) GetWaitlistEntry(ctx context.Context, db DBTX, waitlistID uuid
 }
 
 const getWaitlistEntryByUserAndEvent = `-- name: GetWaitlistEntryByUserAndEvent :one
-SELECT waitlist_id, event_id, user_id, position, quantity_requested, status, joined_at, offered_at, expires_at, converted_at, created_at, updated_at FROM waitlist
+SELECT waitlist_id, event_id, user_id, quantity_requested, status, joined_at, offered_at, expires_at, converted_at, created_at, updated_at
+FROM waitlist
 WHERE user_id = $1 AND event_id = $2
 `
 
@@ -255,14 +340,27 @@ type GetWaitlistEntryByUserAndEventParams struct {
 	EventID uuid.UUID `json:"event_id"`
 }
 
-func (q *Queries) GetWaitlistEntryByUserAndEvent(ctx context.Context, db DBTX, arg GetWaitlistEntryByUserAndEventParams) (Waitlist, error) {
+type GetWaitlistEntryByUserAndEventRow struct {
+	WaitlistID        uuid.UUID      `json:"waitlist_id"`
+	EventID           uuid.UUID      `json:"event_id"`
+	UserID            uuid.UUID      `json:"user_id"`
+	QuantityRequested int32          `json:"quantity_requested"`
+	Status            sql.NullString `json:"status"`
+	JoinedAt          sql.NullTime   `json:"joined_at"`
+	OfferedAt         sql.NullTime   `json:"offered_at"`
+	ExpiresAt         sql.NullTime   `json:"expires_at"`
+	ConvertedAt       sql.NullTime   `json:"converted_at"`
+	CreatedAt         sql.NullTime   `json:"created_at"`
+	UpdatedAt         sql.NullTime   `json:"updated_at"`
+}
+
+func (q *Queries) GetWaitlistEntryByUserAndEvent(ctx context.Context, db DBTX, arg GetWaitlistEntryByUserAndEventParams) (GetWaitlistEntryByUserAndEventRow, error) {
 	row := db.QueryRowContext(ctx, getWaitlistEntryByUserAndEvent, arg.UserID, arg.EventID)
-	var i Waitlist
+	var i GetWaitlistEntryByUserAndEventRow
 	err := row.Scan(
 		&i.WaitlistID,
 		&i.EventID,
 		&i.UserID,
-		&i.Position,
 		&i.QuantityRequested,
 		&i.Status,
 		&i.JoinedAt,
@@ -275,9 +373,71 @@ func (q *Queries) GetWaitlistEntryByUserAndEvent(ctx context.Context, db DBTX, a
 	return i, err
 }
 
+const getWaitlistEntryWithPosition = `-- name: GetWaitlistEntryWithPosition :one
+WITH numbered AS (
+    SELECT
+        waitlist_id, event_id, user_id, quantity_requested, status, joined_at, offered_at, expires_at, converted_at, created_at, updated_at,
+        ROW_NUMBER() OVER (ORDER BY joined_at ASC) as calculated_position
+    FROM waitlist
+    WHERE event_id = $2 AND status = 'waiting'
+)
+SELECT waitlist_id, event_id, user_id, quantity_requested, status, joined_at, offered_at, expires_at, converted_at, created_at, updated_at, calculated_position
+FROM numbered
+WHERE user_id = $1
+`
+
+type GetWaitlistEntryWithPositionParams struct {
+	UserID  uuid.UUID `json:"user_id"`
+	EventID uuid.UUID `json:"event_id"`
+}
+
+type GetWaitlistEntryWithPositionRow struct {
+	WaitlistID         uuid.UUID      `json:"waitlist_id"`
+	EventID            uuid.UUID      `json:"event_id"`
+	UserID             uuid.UUID      `json:"user_id"`
+	QuantityRequested  int32          `json:"quantity_requested"`
+	Status             sql.NullString `json:"status"`
+	JoinedAt           sql.NullTime   `json:"joined_at"`
+	OfferedAt          sql.NullTime   `json:"offered_at"`
+	ExpiresAt          sql.NullTime   `json:"expires_at"`
+	ConvertedAt        sql.NullTime   `json:"converted_at"`
+	CreatedAt          sql.NullTime   `json:"created_at"`
+	UpdatedAt          sql.NullTime   `json:"updated_at"`
+	CalculatedPosition int64          `json:"calculated_position"`
+}
+
+func (q *Queries) GetWaitlistEntryWithPosition(ctx context.Context, db DBTX, arg GetWaitlistEntryWithPositionParams) (GetWaitlistEntryWithPositionRow, error) {
+	row := db.QueryRowContext(ctx, getWaitlistEntryWithPosition, arg.UserID, arg.EventID)
+	var i GetWaitlistEntryWithPositionRow
+	err := row.Scan(
+		&i.WaitlistID,
+		&i.EventID,
+		&i.UserID,
+		&i.QuantityRequested,
+		&i.Status,
+		&i.JoinedAt,
+		&i.OfferedAt,
+		&i.ExpiresAt,
+		&i.ConvertedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.CalculatedPosition,
+	)
+	return i, err
+}
+
 const getWaitlistPosition = `-- name: GetWaitlistPosition :one
-SELECT position, status FROM waitlist
-WHERE user_id = $1 AND event_id = $2
+WITH numbered AS (
+    SELECT
+        waitlist_id,
+        user_id,
+        status,
+        ROW_NUMBER() OVER (ORDER BY joined_at ASC) as position
+    FROM waitlist
+    WHERE event_id = $2 AND status = 'waiting'
+)
+SELECT position, status FROM numbered
+WHERE user_id = $1
 `
 
 type GetWaitlistPositionParams struct {
@@ -286,7 +446,7 @@ type GetWaitlistPositionParams struct {
 }
 
 type GetWaitlistPositionRow struct {
-	Position int32          `json:"position"`
+	Position int64          `json:"position"`
 	Status   sql.NullString `json:"status"`
 }
 
@@ -300,8 +460,6 @@ func (q *Queries) GetWaitlistPosition(ctx context.Context, db DBTX, arg GetWaitl
 const getWaitlistStats = `-- name: GetWaitlistStats :one
 SELECT
     COUNT(*) as total_waiting,
-    COALESCE(MIN(position), 0) as first_position,
-    COALESCE(MAX(position), 0) as last_position,
     COALESCE(AVG(quantity_requested), 0.0) as avg_quantity_requested
 FROM waitlist
 WHERE event_id = $1 AND status = 'waiting'
@@ -309,30 +467,22 @@ WHERE event_id = $1 AND status = 'waiting'
 
 type GetWaitlistStatsRow struct {
 	TotalWaiting         int64       `json:"total_waiting"`
-	FirstPosition        interface{} `json:"first_position"`
-	LastPosition         interface{} `json:"last_position"`
 	AvgQuantityRequested interface{} `json:"avg_quantity_requested"`
 }
 
 func (q *Queries) GetWaitlistStats(ctx context.Context, db DBTX, eventID uuid.UUID) (GetWaitlistStatsRow, error) {
 	row := db.QueryRowContext(ctx, getWaitlistStats, eventID)
 	var i GetWaitlistStatsRow
-	err := row.Scan(
-		&i.TotalWaiting,
-		&i.FirstPosition,
-		&i.LastPosition,
-		&i.AvgQuantityRequested,
-	)
+	err := row.Scan(&i.TotalWaiting, &i.AvgQuantityRequested)
 	return i, err
 }
 
 const joinWaitlist = `-- name: JoinWaitlist :one
 INSERT INTO waitlist (
-    event_id, user_id, quantity_requested, position
+    event_id, user_id, quantity_requested
 ) VALUES (
-    $1, $2, $3,
-    COALESCE((SELECT MAX(position) FROM waitlist WHERE event_id = $1 AND status = 'waiting'), 0) + 1
-) RETURNING waitlist_id, event_id, user_id, position, quantity_requested, status, joined_at, offered_at, expires_at, converted_at, created_at, updated_at
+    $1, $2, $3
+) RETURNING waitlist_id, event_id, user_id, quantity_requested, status, joined_at, offered_at, expires_at, converted_at, created_at, updated_at
 `
 
 type JoinWaitlistParams struct {
@@ -341,14 +491,27 @@ type JoinWaitlistParams struct {
 	QuantityRequested int32     `json:"quantity_requested"`
 }
 
-func (q *Queries) JoinWaitlist(ctx context.Context, db DBTX, arg JoinWaitlistParams) (Waitlist, error) {
+type JoinWaitlistRow struct {
+	WaitlistID        uuid.UUID      `json:"waitlist_id"`
+	EventID           uuid.UUID      `json:"event_id"`
+	UserID            uuid.UUID      `json:"user_id"`
+	QuantityRequested int32          `json:"quantity_requested"`
+	Status            sql.NullString `json:"status"`
+	JoinedAt          sql.NullTime   `json:"joined_at"`
+	OfferedAt         sql.NullTime   `json:"offered_at"`
+	ExpiresAt         sql.NullTime   `json:"expires_at"`
+	ConvertedAt       sql.NullTime   `json:"converted_at"`
+	CreatedAt         sql.NullTime   `json:"created_at"`
+	UpdatedAt         sql.NullTime   `json:"updated_at"`
+}
+
+func (q *Queries) JoinWaitlist(ctx context.Context, db DBTX, arg JoinWaitlistParams) (JoinWaitlistRow, error) {
 	row := db.QueryRowContext(ctx, joinWaitlist, arg.EventID, arg.UserID, arg.QuantityRequested)
-	var i Waitlist
+	var i JoinWaitlistRow
 	err := row.Scan(
 		&i.WaitlistID,
 		&i.EventID,
 		&i.UserID,
-		&i.Position,
 		&i.QuantityRequested,
 		&i.Status,
 		&i.JoinedAt,
@@ -359,22 +522,6 @@ func (q *Queries) JoinWaitlist(ctx context.Context, db DBTX, arg JoinWaitlistPar
 		&i.UpdatedAt,
 	)
 	return i, err
-}
-
-const reassignWaitlistPosition = `-- name: ReassignWaitlistPosition :exec
-UPDATE waitlist
-SET position = $2, updated_at = CURRENT_TIMESTAMP
-WHERE waitlist_id = $1
-`
-
-type ReassignWaitlistPositionParams struct {
-	WaitlistID uuid.UUID `json:"waitlist_id"`
-	Position   int32     `json:"position"`
-}
-
-func (q *Queries) ReassignWaitlistPosition(ctx context.Context, db DBTX, arg ReassignWaitlistPositionParams) error {
-	_, err := db.ExecContext(ctx, reassignWaitlistPosition, arg.WaitlistID, arg.Position)
-	return err
 }
 
 const removeFromWaitlist = `-- name: RemoveFromWaitlist :exec
@@ -391,30 +538,14 @@ func (q *Queries) RemoveFromWaitlist(ctx context.Context, db DBTX, arg RemoveFro
 	return err
 }
 
-const reorderWaitlistAfterRemoval = `-- name: ReorderWaitlistAfterRemoval :exec
-UPDATE waitlist
-SET position = position - 1, updated_at = CURRENT_TIMESTAMP
-WHERE event_id = $1 AND position > $2 AND status = 'waiting'
-`
-
-type ReorderWaitlistAfterRemovalParams struct {
-	EventID  uuid.UUID `json:"event_id"`
-	Position int32     `json:"position"`
-}
-
-func (q *Queries) ReorderWaitlistAfterRemoval(ctx context.Context, db DBTX, arg ReorderWaitlistAfterRemovalParams) error {
-	_, err := db.ExecContext(ctx, reorderWaitlistAfterRemoval, arg.EventID, arg.Position)
-	return err
-}
-
 const setWaitlistOffered = `-- name: SetWaitlistOffered :one
 UPDATE waitlist
-SET status = 'offered', 
+SET status = 'offered',
     offered_at = CURRENT_TIMESTAMP,
     expires_at = $2,
     updated_at = CURRENT_TIMESTAMP
 WHERE waitlist_id = $1
-RETURNING waitlist_id, event_id, user_id, position, quantity_requested, status, joined_at, offered_at, expires_at, converted_at, created_at, updated_at
+RETURNING waitlist_id, event_id, user_id, quantity_requested, status, joined_at, offered_at, expires_at, converted_at, created_at, updated_at
 `
 
 type SetWaitlistOfferedParams struct {
@@ -422,14 +553,27 @@ type SetWaitlistOfferedParams struct {
 	ExpiresAt  sql.NullTime `json:"expires_at"`
 }
 
-func (q *Queries) SetWaitlistOffered(ctx context.Context, db DBTX, arg SetWaitlistOfferedParams) (Waitlist, error) {
+type SetWaitlistOfferedRow struct {
+	WaitlistID        uuid.UUID      `json:"waitlist_id"`
+	EventID           uuid.UUID      `json:"event_id"`
+	UserID            uuid.UUID      `json:"user_id"`
+	QuantityRequested int32          `json:"quantity_requested"`
+	Status            sql.NullString `json:"status"`
+	JoinedAt          sql.NullTime   `json:"joined_at"`
+	OfferedAt         sql.NullTime   `json:"offered_at"`
+	ExpiresAt         sql.NullTime   `json:"expires_at"`
+	ConvertedAt       sql.NullTime   `json:"converted_at"`
+	CreatedAt         sql.NullTime   `json:"created_at"`
+	UpdatedAt         sql.NullTime   `json:"updated_at"`
+}
+
+func (q *Queries) SetWaitlistOffered(ctx context.Context, db DBTX, arg SetWaitlistOfferedParams) (SetWaitlistOfferedRow, error) {
 	row := db.QueryRowContext(ctx, setWaitlistOffered, arg.WaitlistID, arg.ExpiresAt)
-	var i Waitlist
+	var i SetWaitlistOfferedRow
 	err := row.Scan(
 		&i.WaitlistID,
 		&i.EventID,
 		&i.UserID,
-		&i.Position,
 		&i.QuantityRequested,
 		&i.Status,
 		&i.JoinedAt,
@@ -448,17 +592,30 @@ SET status = 'waiting',
     expires_at = NULL,
     updated_at = CURRENT_TIMESTAMP
 WHERE waitlist_id = $1
-RETURNING waitlist_id, event_id, user_id, position, quantity_requested, status, joined_at, offered_at, expires_at, converted_at, created_at, updated_at
+RETURNING waitlist_id, event_id, user_id, quantity_requested, status, joined_at, offered_at, expires_at, converted_at, created_at, updated_at
 `
 
-func (q *Queries) SetWaitlistWaiting(ctx context.Context, db DBTX, waitlistID uuid.UUID) (Waitlist, error) {
+type SetWaitlistWaitingRow struct {
+	WaitlistID        uuid.UUID      `json:"waitlist_id"`
+	EventID           uuid.UUID      `json:"event_id"`
+	UserID            uuid.UUID      `json:"user_id"`
+	QuantityRequested int32          `json:"quantity_requested"`
+	Status            sql.NullString `json:"status"`
+	JoinedAt          sql.NullTime   `json:"joined_at"`
+	OfferedAt         sql.NullTime   `json:"offered_at"`
+	ExpiresAt         sql.NullTime   `json:"expires_at"`
+	ConvertedAt       sql.NullTime   `json:"converted_at"`
+	CreatedAt         sql.NullTime   `json:"created_at"`
+	UpdatedAt         sql.NullTime   `json:"updated_at"`
+}
+
+func (q *Queries) SetWaitlistWaiting(ctx context.Context, db DBTX, waitlistID uuid.UUID) (SetWaitlistWaitingRow, error) {
 	row := db.QueryRowContext(ctx, setWaitlistWaiting, waitlistID)
-	var i Waitlist
+	var i SetWaitlistWaitingRow
 	err := row.Scan(
 		&i.WaitlistID,
 		&i.EventID,
 		&i.UserID,
-		&i.Position,
 		&i.QuantityRequested,
 		&i.Status,
 		&i.JoinedAt,
@@ -479,7 +636,7 @@ SET status = COALESCE($2, status),
     converted_at = CASE WHEN $2::text = 'converted' THEN CURRENT_TIMESTAMP ELSE converted_at END,
     expires_at = $3
 WHERE waitlist_id = $1
-RETURNING waitlist_id, event_id, user_id, position, quantity_requested, status, joined_at, offered_at, expires_at, converted_at, created_at, updated_at
+RETURNING waitlist_id, event_id, user_id, quantity_requested, status, joined_at, offered_at, expires_at, converted_at, created_at, updated_at
 `
 
 type UpdateWaitlistStatusParams struct {
@@ -488,14 +645,27 @@ type UpdateWaitlistStatusParams struct {
 	ExpiresAt  sql.NullTime   `json:"expires_at"`
 }
 
-func (q *Queries) UpdateWaitlistStatus(ctx context.Context, db DBTX, arg UpdateWaitlistStatusParams) (Waitlist, error) {
+type UpdateWaitlistStatusRow struct {
+	WaitlistID        uuid.UUID      `json:"waitlist_id"`
+	EventID           uuid.UUID      `json:"event_id"`
+	UserID            uuid.UUID      `json:"user_id"`
+	QuantityRequested int32          `json:"quantity_requested"`
+	Status            sql.NullString `json:"status"`
+	JoinedAt          sql.NullTime   `json:"joined_at"`
+	OfferedAt         sql.NullTime   `json:"offered_at"`
+	ExpiresAt         sql.NullTime   `json:"expires_at"`
+	ConvertedAt       sql.NullTime   `json:"converted_at"`
+	CreatedAt         sql.NullTime   `json:"created_at"`
+	UpdatedAt         sql.NullTime   `json:"updated_at"`
+}
+
+func (q *Queries) UpdateWaitlistStatus(ctx context.Context, db DBTX, arg UpdateWaitlistStatusParams) (UpdateWaitlistStatusRow, error) {
 	row := db.QueryRowContext(ctx, updateWaitlistStatus, arg.WaitlistID, arg.Status, arg.ExpiresAt)
-	var i Waitlist
+	var i UpdateWaitlistStatusRow
 	err := row.Scan(
 		&i.WaitlistID,
 		&i.EventID,
 		&i.UserID,
-		&i.Position,
 		&i.QuantityRequested,
 		&i.Status,
 		&i.JoinedAt,

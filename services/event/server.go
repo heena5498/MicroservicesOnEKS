@@ -49,6 +49,9 @@ func SetupRoutes(config *APIConfig) *http.ServeMux {
 	mux.HandleFunc("PUT /api/v1/admin/venues/{id}", adminAuth(config.UpdateVenue))
 	mux.HandleFunc("DELETE /api/v1/admin/venues/{id}", adminAuth(config.DeleteVenue))
 
+	mux.HandleFunc("GET /api/v1/admin/analytics/overview", adminAuth(config.GetPlatformOverview))
+	mux.HandleFunc("GET /api/v1/admin/analytics/top-events", adminAuth(config.GetTopEvents))
+
 	internalAuth := auth.RequireInternalAuth(config.Config.InternalAPIKey)
 	mux.HandleFunc("POST /internal/events/{id}/update-availability", internalAuth(config.UpdateEventAvailability))
 	mux.HandleFunc("GET /internal/events/{id}", internalAuth(config.GetEventForBooking))

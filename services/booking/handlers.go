@@ -156,15 +156,27 @@ func (cfg *APIConfig) ReserveSeats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	event, err := cfg.EventServiceClient.GetEventForBooking(r.Context(), req.EventID)
-	if err != nil {
-		cfg.Logger.Error("Failed to get event for reservation", "error", err, "event_id", req.EventID)
-		utils.RespondWithError(w, http.StatusBadRequest, "Event not found or not available for booking")
+	cachedEvent, cacheErr := cfg.RedisClient.GetCachedEventMetadata(r.Context(), req.EventID)
+	if cacheErr != nil {
+		event, err := cfg.EventServiceClient.GetEventForBooking(r.Context(), req.EventID)
+		if err != nil {
+			cfg.Logger.Error("Failed to get event for reservation", "error", err, "event_id", req.EventID)
+			utils.RespondWithError(w, http.StatusBadRequest, "Event not found or not available for booking")
+			return
+		}
+		cfg.RedisClient.CacheEventMetadata(r.Context(), req.EventID, event, 5*time.Minute)
+		cachedEvent = event
+	}
+
+	if req.Quantity > cachedEvent.MaxTicketsPerBooking {
+		utils.RespondWithError(w, http.StatusBadRequest, fmt.Sprintf("Maximum %d tickets allowed per booking for this event", cachedEvent.MaxTicketsPerBooking))
 		return
 	}
 
-	if req.Quantity > event.MaxTicketsPerBooking {
-		utils.RespondWithError(w, http.StatusBadRequest, fmt.Sprintf("Maximum %d tickets allowed per booking for this event", event.MaxTicketsPerBooking))
+	event, err := cfg.EventServiceClient.GetEventForBooking(r.Context(), req.EventID)
+	if err != nil {
+		cfg.Logger.Error("Failed to get fresh event data", "error", err, "event_id", req.EventID)
+		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to verify event availability")
 		return
 	}
 
@@ -691,10 +703,20 @@ func (cfg *APIConfig) JoinWaitlist(w http.ResponseWriter, r *http.Request) {
 		EventID: req.EventID,
 	})
 	if err == nil {
+		var position int32
+		if existingEntry.Status.String == "waiting" {
+			posResult, posErr := cfg.DB.GetWaitlistPosition(r.Context(), cfg.DB_Conn, bookings.GetWaitlistPositionParams{
+				UserID:  userID,
+				EventID: req.EventID,
+			})
+			if posErr == nil {
+				position = int32(posResult.Position)
+			}
+		}
 		response := JoinWaitlistResponse{
 			WaitlistID:    existingEntry.WaitlistID,
-			Position:      existingEntry.Position,
-			EstimatedWait: cfg.calculateEstimatedWait(existingEntry.Position),
+			Position:      position,
+			EstimatedWait: cfg.calculateEstimatedWait(position),
 			Status:        existingEntry.Status.String,
 		}
 		utils.RespondWithJSON(w, http.StatusOK, response)
@@ -724,16 +746,24 @@ func (cfg *APIConfig) JoinWaitlist(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	stats, err := cfg.DB.GetWaitlistStats(r.Context(), cfg.DB_Conn, req.EventID)
+	if err != nil {
+		cfg.Logger.Error("Failed to get waitlist stats", "error", err)
+		stats.TotalWaiting = 0
+	}
+
+	position := int32(stats.TotalWaiting)
+
 	cfg.Logger.Info("User joined waitlist",
 		"user_id", userID,
 		"event_id", req.EventID,
-		"position", waitlistEntry.Position,
+		"position", position,
 		"quantity", req.Quantity)
 
 	response := JoinWaitlistResponse{
 		WaitlistID:    waitlistEntry.WaitlistID,
-		Position:      waitlistEntry.Position,
-		EstimatedWait: cfg.calculateEstimatedWait(waitlistEntry.Position),
+		Position:      position,
+		EstimatedWait: cfg.calculateEstimatedWait(position),
 		Status:        "waiting",
 	}
 
@@ -774,11 +804,25 @@ func (cfg *APIConfig) GetWaitlistPosition(w http.ResponseWriter, r *http.Request
 		stats.TotalWaiting = 0
 	}
 
+	var position int32
+	if waitlistEntry.Status.String == "waiting" {
+		posResult, err := cfg.DB.GetWaitlistPosition(r.Context(), cfg.DB_Conn, bookings.GetWaitlistPositionParams{
+			UserID:  userID,
+			EventID: eventID,
+		})
+		if err != nil {
+			cfg.Logger.Error("Failed to get position", "error", err)
+			position = 0
+		} else {
+			position = int32(posResult.Position)
+		}
+	}
+
 	response := WaitlistPositionResponse{
-		Position:          waitlistEntry.Position,
+		Position:          position,
 		TotalWaiting:      int32(stats.TotalWaiting),
 		Status:            waitlistEntry.Status.String,
-		EstimatedWait:     cfg.calculateEstimatedWait(waitlistEntry.Position),
+		EstimatedWait:     cfg.calculateEstimatedWait(position),
 		QuantityRequested: waitlistEntry.QuantityRequested,
 	}
 
@@ -812,7 +856,7 @@ func (cfg *APIConfig) LeaveWaitlist(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	waitlistEntry, err := cfg.DB.GetWaitlistEntryByUserAndEvent(r.Context(), cfg.DB_Conn, bookings.GetWaitlistEntryByUserAndEventParams{
+	_, err := cfg.DB.GetWaitlistEntryByUserAndEvent(r.Context(), cfg.DB_Conn, bookings.GetWaitlistEntryByUserAndEventParams{
 		UserID:  userID,
 		EventID: req.EventID,
 	})
@@ -831,18 +875,9 @@ func (cfg *APIConfig) LeaveWaitlist(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = cfg.DB.ReorderWaitlistAfterRemoval(r.Context(), cfg.DB_Conn, bookings.ReorderWaitlistAfterRemovalParams{
-		EventID:  req.EventID,
-		Position: waitlistEntry.Position,
-	})
-	if err != nil {
-		cfg.Logger.Error("Failed to reorder waitlist", "error", err, "event_id", req.EventID)
-	}
-
 	cfg.Logger.Info("User left waitlist",
 		"user_id", userID,
-		"event_id", req.EventID,
-		"position", waitlistEntry.Position)
+		"event_id", req.EventID)
 
 	response := map[string]string{
 		"message": "Successfully removed from waitlist",
@@ -1106,19 +1141,16 @@ func (cfg *APIConfig) ProcessWaitlist(ctx context.Context, eventID uuid.UUID, av
 				continue
 			}
 
-			err = cfg.DB.ReorderWaitlistAfterRemoval(ctx, cfg.DB_Conn, bookings.ReorderWaitlistAfterRemovalParams{
-				EventID:  eventID,
-				Position: entry.Position,
-			})
-			if err != nil {
-				cfg.Logger.Error("Failed to reorder waitlist after offer", "error", err, "event_id", eventID, "position", entry.Position)
-			}
-
 			cfg.Logger.Info("Waitlist offer created",
 				"user_id", entry.UserID,
 				"event_id", eventID,
-				"position", entry.Position,
 				"seats_offered", min(entry.QuantityRequested, seatsToOffer),
+				"expires_at", expiresAt)
+
+			cfg.Logger.Info("Notification: Waitlist seats available",
+				"type", "waitlist_offer",
+				"user_id", entry.UserID,
+				"event_id", eventID,
 				"expires_at", expiresAt)
 
 			seatsToOffer -= min(entry.QuantityRequested, seatsToOffer)
@@ -1133,41 +1165,15 @@ func (cfg *APIConfig) ExpireWaitlistOffers(ctx context.Context) error {
 	}
 
 	for _, offer := range expiredOffers {
-		stats, err := cfg.DB.GetWaitlistStats(ctx, cfg.DB_Conn, offer.EventID)
-		if err != nil {
-			cfg.Logger.Error("Failed to get waitlist stats for expired offer", "error", err, "event_id", offer.EventID)
-			continue
-		}
-
-		newPosition := int32(1)
-		if stats.TotalWaiting > 0 {
-			if lastPos, ok := stats.LastPosition.(int32); ok {
-				newPosition = lastPos + 1
-			} else if lastPos, ok := stats.LastPosition.(int64); ok {
-				newPosition = int32(lastPos) + 1
-			}
-		}
-
-		err = cfg.DB.ReassignWaitlistPosition(ctx, cfg.DB_Conn, bookings.ReassignWaitlistPositionParams{
-			WaitlistID: offer.WaitlistID,
-			Position:   newPosition,
-		})
-		if err != nil {
-			cfg.Logger.Error("Failed to reassign position for expired offer", "error", err, "waitlist_id", offer.WaitlistID)
-			continue
-		}
-
 		_, err = cfg.DB.SetWaitlistWaiting(ctx, cfg.DB_Conn, offer.WaitlistID)
 		if err != nil {
 			cfg.Logger.Error("Failed to expire waitlist offer", "error", err, "waitlist_id", offer.WaitlistID)
 			continue
 		}
 
-		cfg.Logger.Info("Waitlist offer expired - user moved to end of queue",
+		cfg.Logger.Info("Waitlist offer expired - user back in queue",
 			"user_id", offer.UserID,
-			"event_id", offer.EventID,
-			"old_position", offer.Position,
-			"new_position", newPosition)
+			"event_id", offer.EventID)
 	}
 
 	return nil

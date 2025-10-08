@@ -173,6 +173,39 @@ type Querier interface {
 	//    AND (status = 'published' OR status = 'sold_out')
 	//  FOR UPDATE
 	GetEventForBooking(ctx context.Context, eventID uuid.UUID) (GetEventForBookingRow, error)
+	//GetPlatformOverview
+	//
+	//  SELECT
+	//      COUNT(*) FILTER (WHERE status = 'published') as total_published_events,
+	//      COUNT(*) FILTER (WHERE status = 'draft') as total_draft_events,
+	//      SUM(total_capacity - available_seats) FILTER (WHERE status = 'published') as total_tickets_sold,
+	//      SUM(total_capacity) FILTER (WHERE status = 'published') as total_capacity,
+	//      ROUND(
+	//          COALESCE(
+	//              SUM(total_capacity - available_seats) FILTER (WHERE status = 'published')::decimal /
+	//              NULLIF(SUM(total_capacity) FILTER (WHERE status = 'published'), 0) * 100,
+	//              0
+	//          ),
+	//          2
+	//      ) as overall_utilization
+	//  FROM events
+	GetPlatformOverview(ctx context.Context) (GetPlatformOverviewRow, error)
+	//GetTopEventsByTicketsSold
+	//
+	//  SELECT
+	//      event_id,
+	//      name,
+	//      total_capacity,
+	//      available_seats,
+	//      (total_capacity - available_seats) as tickets_sold,
+	//      ROUND(((total_capacity - available_seats)::decimal / total_capacity::decimal) * 100, 2) as utilization,
+	//      base_price,
+	//      ROUND((total_capacity - available_seats) * base_price::decimal, 2) as revenue
+	//  FROM events
+	//  WHERE status = 'published'
+	//  ORDER BY tickets_sold DESC
+	//  LIMIT $1
+	GetTopEventsByTicketsSold(ctx context.Context, limit int32) ([]GetTopEventsByTicketsSoldRow, error)
 	//GetVenueByID
 	//
 	//  SELECT venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_by, created_at, updated_at FROM venues WHERE venue_id = $1

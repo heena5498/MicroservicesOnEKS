@@ -52,8 +52,13 @@ WHERE status = 'published';
 
 -- Future event management (cleanup, notifications)
 -- Note: Removing CURRENT_TIMESTAMP predicate due to immutability requirement
-CREATE INDEX idx_events_upcoming 
+CREATE INDEX idx_events_upcoming
 ON events(start_datetime, status);
+
+-- Analytics queries optimization
+CREATE INDEX idx_events_analytics
+ON events(status, total_capacity, available_seats)
+WHERE status = 'published';
 
 -- +goose StatementEnd
 
@@ -70,4 +75,5 @@ DROP INDEX IF EXISTS idx_admins_email_active;
 DROP INDEX IF EXISTS idx_events_capacity_tracking;
 DROP INDEX IF EXISTS idx_events_search_sync;
 DROP INDEX IF EXISTS idx_events_upcoming;
+DROP INDEX IF EXISTS idx_events_analytics;
 -- +goose StatementEnd

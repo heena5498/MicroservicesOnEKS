@@ -153,6 +153,33 @@ func (r *RedisClient) InvalidateEventAvailabilityCache(ctx context.Context, even
 	return r.client.Del(ctx, key).Err()
 }
 
+func (r *RedisClient) CacheEventMetadata(ctx context.Context, eventID uuid.UUID, metadata *EventServiceEvent, ttl time.Duration) error {
+	key := fmt.Sprintf("booking:event_metadata:%s", eventID)
+	jsonData, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal event metadata: %w", err)
+	}
+	return r.client.Set(ctx, key, jsonData, ttl).Err()
+}
+
+func (r *RedisClient) GetCachedEventMetadata(ctx context.Context, eventID uuid.UUID) (*EventServiceEvent, error) {
+	key := fmt.Sprintf("booking:event_metadata:%s", eventID)
+	val, err := r.client.Get(ctx, key).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return nil, fmt.Errorf("metadata not cached")
+		}
+		return nil, fmt.Errorf("failed to get cached metadata: %w", err)
+	}
+
+	var metadata EventServiceEvent
+	if err := json.Unmarshal([]byte(val), &metadata); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
+	}
+
+	return &metadata, nil
+}
+
 func (r *RedisClient) Close() error {
 	return r.client.Close()
 }

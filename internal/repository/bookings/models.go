@@ -63,7 +63,6 @@ type Waitlist struct {
 	WaitlistID        uuid.UUID      `json:"waitlist_id"`
 	EventID           uuid.UUID      `json:"event_id"`
 	UserID            uuid.UUID      `json:"user_id"`
-	Position          int32          `json:"position"`
 	QuantityRequested int32          `json:"quantity_requested"`
 	Status            sql.NullString `json:"status"`
 	JoinedAt          sql.NullTime   `json:"joined_at"`
