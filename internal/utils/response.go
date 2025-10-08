@@ -15,10 +15,10 @@ func RespondWithError(w http.ResponseWriter, code int, msg string) {
 func RespondWithJSON(w http.ResponseWriter, code int, payload any) {
 	w.Header().Set("Content-Type", constants.ContentTypeJSON)
 	w.WriteHeader(code)
-	
+
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
-	
+
 	if err := encoder.Encode(payload); err != nil {
 		log.Printf("Error encoding JSON: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)

@@ -40,21 +40,73 @@ const BookingFlow = () => {
         fetchEvent();
     }, [eventId]);
 
+    useEffect(() => {
+        const checkExistingReservation = async () => {
+            if (!user?.user_id) return;
+
+            const savedReservation = localStorage.getItem(`reservation_${eventId}_${user.user_id}`);
+            if (savedReservation) {
+                try {
+                    const reservationData = JSON.parse(savedReservation);
+                    const expiryTime = new Date(reservationData.expires_at).getTime();
+                    const now = new Date().getTime();
+
+                    if (expiryTime > now) {
+                        setReservation(reservationData);
+                        setQuantity(reservationData.quantity || quantity);
+                        setStep(2);
+                        setError('');
+                        return;
+                    } else {
+                        localStorage.removeItem(`reservation_${eventId}_${user.user_id}`);
+                    }
+                } catch (error) {
+                    localStorage.removeItem(`reservation_${eventId}_${user.user_id}`);
+                }
+            }
+
+            try {
+                const response = await bookingService.getPendingReservationForEvent(eventId);
+                const reservationData = {
+                    ...response.data,
+                    quantity: response.data.quantity || quantity
+                };
+                setReservation(reservationData);
+                setQuantity(reservationData.quantity);
+                setStep(2);
+                setError('');
+                localStorage.setItem(`reservation_${eventId}_${user.user_id}`, JSON.stringify(reservationData));
+            } catch (error) {
+                if (error.response?.status !== 404) {
+                    console.error('Failed to check pending reservation:', formatError(error));
+                }
+            }
+        };
+
+        checkExistingReservation();
+    }, [eventId, user]);
+
     const handleReservationExpiry = useCallback(async () => {
         if (!reservation) return;
 
         try {
             await bookingService.expireReservation(reservation.reservation_id);
             console.log('Reservation manually expired and seats returned');
-            setReservation(null); // Clear reservation to stop timer
+            setReservation(null);
             setError('Reservation has been expired. Please start over.');
+            if (user?.user_id) {
+                localStorage.removeItem(`reservation_${eventId}_${user.user_id}`);
+            }
         } catch (error) {
             console.error('Manual expiry failed:', formatError(error));
             console.log('Note: Expired reservation cleanup will be handled by background process');
-            setReservation(null); // Clear reservation anyway
+            setReservation(null);
             setError('Reservation expired. Please start over.');
+            if (user?.user_id) {
+                localStorage.removeItem(`reservation_${eventId}_${user.user_id}`);
+            }
         }
-    }, [reservation]);
+    }, [reservation, eventId, user]);
 
     // Countdown timer for reservation
     useEffect(() => {
@@ -69,8 +121,11 @@ const BookingFlow = () => {
                     setTimeLeft(0);
                     setError('Your reservation has expired. Please start over.');
                     handleReservationExpiry();
-                    setReservation(null); // Clear reservation to stop timer
-                    return false; // Expired
+                    setReservation(null);
+                    if (user?.user_id) {
+                        localStorage.removeItem(`reservation_${eventId}_${user.user_id}`);
+                    }
+                    return false;
                 } else {
                     setTimeLeft(Math.floor(remaining / 1000));
                     return true; // Still valid
@@ -107,8 +162,17 @@ const BookingFlow = () => {
                 idempotency_key: idempotencyKey
             });
 
-            setReservation(response.data);
+            const reservationData = {
+                ...response.data,
+                quantity: quantity
+            };
+
+            setReservation(reservationData);
             setStep(2);
+
+            if (user?.user_id) {
+                localStorage.setItem(`reservation_${eventId}_${user.user_id}`, JSON.stringify(reservationData));
+            }
         } catch (error) {
             setError(formatError(error));
         } finally {
@@ -131,6 +195,10 @@ const BookingFlow = () => {
 
             setBooking(response.data);
             setStep(3);
+
+            if (user?.user_id) {
+                localStorage.removeItem(`reservation_${eventId}_${user.user_id}`);
+            }
         } catch (error) {
             setError(formatError(error));
         } finally {

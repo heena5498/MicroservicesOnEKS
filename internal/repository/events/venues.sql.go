@@ -43,8 +43,8 @@ func (q *Queries) CheckVenueOwnership(ctx context.Context, arg CheckVenueOwnersh
 
 const countVenues = `-- name: CountVenues :one
 SELECT COUNT(*) FROM venues
-WHERE ($1::text IS NULL OR city ILIKE '%' || $1 || '%')
-  AND ($2::text IS NULL OR state ILIKE '%' || $2 || '%')
+WHERE (NULLIF($1::text, '') IS NULL OR city ILIKE '%' || $1 || '%')
+  AND (NULLIF($2::text, '') IS NULL OR state ILIKE '%' || $2 || '%')
 `
 
 type CountVenuesParams struct {
@@ -55,8 +55,8 @@ type CountVenuesParams struct {
 // CountVenues
 //
 //	SELECT COUNT(*) FROM venues
-//	WHERE ($1::text IS NULL OR city ILIKE '%' || $1 || '%')
-//	  AND ($2::text IS NULL OR state ILIKE '%' || $2 || '%')
+//	WHERE (NULLIF($1::text, '') IS NULL OR city ILIKE '%' || $1 || '%')
+//	  AND (NULLIF($2::text, '') IS NULL OR state ILIKE '%' || $2 || '%')
 func (q *Queries) CountVenues(ctx context.Context, arg CountVenuesParams) (int64, error) {
 	row := q.db.QueryRowContext(ctx, countVenues, arg.Column1, arg.Column2)
 	var count int64
@@ -210,8 +210,8 @@ func (q *Queries) GetVenuesByCity(ctx context.Context, city string) ([]GetVenues
 
 const listVenues = `-- name: ListVenues :many
 SELECT venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_by, created_at, updated_at FROM venues
-WHERE ($3::text IS NULL OR city ILIKE '%' || $3 || '%')
-  AND ($4::text IS NULL OR state ILIKE '%' || $4 || '%')
+WHERE (NULLIF($3::text, '') IS NULL OR city ILIKE '%' || $3 || '%')
+  AND (NULLIF($4::text, '') IS NULL OR state ILIKE '%' || $4 || '%')
 ORDER BY name
 LIMIT $1 OFFSET $2
 `
@@ -226,8 +226,8 @@ type ListVenuesParams struct {
 // ListVenues
 //
 //	SELECT venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_by, created_at, updated_at FROM venues
-//	WHERE ($3::text IS NULL OR city ILIKE '%' || $3 || '%')
-//	  AND ($4::text IS NULL OR state ILIKE '%' || $4 || '%')
+//	WHERE (NULLIF($3::text, '') IS NULL OR city ILIKE '%' || $3 || '%')
+//	  AND (NULLIF($4::text, '') IS NULL OR state ILIKE '%' || $4 || '%')
 //	ORDER BY name
 //	LIMIT $1 OFFSET $2
 func (q *Queries) ListVenues(ctx context.Context, arg ListVenuesParams) ([]Venue, error) {

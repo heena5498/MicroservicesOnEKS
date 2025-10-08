@@ -9,7 +9,7 @@ import {
 
 const EventDetails = () => {
     const { eventId } = useParams();
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, user } = useAuth();
     const navigate = useNavigate();
 
     const [event, setEvent] = useState(null);
@@ -18,6 +18,8 @@ const EventDetails = () => {
     const [availabilityLoading, setAvailabilityLoading] = useState(false);
     const [error, setError] = useState('');
     const [quantity, setQuantity] = useState(1);
+    const [pendingReservation, setPendingReservation] = useState(null);
+    const [timeLeft, setTimeLeft] = useState(0);
 
     useEffect(() => {
         const fetchEventDetails = async () => {
@@ -57,6 +59,72 @@ const EventDetails = () => {
             checkAvailability();
         }
     }, [event, quantity, checkAvailability]);
+
+    useEffect(() => {
+        const checkPendingReservation = async () => {
+            if (!isAuthenticated || !user?.user_id) return;
+
+            const savedReservation = localStorage.getItem(`reservation_${eventId}_${user.user_id}`);
+            if (savedReservation) {
+                try {
+                    const reservationData = JSON.parse(savedReservation);
+                    const expiryTime = new Date(reservationData.expires_at).getTime();
+                    const now = new Date().getTime();
+
+                    if (expiryTime > now) {
+                        setPendingReservation(reservationData);
+                        return;
+                    } else {
+                        localStorage.removeItem(`reservation_${eventId}_${user.user_id}`);
+                    }
+                } catch (error) {
+                    localStorage.removeItem(`reservation_${eventId}_${user.user_id}`);
+                }
+            }
+
+            try {
+                const response = await bookingService.getPendingReservationForEvent(eventId);
+                setPendingReservation(response.data);
+                localStorage.setItem(`reservation_${eventId}_${user.user_id}`, JSON.stringify(response.data));
+            } catch (error) {
+                if (error.response?.status !== 404) {
+                    console.error('Failed to check pending reservation:', formatError(error));
+                }
+            }
+        };
+
+        checkPendingReservation();
+    }, [eventId, isAuthenticated, user]);
+
+    useEffect(() => {
+        if (pendingReservation && pendingReservation.expires_at) {
+            const updateTimer = () => {
+                const now = new Date().getTime();
+                const expiry = new Date(pendingReservation.expires_at).getTime();
+                const remaining = expiry - now;
+
+                if (remaining <= 0) {
+                    setTimeLeft(0);
+                    setPendingReservation(null);
+                    if (user?.user_id) {
+                        localStorage.removeItem(`reservation_${eventId}_${user.user_id}`);
+                    }
+                } else {
+                    setTimeLeft(Math.floor(remaining / 1000));
+                }
+            };
+
+            updateTimer();
+            const interval = setInterval(updateTimer, 1000);
+            return () => clearInterval(interval);
+        }
+    }, [pendingReservation, eventId, user]);
+
+    const formatTimeRemaining = (seconds) => {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    };
 
     const handleBookNow = () => {
         if (!isAuthenticated) {
@@ -109,7 +177,6 @@ const EventDetails = () => {
 
     return (
         <div className="max-w-4xl mx-auto space-y-8">
-            {/* Back Button */}
             <button
                 onClick={() => navigate(-1)}
                 className="inline-flex items-center text-gray-600 hover:text-blue-600 transition-colors"
@@ -117,6 +184,28 @@ const EventDetails = () => {
                 <ArrowLeft className="h-5 w-5 mr-2" />
                 Back to Events
             </button>
+
+            {pendingReservation && timeLeft > 0 && (
+                <div className="bg-yellow-100 border border-yellow-400 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                            <Clock className="h-5 w-5 text-yellow-600 mr-3" />
+                            <div>
+                                <p className="font-semibold text-yellow-900">You have a pending reservation</p>
+                                <p className="text-sm text-yellow-800">
+                                    Time remaining: <span className="font-mono font-bold">{formatTimeRemaining(timeLeft)}</span>
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => navigate(`/book/${eventId}`)}
+                            className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors font-semibold"
+                        >
+                            Complete Payment
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Event Header */}
             <div className="bg-white rounded-lg shadow-md p-8">
@@ -260,7 +349,14 @@ const EventDetails = () => {
 
                         {/* Book Button */}
                         {event.status === 'published' || event.status === 'sold_out' ? (
-                            isAvailable && !isSoldOut ? (
+                            pendingReservation ? (
+                                <button
+                                    onClick={() => navigate(`/book/${eventId}`)}
+                                    className="w-full bg-yellow-600 text-white py-3 px-4 rounded-lg hover:bg-yellow-700 transition-colors font-semibold"
+                                >
+                                    Complete Pending Payment
+                                </button>
+                            ) : isAvailable && !isSoldOut ? (
                                 <button
                                     onClick={handleBookNow}
                                     disabled={availabilityLoading}

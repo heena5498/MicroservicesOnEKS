@@ -26,7 +26,6 @@ func (e *ElasticsearchClient) HealthCheck(ctx context.Context) error {
 	return nil
 }
 
-
 func (cfg *APIConfig) HandleReadiness(w http.ResponseWriter, r *http.Request) {
 	esStatus := "connected"
 	if err := cfg.ESClient.HealthCheck(r.Context()); err != nil {
@@ -92,7 +91,7 @@ func (cfg *APIConfig) SearchEvents(w http.ResponseWriter, r *http.Request) {
 		Limit:     limit,
 	}
 
-	cacheKey := fmt.Sprintf("search:%s:%s:%s:%s:%s:%.2f:%.2f:%d:%d", 
+	cacheKey := fmt.Sprintf("search:%s:%s:%s:%s:%s:%.2f:%.2f:%d:%d",
 		query, city, eventType, dateFrom, dateTo, minPrice, maxPrice, page, limit)
 
 	if cached := cfg.getCachedSearchResult(r.Context(), cacheKey); cached != nil {
@@ -110,7 +109,7 @@ func (cfg *APIConfig) SearchEvents(w http.ResponseWriter, r *http.Request) {
 
 	cfg.cacheSearchResult(r.Context(), cacheKey, result)
 
-	cfg.Logger.Info("Search completed", 
+	cfg.Logger.Info("Search completed",
 		"query", query,
 		"results", len(result.Results),
 		"total", result.Total,
@@ -329,7 +328,7 @@ func (cfg *APIConfig) FullResync(w http.ResponseWriter, r *http.Request) {
 
 	cfg.invalidateSearchCache(r.Context())
 
-	cfg.Logger.Info("Full resync completed", 
+	cfg.Logger.Info("Full resync completed",
 		"events_indexed", totalIndexed,
 		"time_taken", timeTaken,
 		"events_per_second", float64(totalIndexed)/timeTaken.Seconds())
@@ -345,19 +344,19 @@ func (cfg *APIConfig) FullResync(w http.ResponseWriter, r *http.Request) {
 
 func (cfg *APIConfig) convertEventToDocument(event EventServiceEvent) EventDocument {
 	doc := EventDocument{
-		EventID:       event.EventID,
-		Name:          event.Name,
-		VenueID:       event.VenueID,
-		EventType:     event.EventType,
-		StartDateTime: event.StartDatetime,
-		EndDateTime:   event.EndDatetime,
-		BasePrice:     event.BasePrice,
+		EventID:        event.EventID,
+		Name:           event.Name,
+		VenueID:        event.VenueID,
+		EventType:      event.EventType,
+		StartDateTime:  event.StartDatetime,
+		EndDateTime:    event.EndDatetime,
+		BasePrice:      event.BasePrice,
 		AvailableSeats: event.AvailableSeats,
-		TotalCapacity: event.TotalCapacity,
-		Status:        event.Status,
-		Version:       event.Version,
-		CreatedAt:     event.CreatedAt,
-		UpdatedAt:     event.UpdatedAt,
+		TotalCapacity:  event.TotalCapacity,
+		Status:         event.Status,
+		Version:        event.Version,
+		CreatedAt:      event.CreatedAt,
+		UpdatedAt:      event.UpdatedAt,
 	}
 
 	if event.Description != nil {
@@ -416,7 +415,7 @@ func (cfg *APIConfig) cacheSearchResult(ctx context.Context, key string, result 
 
 func (cfg *APIConfig) invalidateSearchCache(ctx context.Context) {
 	pattern := "search:*"
-	
+
 	keys, err := cfg.RedisClient.Keys(ctx, pattern).Result()
 	if err != nil {
 		cfg.Logger.Error("Failed to get cache keys for invalidation", "error", err, "pattern", pattern)

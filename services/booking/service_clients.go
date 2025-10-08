@@ -109,9 +109,6 @@ func (c *EventServiceClient) GetEventForBooking(ctx context.Context, eventID uui
 	return &event, nil
 }
 
-
-
-
 func (c *EventServiceClient) UpdateAvailability(ctx context.Context, eventID uuid.UUID, quantity, version int32) (*UpdateAvailabilityResponse, error) {
 	requestBody := UpdateAvailabilityRequest{
 		Quantity: quantity,
@@ -123,8 +120,8 @@ func (c *EventServiceClient) UpdateAvailability(ctx context.Context, eventID uui
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", 
-		fmt.Sprintf("%s/internal/events/%s/update-availability", c.BaseURL, eventID), 
+	req, err := http.NewRequestWithContext(ctx, "POST",
+		fmt.Sprintf("%s/internal/events/%s/update-availability", c.BaseURL, eventID),
 		bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -170,8 +167,8 @@ func (c *EventServiceClient) ReturnSeats(ctx context.Context, eventID uuid.UUID,
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", 
-		fmt.Sprintf("%s/internal/events/%s/return-seats", c.BaseURL, eventID), 
+	req, err := http.NewRequestWithContext(ctx, "POST",
+		fmt.Sprintf("%s/internal/events/%s/return-seats", c.BaseURL, eventID),
 		bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)

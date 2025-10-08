@@ -18,9 +18,9 @@ const (
 	BOOKING_SERVICE_URL = "http://localhost:8004"
 	ADMIN_EMAIL         = "fyzanadmin@mail.com"
 	ADMIN_PASSWORD      = "11111111"
-	VENUE_ID           = "7c07652c-75a7-4c1e-9f0f-4a0bff40ff82"
-	NUM_USERS          = 300
-	USER_PASSWORD      = "testpass123"
+	VENUE_ID            = "7c07652c-75a7-4c1e-9f0f-4a0bff40ff82"
+	NUM_USERS           = 300
+	USER_PASSWORD       = "testpass123"
 )
 
 type User struct {
@@ -380,15 +380,15 @@ func getAdminToken() (string, error) {
 
 func createTestEvent(adminToken, name string, capacity, maxPerBooking int) (*Event, error) {
 	payload := map[string]interface{}{
-		"name":                     name,
-		"description":              fmt.Sprintf("Real user test event with %d seats", capacity),
-		"venue_id":                 VENUE_ID,
-		"event_type":               "workshop",
-		"start_datetime":           "2025-12-15T14:00:00Z",
-		"end_datetime":             "2025-12-15T18:00:00Z",
-		"total_capacity":           capacity,
-		"base_price":               75.0,
-		"max_tickets_per_booking":  maxPerBooking,
+		"name":                    name,
+		"description":             fmt.Sprintf("Real user test event with %d seats", capacity),
+		"venue_id":                VENUE_ID,
+		"event_type":              "workshop",
+		"start_datetime":          "2025-12-15T14:00:00Z",
+		"end_datetime":            "2025-12-15T18:00:00Z",
+		"total_capacity":          capacity,
+		"base_price":              75.0,
+		"max_tickets_per_booking": maxPerBooking,
 	}
 
 	jsonData, _ := json.Marshal(payload)

@@ -12,15 +12,15 @@ SELECT * FROM venues WHERE venue_id = $1;
 
 -- name: ListVenues :many
 SELECT * FROM venues
-WHERE ($3::text IS NULL OR city ILIKE '%' || $3 || '%')
-  AND ($4::text IS NULL OR state ILIKE '%' || $4 || '%')
+WHERE (NULLIF($3::text, '') IS NULL OR city ILIKE '%' || $3 || '%')
+  AND (NULLIF($4::text, '') IS NULL OR state ILIKE '%' || $4 || '%')
 ORDER BY name
 LIMIT $1 OFFSET $2;
 
 -- name: CountVenues :one
 SELECT COUNT(*) FROM venues
-WHERE ($1::text IS NULL OR city ILIKE '%' || $1 || '%')
-  AND ($2::text IS NULL OR state ILIKE '%' || $2 || '%');
+WHERE (NULLIF($1::text, '') IS NULL OR city ILIKE '%' || $1 || '%')
+  AND (NULLIF($2::text, '') IS NULL OR state ILIKE '%' || $2 || '%');
 
 -- name: UpdateVenue :one
 UPDATE venues

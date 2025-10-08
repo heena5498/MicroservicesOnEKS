@@ -63,7 +63,7 @@ WHERE status = 'pending' AND expires_at < CURRENT_TIMESTAMP;
 DELETE FROM bookings WHERE booking_id = $1;
 
 -- name: GetBookingWithPayment :one
-SELECT 
+SELECT
     b.*,
     p.payment_id,
     p.amount as payment_amount,
@@ -75,3 +75,9 @@ SELECT
 FROM bookings b
 LEFT JOIN payments p ON b.booking_id = p.booking_id
 WHERE b.booking_id = $1;
+
+-- name: GetPendingBookingByUserAndEvent :one
+SELECT * FROM bookings
+WHERE user_id = $1 AND event_id = $2 AND status = 'pending'
+ORDER BY created_at DESC
+LIMIT 1;

@@ -73,9 +73,10 @@ done
 echo ""
 
 echo "Testing User Registration (20 requests)..."
+TIMESTAMP=$(date +%s)
 for i in {1..20}; do
     printf "Request $i: "
-    test_endpoint "POST" "/api/user/auth/register" "{\"email\":\"stresstest$i@test.com\",\"password\":\"password123\",\"name\":\"Stress User $i\"}"
+    test_endpoint "POST" "/api/user/auth/register" "{\"email\":\"stresstest${TIMESTAMP}_$i@test.com\",\"password\":\"password123\",\"name\":\"Stress User $i\"}"
 done
 echo ""
 

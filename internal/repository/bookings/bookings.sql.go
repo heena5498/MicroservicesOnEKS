@@ -157,7 +157,7 @@ func (q *Queries) GetBookingByReference(ctx context.Context, db DBTX, bookingRef
 }
 
 const getBookingWithPayment = `-- name: GetBookingWithPayment :one
-SELECT 
+SELECT
     b.booking_id, b.user_id, b.event_id, b.booking_reference, b.quantity, b.total_amount, b.status, b.payment_status, b.idempotency_key, b.booked_at, b.expires_at, b.confirmed_at, b.cancelled_at, b.created_at, b.updated_at,
     p.payment_id,
     p.amount as payment_amount,
@@ -371,6 +371,41 @@ func (q *Queries) GetExpiredBookings(ctx context.Context, db DBTX, limit int32) 
 		return nil, err
 	}
 	return items, nil
+}
+
+const getPendingBookingByUserAndEvent = `-- name: GetPendingBookingByUserAndEvent :one
+SELECT booking_id, user_id, event_id, booking_reference, quantity, total_amount, status, payment_status, idempotency_key, booked_at, expires_at, confirmed_at, cancelled_at, created_at, updated_at FROM bookings
+WHERE user_id = $1 AND event_id = $2 AND status = 'pending'
+ORDER BY created_at DESC
+LIMIT 1
+`
+
+type GetPendingBookingByUserAndEventParams struct {
+	UserID  uuid.UUID `json:"user_id"`
+	EventID uuid.UUID `json:"event_id"`
+}
+
+func (q *Queries) GetPendingBookingByUserAndEvent(ctx context.Context, db DBTX, arg GetPendingBookingByUserAndEventParams) (Booking, error) {
+	row := db.QueryRowContext(ctx, getPendingBookingByUserAndEvent, arg.UserID, arg.EventID)
+	var i Booking
+	err := row.Scan(
+		&i.BookingID,
+		&i.UserID,
+		&i.EventID,
+		&i.BookingReference,
+		&i.Quantity,
+		&i.TotalAmount,
+		&i.Status,
+		&i.PaymentStatus,
+		&i.IdempotencyKey,
+		&i.BookedAt,
+		&i.ExpiresAt,
+		&i.ConfirmedAt,
+		&i.CancelledAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const getPendingBookings = `-- name: GetPendingBookings :many

@@ -10,10 +10,10 @@ import (
 )
 
 type APIConfig struct {
-	Config        *config.SearchServiceConfig
-	Logger        *logger.Logger
-	ESClient      *ElasticsearchClient
-	RedisClient   *redis.Client
+	Config             *config.SearchServiceConfig
+	Logger             *logger.Logger
+	ESClient           *ElasticsearchClient
+	RedisClient        *redis.Client
 	EventServiceClient *EventServiceClient
 }
 
@@ -39,19 +39,19 @@ type SearchResponse struct {
 }
 
 type EventSearchResult struct {
-	EventID       uuid.UUID `json:"event_id"`
-	Name          string    `json:"name"`
-	Description   string    `json:"description,omitempty"`
-	VenueName     string    `json:"venue_name"`
-	VenueCity     string    `json:"venue_city"`
-	VenueAddress  string    `json:"venue_address,omitempty"`
-	EventType     string    `json:"event_type"`
-	StartDateTime time.Time `json:"start_datetime"`
-	EndDateTime   time.Time `json:"end_datetime"`
-	BasePrice     float64   `json:"base_price"`
-	AvailableSeats int32    `json:"available_seats"`
-	Status        string    `json:"status"`
-	Score         float64   `json:"score"`
+	EventID        uuid.UUID `json:"event_id"`
+	Name           string    `json:"name"`
+	Description    string    `json:"description,omitempty"`
+	VenueName      string    `json:"venue_name"`
+	VenueCity      string    `json:"venue_city"`
+	VenueAddress   string    `json:"venue_address,omitempty"`
+	EventType      string    `json:"event_type"`
+	StartDateTime  time.Time `json:"start_datetime"`
+	EndDateTime    time.Time `json:"end_datetime"`
+	BasePrice      float64   `json:"base_price"`
+	AvailableSeats int32     `json:"available_seats"`
+	Status         string    `json:"status"`
+	Score          float64   `json:"score"`
 }
 
 type SearchFacets struct {
@@ -90,25 +90,25 @@ type TrendingEventsResponse struct {
 }
 
 type EventDocument struct {
-	EventID       uuid.UUID `json:"event_id"`
-	Name          string    `json:"name"`
-	Description   string    `json:"description,omitempty"`
-	VenueID       uuid.UUID `json:"venue_id"`
-	VenueName     string    `json:"venue_name"`
-	VenueAddress  string    `json:"venue_address,omitempty"`
-	VenueCity     string    `json:"venue_city"`
-	VenueState    string    `json:"venue_state,omitempty"`
-	VenueCountry  string    `json:"venue_country"`
-	EventType     string    `json:"event_type"`
-	StartDateTime time.Time `json:"start_datetime"`
-	EndDateTime   time.Time `json:"end_datetime"`
-	BasePrice     float64   `json:"base_price"`
-	AvailableSeats int32    `json:"available_seats"`
-	TotalCapacity int32     `json:"total_capacity"`
-	Status        string    `json:"status"`
-	Version       int32     `json:"version"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	EventID        uuid.UUID `json:"event_id"`
+	Name           string    `json:"name"`
+	Description    string    `json:"description,omitempty"`
+	VenueID        uuid.UUID `json:"venue_id"`
+	VenueName      string    `json:"venue_name"`
+	VenueAddress   string    `json:"venue_address,omitempty"`
+	VenueCity      string    `json:"venue_city"`
+	VenueState     string    `json:"venue_state,omitempty"`
+	VenueCountry   string    `json:"venue_country"`
+	EventType      string    `json:"event_type"`
+	StartDateTime  time.Time `json:"start_datetime"`
+	EndDateTime    time.Time `json:"end_datetime"`
+	BasePrice      float64   `json:"base_price"`
+	AvailableSeats int32     `json:"available_seats"`
+	TotalCapacity  int32     `json:"total_capacity"`
+	Status         string    `json:"status"`
+	Version        int32     `json:"version"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 type FullResyncRequest struct {

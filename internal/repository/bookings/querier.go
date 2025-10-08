@@ -36,6 +36,7 @@ type Querier interface {
 	GetPaymentByGatewayTransactionID(ctx context.Context, db DBTX, gatewayTransactionID sql.NullString) (Payment, error)
 	GetPaymentByID(ctx context.Context, db DBTX, paymentID uuid.UUID) (Payment, error)
 	GetPaymentsForAnalytics(ctx context.Context, db DBTX, arg GetPaymentsForAnalyticsParams) ([]GetPaymentsForAnalyticsRow, error)
+	GetPendingBookingByUserAndEvent(ctx context.Context, db DBTX, arg GetPendingBookingByUserAndEventParams) (Booking, error)
 	GetPendingBookings(ctx context.Context, db DBTX, limit int32) ([]Booking, error)
 	GetSeatsBySection(ctx context.Context, db DBTX, arg GetSeatsBySectionParams) ([]BookingSeat, error)
 	GetUserBookings(ctx context.Context, db DBTX, arg GetUserBookingsParams) ([]Booking, error)

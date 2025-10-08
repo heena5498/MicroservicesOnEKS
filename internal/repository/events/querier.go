@@ -68,8 +68,8 @@ type Querier interface {
 	//CountVenues
 	//
 	//  SELECT COUNT(*) FROM venues
-	//  WHERE ($1::text IS NULL OR city ILIKE '%' || $1 || '%')
-	//    AND ($2::text IS NULL OR state ILIKE '%' || $2 || '%')
+	//  WHERE (NULLIF($1::text, '') IS NULL OR city ILIKE '%' || $1 || '%')
+	//    AND (NULLIF($2::text, '') IS NULL OR state ILIKE '%' || $2 || '%')
 	CountVenues(ctx context.Context, arg CountVenuesParams) (int64, error)
 	// CREATE ADMIN
 	//
@@ -216,8 +216,8 @@ type Querier interface {
 	//ListVenues
 	//
 	//  SELECT venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_by, created_at, updated_at FROM venues
-	//  WHERE ($3::text IS NULL OR city ILIKE '%' || $3 || '%')
-	//    AND ($4::text IS NULL OR state ILIKE '%' || $4 || '%')
+	//  WHERE (NULLIF($3::text, '') IS NULL OR city ILIKE '%' || $3 || '%')
+	//    AND (NULLIF($4::text, '') IS NULL OR state ILIKE '%' || $4 || '%')
 	//  ORDER BY name
 	//  LIMIT $1 OFFSET $2
 	ListVenues(ctx context.Context, arg ListVenuesParams) ([]Venue, error)

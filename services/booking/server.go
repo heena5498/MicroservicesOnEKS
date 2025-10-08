@@ -31,6 +31,7 @@ func SetupRoutes(config *APIConfig) *http.ServeMux {
 	mux.HandleFunc("DELETE /api/v1/bookings/{id}", userAuth(config.CancelBooking))
 	mux.HandleFunc("POST /api/v1/bookings/{id}/expire", userAuth(config.ManualExpireReservation))
 	mux.HandleFunc("GET /api/v1/bookings/user/{userId}", userAuth(config.GetUserBookings))
+	mux.HandleFunc("GET /api/v1/bookings/event/{eventId}/pending", userAuth(config.GetPendingReservationForEvent))
 
 	mux.HandleFunc("POST /api/v1/waitlist/join", userAuth(config.JoinWaitlist))
 	mux.HandleFunc("GET /api/v1/waitlist/position", userAuth(config.GetWaitlistPosition))
@@ -99,7 +100,7 @@ func HandleHealthz(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cfg *APIConfig) startReservationExpiryWorker() {
-	ticker := time.NewTicker(30 * time.Second) 
+	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
 	cfg.Logger.Info("Started reservation expiry worker", "interval", "30s")
@@ -111,7 +112,7 @@ func (cfg *APIConfig) startReservationExpiryWorker() {
 
 func (cfg *APIConfig) processExpiredReservations() {
 	ctx := context.Background()
-	
+
 	expiredBookings, err := cfg.DB.GetExpiredBookings(ctx, cfg.DB_Conn, 100)
 	if err != nil {
 		cfg.Logger.Error("Failed to get expired bookings in background worker", "error", err)
@@ -119,7 +120,7 @@ func (cfg *APIConfig) processExpiredReservations() {
 	}
 
 	if len(expiredBookings) == 0 {
-		return 
+		return
 	}
 
 	processed := 0

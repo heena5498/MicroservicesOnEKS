@@ -89,7 +89,7 @@ func (cfg *APIConfig) CheckAvailability(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	cfg.RedisClient.CacheEventAvailability(r.Context(), eventID, event.AvailableSeats, 30*time.Second)
+	cfg.RedisClient.CacheEventAvailability(r.Context(), eventID, event.AvailableSeats, 2*time.Second)
 	response := CheckAvailabilityResponse{
 		Available:      event.AvailableSeats >= int32(quantity),
 		AvailableSeats: event.AvailableSeats,
@@ -279,28 +279,55 @@ func (cfg *APIConfig) ConfirmBooking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var booking bookings.Booking
+
 	reservation, err := cfg.RedisClient.GetReservation(r.Context(), req.ReservationID)
 	if err != nil {
-		cfg.Logger.Error("Failed to get reservation", "error", err, "reservation_id", req.ReservationID)
-		utils.RespondWithError(w, http.StatusBadRequest, "Reservation not found or expired")
-		return
-	}
+		cfg.Logger.Warn("Redis unavailable, falling back to database",
+			"error", err, "reservation_id", req.ReservationID)
 
-	if reservation.UserID != userID {
-		utils.RespondWithError(w, http.StatusForbidden, "Reservation does not belong to authenticated user")
-		return
-	}
+		booking, err = cfg.DB.GetBookingByID(r.Context(), cfg.DB_Conn, req.ReservationID)
+		if err != nil {
+			cfg.Logger.Error("Failed to get booking from database", "error", err, "booking_id", req.ReservationID)
+			utils.RespondWithError(w, http.StatusNotFound, "Booking not found")
+			return
+		}
 
-	booking, err := cfg.DB.GetBookingByID(r.Context(), cfg.DB_Conn, req.ReservationID)
-	if err != nil {
-		cfg.Logger.Error("Failed to get booking", "error", err, "booking_id", req.ReservationID)
-		utils.RespondWithError(w, http.StatusNotFound, "Booking not found")
-		return
-	}
+		if booking.UserID != userID {
+			utils.RespondWithError(w, http.StatusForbidden, "Reservation does not belong to authenticated user")
+			return
+		}
 
-	if booking.Status != "pending" {
-		utils.RespondWithError(w, http.StatusConflict, "Booking is not in pending state")
-		return
+		if booking.Status != "pending" {
+			utils.RespondWithError(w, http.StatusConflict, "Booking is not in pending state")
+			return
+		}
+
+		if booking.ExpiresAt.Valid && time.Now().After(booking.ExpiresAt.Time) {
+			cfg.Logger.Info("Booking expired during payment attempt",
+				"booking_id", req.ReservationID, "expired_at", booking.ExpiresAt.Time)
+			utils.RespondWithError(w, http.StatusBadRequest, "Reservation has expired")
+			return
+		}
+
+		cfg.Logger.Info("Database fallback successful", "booking_id", req.ReservationID)
+	} else {
+		if reservation.UserID != userID {
+			utils.RespondWithError(w, http.StatusForbidden, "Reservation does not belong to authenticated user")
+			return
+		}
+
+		booking, err = cfg.DB.GetBookingByID(r.Context(), cfg.DB_Conn, req.ReservationID)
+		if err != nil {
+			cfg.Logger.Error("Failed to get booking", "error", err, "booking_id", req.ReservationID)
+			utils.RespondWithError(w, http.StatusNotFound, "Booking not found")
+			return
+		}
+
+		if booking.Status != "pending" {
+			utils.RespondWithError(w, http.StatusConflict, "Booking is not in pending state")
+			return
+		}
 	}
 
 	gatewayTxnID := utils.GenerateGatewayTransactionID()
@@ -593,6 +620,49 @@ func (cfg *APIConfig) GetUserBookings(w http.ResponseWriter, r *http.Request) {
 		"page":        page,
 		"limit":       limit,
 		"total_pages": (int(total) + limit - 1) / limit,
+	}
+
+	utils.RespondWithJSON(w, http.StatusOK, response)
+}
+
+func (cfg *APIConfig) GetPendingReservationForEvent(w http.ResponseWriter, r *http.Request) {
+	userID, ok := auth.GetUserIDFromContext(r.Context())
+	if !ok {
+		utils.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
+		return
+	}
+
+	eventIDStr := r.PathValue("eventId")
+	eventID, err := uuid.Parse(eventIDStr)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusBadRequest, "Invalid event ID")
+		return
+	}
+
+	booking, err := cfg.DB.GetPendingBookingByUserAndEvent(r.Context(), cfg.DB_Conn, bookings.GetPendingBookingByUserAndEventParams{
+		UserID:  userID,
+		EventID: eventID,
+	})
+	if err != nil {
+		if err == sql.ErrNoRows {
+			utils.RespondWithError(w, http.StatusNotFound, "No pending reservation found")
+			return
+		}
+		cfg.Logger.Error("Failed to get pending reservation", "error", err, "user_id", userID, "event_id", eventID)
+		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to get reservation")
+		return
+	}
+
+	if booking.ExpiresAt.Valid && time.Now().After(booking.ExpiresAt.Time) {
+		utils.RespondWithError(w, http.StatusNotFound, "Reservation has expired")
+		return
+	}
+
+	response := ReservationResponse{
+		ReservationID:    booking.BookingID,
+		BookingReference: booking.BookingReference,
+		ExpiresAt:        booking.ExpiresAt.Time,
+		TotalAmount:      utils.ParseAmount(booking.TotalAmount),
 	}
 
 	utils.RespondWithJSON(w, http.StatusOK, response)

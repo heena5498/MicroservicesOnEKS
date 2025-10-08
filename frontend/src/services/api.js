@@ -48,33 +48,34 @@ addAuthInterceptor(userAPI);
 addAuthInterceptor(eventAPI);
 addAuthInterceptor(bookingAPI);
 
-// Response interceptor for token refresh
 const addResponseInterceptor = (apiInstance) => {
   apiInstance.interceptors.response.use(
     (response) => response,
     async (error) => {
-      if (error.response?.status === 401) {
-        // Try to refresh token
+      const originalRequest = error.config;
+
+      if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/auth/refresh')) {
+        originalRequest._retry = true;
+
         const refreshToken = localStorage.getItem('refresh_token');
         if (refreshToken) {
           try {
-            const response = await userAPI.post('/auth/refresh', {
+            const response = await axios.post(`${API_GATEWAY_URL}${API_ROUTES.USER}/auth/refresh`, {
               refresh_token: refreshToken
             });
-            
+
             localStorage.setItem('access_token', response.data.access_token);
             localStorage.setItem('refresh_token', response.data.refresh_token);
-            
-            // Retry original request
-            error.config.headers.Authorization = `Bearer ${response.data.access_token}`;
-            return axios.request(error.config);
-        } catch {
-          // Refresh failed, logout user
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          localStorage.removeItem('user');
-          window.location.href = '/login';
-        }
+
+            originalRequest.headers.Authorization = `Bearer ${response.data.access_token}`;
+            return axios.request(originalRequest);
+          } catch (refreshError) {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+            return Promise.reject(refreshError);
+          }
         }
       }
       return Promise.reject(error);
@@ -104,27 +105,29 @@ adminAPI.interceptors.request.use((config) => {
 adminAPI.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
-      // Try to refresh admin token
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/auth/admin/refresh')) {
+      originalRequest._retry = true;
+
       const refreshToken = localStorage.getItem('admin_refresh_token');
       if (refreshToken) {
         try {
-          const response = await eventAPI.post('/auth/admin/refresh', {
+          const response = await axios.post(`${API_GATEWAY_URL}${API_ROUTES.EVENT}/auth/admin/refresh`, {
             refresh_token: refreshToken
           });
-          
+
           localStorage.setItem('admin_access_token', response.data.access_token);
           localStorage.setItem('admin_refresh_token', response.data.refresh_token);
-          
-          // Retry original request
-          error.config.headers.Authorization = `Bearer ${response.data.access_token}`;
-          return axios.request(error.config);
-        } catch {
-          // Refresh failed, logout admin
+
+          originalRequest.headers.Authorization = `Bearer ${response.data.access_token}`;
+          return axios.request(originalRequest);
+        } catch (refreshError) {
           localStorage.removeItem('admin_access_token');
           localStorage.removeItem('admin_refresh_token');
           localStorage.removeItem('admin');
           window.location.href = '/admin/login';
+          return Promise.reject(refreshError);
         }
       }
     }
@@ -195,23 +198,20 @@ export const searchService = {
 // ==================== BOOKING SERVICE APIs ====================
 
 export const bookingService = {
-  // Availability
   checkAvailability: (params) => bookingAPI.get('/bookings/check-availability', { params }),
 
-  // Booking Flow
   reserve: (bookingData) => bookingAPI.post('/bookings/reserve', bookingData),
   confirm: (confirmData) => bookingAPI.post('/bookings/confirm', confirmData),
   getBooking: (bookingId) => bookingAPI.get(`/bookings/${bookingId}`),
+  getPendingReservationForEvent: (eventId) => bookingAPI.get(`/bookings/event/${eventId}/pending`),
   cancelBooking: (bookingId) => bookingAPI.delete(`/bookings/${bookingId}`),
   expireReservation: (reservationId) => bookingAPI.post(`/bookings/${reservationId}/expire`),
   getUserBookings: (userId, params = {}) => bookingAPI.get(`/bookings/user/${userId}`, { params }),
 
-  // Waitlist
   joinWaitlist: (waitlistData) => bookingAPI.post('/waitlist/join', waitlistData),
   getWaitlistPosition: (params) => bookingAPI.get('/waitlist/position', { params }),
   leaveWaitlist: (waitlistData) => bookingAPI.delete('/waitlist/leave', { data: waitlistData }),
 
-  // Health (via gateway)
   health: () => bookingAPI.get('/healthz')
 };
 

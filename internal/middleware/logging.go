@@ -44,7 +44,7 @@ func LoggingMiddleware(log *logger.Logger) func(http.Handler) http.Handler {
 			next.ServeHTTP(rw, r)
 
 			duration := time.Since(start)
-			
+
 			fields := map[string]interface{}{
 				"method":     r.Method,
 				"path":       r.URL.Path,
@@ -78,4 +78,3 @@ func getClientIP(r *http.Request) string {
 	}
 	return r.RemoteAddr
 }
-

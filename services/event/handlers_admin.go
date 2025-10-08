@@ -63,6 +63,22 @@ func (cfg *APIConfig) CreateEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	venue, err := cfg.DB.GetVenueByID(r.Context(), requestBody.VenueID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			utils.RespondWithError(w, http.StatusBadRequest, "Venue does not exist")
+			return
+		}
+		cfg.Logger.Error("Failed to get venue", "error", err, "venue_id", requestBody.VenueID)
+		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to validate venue")
+		return
+	}
+
+	if requestBody.TotalCapacity > venue.Capacity {
+		utils.RespondWithError(w, http.StatusBadRequest, fmt.Sprintf("Event capacity (%d) cannot exceed venue capacity (%d)", requestBody.TotalCapacity, venue.Capacity))
+		return
+	}
+
 	if requestBody.BasePrice < 0 {
 		utils.RespondWithError(w, http.StatusBadRequest, "Base price cannot be negative")
 		return
@@ -143,40 +159,32 @@ func (cfg *APIConfig) CreateEvent(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt:            event.UpdatedAt.Time,
 	}
 
-	venue, err := cfg.DB.GetVenueByID(r.Context(), event.VenueID)
-	if err != nil {
-		cfg.Logger.Error("Failed to get venue for search indexing", "error", err, "venue_id", event.VenueID)
-	} else {
-		fmt.Printf("DEBUG: SearchClient status: %v (nil=%t)\n", cfg.SearchClient, cfg.SearchClient == nil)
-		if cfg.SearchClient != nil {
-			fmt.Printf("DEBUG: Attempting to index event %s in search service\n", event.Name)
-			go func() {
-				venueResp := VenueResponse{
-					VenueID:      venue.VenueID,
-					Name:         venue.Name,
-					Address:      venue.Address,
-					City:         venue.City,
-					State:        utils.StringPtrFromNullString(venue.State),
-					Country:      venue.Country,
-					PostalCode:   utils.StringPtrFromNullString(venue.PostalCode),
-					Capacity:     venue.Capacity,
-					LayoutConfig: utils.NullRawMessageToJSONRawMessage(venue.LayoutConfig),
-					CreatedAt:    venue.CreatedAt.Time,
-					UpdatedAt:    venue.UpdatedAt.Time,
-				}
+	if cfg.SearchClient != nil {
+		fmt.Printf("DEBUG: Attempting to index event %s in search service\n", event.Name)
+		go func() {
+			venueResp := VenueResponse{
+				VenueID:      venue.VenueID,
+				Name:         venue.Name,
+				Address:      venue.Address,
+				City:         venue.City,
+				State:        utils.StringPtrFromNullString(venue.State),
+				Country:      venue.Country,
+				PostalCode:   utils.StringPtrFromNullString(venue.PostalCode),
+				Capacity:     venue.Capacity,
+				LayoutConfig: utils.NullRawMessageToJSONRawMessage(venue.LayoutConfig),
+				CreatedAt:    venue.CreatedAt.Time,
+				UpdatedAt:    venue.UpdatedAt.Time,
+			}
 
-				fmt.Printf("DEBUG: Calling SearchClient.IndexEvent for event %s\n", response.Name)
-				ctx := context.Background()
-				if err := cfg.SearchClient.IndexEvent(ctx, response, venueResp); err != nil {
-					cfg.Logger.Error("Failed to index event in search service", "error", err, "event_id", event.EventID)
-					fmt.Printf("DEBUG: IndexEvent failed: %v\n", err)
-				} else {
-					fmt.Printf("DEBUG: IndexEvent succeeded for event %s\n", response.Name)
-				}
-			}()
-		} else {
-			fmt.Printf("DEBUG: SearchClient is nil, search indexing disabled\n")
-		}
+			fmt.Printf("DEBUG: Calling SearchClient.IndexEvent for event %s\n", response.Name)
+			ctx := context.Background()
+			if err := cfg.SearchClient.IndexEvent(ctx, response, venueResp); err != nil {
+				cfg.Logger.Error("Failed to index event in search service", "error", err, "event_id", event.EventID)
+				fmt.Printf("DEBUG: IndexEvent failed: %v\n", err)
+			} else {
+				fmt.Printf("DEBUG: IndexEvent succeeded for event %s\n", response.Name)
+			}
+		}()
 	}
 
 	utils.RespondWithJSON(w, http.StatusCreated, response)

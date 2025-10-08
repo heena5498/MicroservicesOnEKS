@@ -42,18 +42,18 @@ func (e *ElasticsearchClient) CreateIndex(ctx context.Context) error {
 	mapping := map[string]any{
 		"mappings": map[string]any{
 			"properties": map[string]any{
-				"event_id":    map[string]any{"type": "keyword"},
+				"event_id": map[string]any{"type": "keyword"},
 				"name": map[string]any{
 					"type":     "text",
 					"analyzer": "standard",
 					"fields": map[string]any{
 						"keyword": map[string]any{"type": "keyword"},
 						"suggest": map[string]any{
-							"type":                    "completion",
-							"analyzer":                "simple",
-							"preserve_separators":     true,
+							"type":                         "completion",
+							"analyzer":                     "simple",
+							"preserve_separators":          true,
 							"preserve_position_increments": true,
-							"max_input_length":        50,
+							"max_input_length":             50,
 						},
 					},
 				},
@@ -61,22 +61,22 @@ func (e *ElasticsearchClient) CreateIndex(ctx context.Context) error {
 					"type":     "text",
 					"analyzer": "standard",
 				},
-				"venue_id":      map[string]any{"type": "keyword"},
-				"venue_name":    map[string]any{"type": "text", "fields": map[string]any{"keyword": map[string]any{"type": "keyword"}}},
-				"venue_address": map[string]any{"type": "text"},
-				"venue_city":    map[string]any{"type": "keyword"},
-				"venue_state":   map[string]any{"type": "keyword"},
-				"venue_country": map[string]any{"type": "keyword"},
-				"event_type":    map[string]any{"type": "keyword"},
-				"start_datetime": map[string]any{"type": "date"},
-				"end_datetime":   map[string]any{"type": "date"},
-				"base_price":     map[string]any{"type": "float"},
+				"venue_id":        map[string]any{"type": "keyword"},
+				"venue_name":      map[string]any{"type": "text", "fields": map[string]any{"keyword": map[string]any{"type": "keyword"}}},
+				"venue_address":   map[string]any{"type": "text"},
+				"venue_city":      map[string]any{"type": "keyword"},
+				"venue_state":     map[string]any{"type": "keyword"},
+				"venue_country":   map[string]any{"type": "keyword"},
+				"event_type":      map[string]any{"type": "keyword"},
+				"start_datetime":  map[string]any{"type": "date"},
+				"end_datetime":    map[string]any{"type": "date"},
+				"base_price":      map[string]any{"type": "float"},
 				"available_seats": map[string]any{"type": "integer"},
 				"total_capacity":  map[string]any{"type": "integer"},
-				"status":         map[string]any{"type": "keyword"},
-				"version":        map[string]any{"type": "long"},
-				"created_at":     map[string]any{"type": "date"},
-				"updated_at":     map[string]any{"type": "date"},
+				"status":          map[string]any{"type": "keyword"},
+				"version":         map[string]any{"type": "long"},
+				"created_at":      map[string]any{"type": "date"},
+				"updated_at":      map[string]any{"type": "date"},
 			},
 		},
 		"settings": map[string]any{
@@ -170,7 +170,7 @@ func (e *ElasticsearchClient) DeleteEvent(ctx context.Context, eventID uuid.UUID
 
 func (e *ElasticsearchClient) Search(ctx context.Context, searchReq SearchRequest) (*SearchResponse, error) {
 	query := e.buildSearchQuery(searchReq)
-	
+
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(query); err != nil {
 		return nil, fmt.Errorf("failed to encode search query: %w", err)
@@ -266,7 +266,7 @@ func (e *ElasticsearchClient) buildSearchQuery(req SearchRequest) map[string]any
 					"venue_city",
 					"event_type",
 				},
-				"type":                "best_fields",
+				"type":                 "best_fields",
 				"minimum_should_match": "75%",
 			},
 		})
@@ -330,14 +330,14 @@ func (e *ElasticsearchClient) parseSearchResponse(result map[string]any, req Sea
 	if !ok {
 		return nil, fmt.Errorf("invalid search response: missing hits")
 	}
-	
+
 	var total int64
 	if totalInfo, ok := hits["total"].(map[string]any); ok {
 		if value, ok := totalInfo["value"].(float64); ok {
 			total = int64(value)
 		}
 	}
-	
+
 	var events []EventSearchResult
 	if hitsArray, ok := hits["hits"].([]any); ok {
 		for _, hit := range hitsArray {
@@ -345,12 +345,12 @@ func (e *ElasticsearchClient) parseSearchResponse(result map[string]any, req Sea
 			if !ok {
 				continue
 			}
-			
+
 			source, ok := hitMap["_source"].(map[string]any)
 			if !ok {
 				continue
 			}
-			
+
 			var score float64
 			if scoreVal, ok := hitMap["_score"]; ok && scoreVal != nil {
 				if s, ok := scoreVal.(float64); ok {
@@ -360,26 +360,26 @@ func (e *ElasticsearchClient) parseSearchResponse(result map[string]any, req Sea
 
 			eventIDStr := utils.GetStringFromInterface(source["event_id"])
 			eventID, _ := uuid.Parse(eventIDStr)
-			
+
 			startDateStr := utils.GetStringFromInterface(source["start_datetime"])
 			startDateTime, _ := time.Parse(time.RFC3339, startDateStr)
-			
+
 			endDateStr := utils.GetStringFromInterface(source["end_datetime"])
 			endDateTime, _ := time.Parse(time.RFC3339, endDateStr)
 
 			event := EventSearchResult{
-				EventID:       eventID,
-				Name:          utils.GetStringFromInterface(source["name"]),
-				VenueName:     utils.GetStringFromInterface(source["venue_name"]),
-				VenueCity:     utils.GetStringFromInterface(source["venue_city"]),
-				VenueAddress:  utils.GetStringFromInterface(source["venue_address"]),
-				EventType:     utils.GetStringFromInterface(source["event_type"]),
-				StartDateTime: startDateTime,
-				EndDateTime:   endDateTime,
-				BasePrice:     utils.GetFloatFromInterface(source["base_price"]),
+				EventID:        eventID,
+				Name:           utils.GetStringFromInterface(source["name"]),
+				VenueName:      utils.GetStringFromInterface(source["venue_name"]),
+				VenueCity:      utils.GetStringFromInterface(source["venue_city"]),
+				VenueAddress:   utils.GetStringFromInterface(source["venue_address"]),
+				EventType:      utils.GetStringFromInterface(source["event_type"]),
+				StartDateTime:  startDateTime,
+				EndDateTime:    endDateTime,
+				BasePrice:      utils.GetFloatFromInterface(source["base_price"]),
 				AvailableSeats: int32(utils.GetFloatFromInterface(source["available_seats"])),
-				Status:        utils.GetStringFromInterface(source["status"]),
-				Score:         score,
+				Status:         utils.GetStringFromInterface(source["status"]),
+				Score:          score,
 			}
 
 			if desc, ok := source["description"]; ok && desc != nil {
@@ -554,6 +554,3 @@ func (e *ElasticsearchClient) DeleteIndex(ctx context.Context) error {
 	e.logger.Info("Deleted Elasticsearch index", "index", e.indexName)
 	return nil
 }
-
-
-

@@ -82,5 +82,3 @@ func InitSearchService() (*APIConfig, error) {
 
 	return apiConfig, nil
 }
-
-

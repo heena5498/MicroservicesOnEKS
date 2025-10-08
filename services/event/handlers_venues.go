@@ -117,7 +117,7 @@ func (cfg *APIConfig) ListVenues(w http.ResponseWriter, r *http.Request) {
 	offset := (page - 1) * limit
 
 	if search != "" {
-		venues, err := cfg.DB.SearchVenues(r.Context(), sql.NullString{String: search, Valid: search != ""})
+		venues, err := cfg.DB.SearchVenues(r.Context(), sql.NullString{String: search, Valid: true})
 		if err != nil {
 			cfg.Logger.Error("Failed to search venues", "error", err)
 			utils.RespondWithError(w, http.StatusInternalServerError, "Failed to search venues")
@@ -154,9 +154,17 @@ func (cfg *APIConfig) ListVenues(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var cityFilter, stateFilter string
+	if city != "" {
+		cityFilter = city
+	}
+	if state != "" {
+		stateFilter = state
+	}
+
 	countParams := events.CountVenuesParams{
-		Column1: city,
-		Column2: state,
+		Column1: cityFilter,
+		Column2: stateFilter,
 	}
 
 	total, err := cfg.DB.CountVenues(r.Context(), countParams)
@@ -169,8 +177,8 @@ func (cfg *APIConfig) ListVenues(w http.ResponseWriter, r *http.Request) {
 	listParams := events.ListVenuesParams{
 		Limit:   int32(limit),
 		Offset:  int32(offset),
-		Column3: city,
-		Column4: state,
+		Column3: cityFilter,
+		Column4: stateFilter,
 	}
 
 	venues, err := cfg.DB.ListVenues(r.Context(), listParams)
