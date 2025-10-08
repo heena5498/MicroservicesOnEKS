@@ -180,6 +180,54 @@ func (r *RedisClient) GetCachedEventMetadata(ctx context.Context, eventID uuid.U
 	return &metadata, nil
 }
 
+func (r *RedisClient) CacheWaitlistPosition(ctx context.Context, eventID, userID uuid.UUID, position WaitlistPositionResponse) error {
+	key := fmt.Sprintf("waitlist:position:%s:%s", eventID, userID)
+	jsonData, err := json.Marshal(position)
+	if err != nil {
+		return fmt.Errorf("failed to marshal position data: %w", err)
+	}
+	return r.client.Set(ctx, key, jsonData, 5*time.Minute).Err()
+}
+
+func (r *RedisClient) GetCachedWaitlistPosition(ctx context.Context, eventID, userID uuid.UUID) (*WaitlistPositionResponse, error) {
+	key := fmt.Sprintf("waitlist:position:%s:%s", eventID, userID)
+	val, err := r.client.Get(ctx, key).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return nil, fmt.Errorf("position not cached")
+		}
+		return nil, fmt.Errorf("failed to get cached position: %w", err)
+	}
+
+	var position WaitlistPositionResponse
+	if err := json.Unmarshal([]byte(val), &position); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal position data: %w", err)
+	}
+
+	return &position, nil
+}
+
+func (r *RedisClient) InvalidateWaitlistCache(ctx context.Context, eventID uuid.UUID) error {
+	pattern := fmt.Sprintf("waitlist:position:%s:*", eventID)
+
+	iter := r.client.Scan(ctx, 0, pattern, 100).Iterator()
+
+	var keys []string
+	for iter.Next(ctx) {
+		keys = append(keys, iter.Val())
+	}
+
+	if err := iter.Err(); err != nil {
+		return fmt.Errorf("failed to scan waitlist cache: %w", err)
+	}
+
+	if len(keys) > 0 {
+		return r.client.Del(ctx, keys...).Err()
+	}
+
+	return nil
+}
+
 func (r *RedisClient) Close() error {
 	return r.client.Close()
 }

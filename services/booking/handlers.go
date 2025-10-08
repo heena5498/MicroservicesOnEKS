@@ -746,6 +746,8 @@ func (cfg *APIConfig) JoinWaitlist(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cfg.RedisClient.InvalidateWaitlistCache(r.Context(), req.EventID)
+
 	stats, err := cfg.DB.GetWaitlistStats(r.Context(), cfg.DB_Conn, req.EventID)
 	if err != nil {
 		cfg.Logger.Error("Failed to get waitlist stats", "error", err)
@@ -786,6 +788,12 @@ func (cfg *APIConfig) GetWaitlistPosition(w http.ResponseWriter, r *http.Request
 	eventID, err := uuid.Parse(eventIDStr)
 	if err != nil {
 		utils.RespondWithError(w, http.StatusBadRequest, "Invalid event_id format")
+		return
+	}
+
+	cachedPosition, err := cfg.RedisClient.GetCachedWaitlistPosition(r.Context(), eventID, userID)
+	if err == nil {
+		utils.RespondWithJSON(w, http.StatusOK, cachedPosition)
 		return
 	}
 
@@ -835,6 +843,8 @@ func (cfg *APIConfig) GetWaitlistPosition(w http.ResponseWriter, r *http.Request
 		}
 	}
 
+	cfg.RedisClient.CacheWaitlistPosition(r.Context(), eventID, userID, response)
+
 	utils.RespondWithJSON(w, http.StatusOK, response)
 }
 
@@ -874,6 +884,8 @@ func (cfg *APIConfig) LeaveWaitlist(w http.ResponseWriter, r *http.Request) {
 		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to leave waitlist")
 		return
 	}
+
+	cfg.RedisClient.InvalidateWaitlistCache(r.Context(), req.EventID)
 
 	cfg.Logger.Info("User left waitlist",
 		"user_id", userID,
@@ -1123,6 +1135,7 @@ func (cfg *APIConfig) ProcessWaitlist(ctx context.Context, eventID uuid.UUID, av
 		return
 	}
 
+	offersCreated := false
 	seatsToOffer := availableSeats
 	for _, entry := range nextEntries {
 		if seatsToOffer <= 0 {
@@ -1141,6 +1154,8 @@ func (cfg *APIConfig) ProcessWaitlist(ctx context.Context, eventID uuid.UUID, av
 				continue
 			}
 
+			offersCreated = true
+
 			cfg.Logger.Info("Waitlist offer created",
 				"user_id", entry.UserID,
 				"event_id", eventID,
@@ -1155,6 +1170,10 @@ func (cfg *APIConfig) ProcessWaitlist(ctx context.Context, eventID uuid.UUID, av
 
 			seatsToOffer -= min(entry.QuantityRequested, seatsToOffer)
 		}
+	}
+
+	if offersCreated {
+		cfg.RedisClient.InvalidateWaitlistCache(ctx, eventID)
 	}
 }
 

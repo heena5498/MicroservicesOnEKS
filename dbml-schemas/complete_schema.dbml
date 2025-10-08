@@ -165,24 +165,33 @@ Table waitlist as "bookings_db.waitlist" {
   waitlist_id UUID [pk, default: `gen_random_uuid()`]
   event_id UUID [not null, note: 'FK to events_db.events.event_id']
   user_id UUID [not null, note: 'FK to users_db.users.user_id']
-  position integer [not null]
   quantity_requested integer [not null]
-  status varchar(20) [default: 'waiting']
-  joined_at timestamp [default: `CURRENT_TIMESTAMP`]
-  offered_at timestamp
-  expires_at timestamp
-  converted_at timestamp
+  status varchar(20) [default: 'waiting', note: 'waiting | offered | expired | converted']
+  joined_at timestamp [default: `CURRENT_TIMESTAMP`, note: 'Used for FIFO ordering, position calculated on-demand']
+  offered_at timestamp [note: 'When exclusive booking offer was made']
+  expires_at timestamp [note: '2-minute exclusive booking window']
+  converted_at timestamp [note: 'When user successfully completed booking']
   created_at timestamp [default: `CURRENT_TIMESTAMP`]
   updated_at timestamp [default: `CURRENT_TIMESTAMP`]
 
   indexes {
     (user_id, event_id) [unique, name: 'unique_user_event']
-    (event_id, position) [name: 'idx_waitlist_event_position']
+    (event_id, joined_at) [name: 'idx_waitlist_event_joined', note: 'Critical: FIFO ordering for timestamp-based queue']
+    (event_id, status, joined_at) [name: 'idx_waitlist_event_status_joined', note: 'For position calculation queries']
     user_id [name: 'idx_waitlist_user']
     status [name: 'idx_waitlist_status']
-    expires_at [name: 'idx_waitlist_offered_expires']
+    expires_at [name: 'idx_waitlist_offered_expires', note: 'For expiration background job']
     (event_id, status) [name: 'idx_waitlist_event_status']
   }
+
+  Note: '''
+    Timestamp-based waitlist system for scalability:
+    - Position is NOT stored, calculated on-demand using ROW_NUMBER() OVER (ORDER BY joined_at)
+    - O(1) write operations (join, leave, offer)
+    - O(n) position queries (acceptable trade-off for infrequent reads)
+    - Fair FIFO ordering based on joined_at timestamp
+    - No position reordering overhead on insertions/deletions
+  '''
 }
 
 Table booking_seats as "bookings_db.booking_seats" {
