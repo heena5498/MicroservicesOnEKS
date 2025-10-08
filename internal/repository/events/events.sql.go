@@ -48,6 +48,64 @@ func (q *Queries) CheckEventOwnership(ctx context.Context, arg CheckEventOwnersh
 	return i, err
 }
 
+const checkVenueAvailability = `-- name: CheckVenueAvailability :one
+SELECT event_id, name, start_datetime, end_datetime
+FROM events
+WHERE venue_id = $1
+  AND status != 'cancelled'
+  AND event_id != COALESCE($4, '00000000-0000-0000-0000-000000000000'::uuid)
+  AND (
+    (start_datetime <= $2 AND end_datetime > $2)
+    OR (start_datetime < $3 AND end_datetime >= $3)
+    OR (start_datetime >= $2 AND end_datetime <= $3)
+  )
+LIMIT 1
+`
+
+type CheckVenueAvailabilityParams struct {
+	VenueID         uuid.UUID `json:"venue_id"`
+	StartDatetime   time.Time `json:"start_datetime"`
+	StartDatetime_2 time.Time `json:"start_datetime_2"`
+	EventID         uuid.UUID `json:"event_id"`
+}
+
+type CheckVenueAvailabilityRow struct {
+	EventID       uuid.UUID `json:"event_id"`
+	Name          string    `json:"name"`
+	StartDatetime time.Time `json:"start_datetime"`
+	EndDatetime   time.Time `json:"end_datetime"`
+}
+
+// CheckVenueAvailability
+//
+//	SELECT event_id, name, start_datetime, end_datetime
+//	FROM events
+//	WHERE venue_id = $1
+//	  AND status != 'cancelled'
+//	  AND event_id != COALESCE($4, '00000000-0000-0000-0000-000000000000'::uuid)
+//	  AND (
+//	    (start_datetime <= $2 AND end_datetime > $2)
+//	    OR (start_datetime < $3 AND end_datetime >= $3)
+//	    OR (start_datetime >= $2 AND end_datetime <= $3)
+//	  )
+//	LIMIT 1
+func (q *Queries) CheckVenueAvailability(ctx context.Context, arg CheckVenueAvailabilityParams) (CheckVenueAvailabilityRow, error) {
+	row := q.db.QueryRowContext(ctx, checkVenueAvailability,
+		arg.VenueID,
+		arg.StartDatetime,
+		arg.StartDatetime_2,
+		arg.EventID,
+	)
+	var i CheckVenueAvailabilityRow
+	err := row.Scan(
+		&i.EventID,
+		&i.Name,
+		&i.StartDatetime,
+		&i.EndDatetime,
+	)
+	return i, err
+}
+
 const countPublishedEvents = `-- name: CountPublishedEvents :one
 SELECT COUNT(*)
 FROM events e

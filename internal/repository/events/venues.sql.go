@@ -13,6 +13,34 @@ import (
 	"github.com/sqlc-dev/pqtype"
 )
 
+const checkVenueOwnership = `-- name: CheckVenueOwnership :one
+SELECT venue_id, created_by
+FROM venues
+WHERE venue_id = $1 AND created_by = $2
+`
+
+type CheckVenueOwnershipParams struct {
+	VenueID   uuid.UUID `json:"venue_id"`
+	CreatedBy uuid.UUID `json:"created_by"`
+}
+
+type CheckVenueOwnershipRow struct {
+	VenueID   uuid.UUID `json:"venue_id"`
+	CreatedBy uuid.UUID `json:"created_by"`
+}
+
+// CheckVenueOwnership
+//
+//	SELECT venue_id, created_by
+//	FROM venues
+//	WHERE venue_id = $1 AND created_by = $2
+func (q *Queries) CheckVenueOwnership(ctx context.Context, arg CheckVenueOwnershipParams) (CheckVenueOwnershipRow, error) {
+	row := q.db.QueryRowContext(ctx, checkVenueOwnership, arg.VenueID, arg.CreatedBy)
+	var i CheckVenueOwnershipRow
+	err := row.Scan(&i.VenueID, &i.CreatedBy)
+	return i, err
+}
+
 const countVenues = `-- name: CountVenues :one
 SELECT COUNT(*) FROM venues
 WHERE ($1::text IS NULL OR city ILIKE '%' || $1 || '%')
@@ -38,11 +66,11 @@ func (q *Queries) CountVenues(ctx context.Context, arg CountVenuesParams) (int64
 
 const createVenue = `-- name: CreateVenue :one
 INSERT INTO venues (
-    name, address, city, state, country, postal_code, capacity, layout_config
+    name, address, city, state, country, postal_code, capacity, layout_config, created_by
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8
+    $1, $2, $3, $4, $5, $6, $7, $8, $9
 )
-RETURNING venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_at, updated_at
+RETURNING venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_by, created_at, updated_at
 `
 
 type CreateVenueParams struct {
@@ -54,16 +82,17 @@ type CreateVenueParams struct {
 	PostalCode   sql.NullString        `json:"postal_code"`
 	Capacity     int32                 `json:"capacity"`
 	LayoutConfig pqtype.NullRawMessage `json:"layout_config"`
+	CreatedBy    uuid.UUID             `json:"created_by"`
 }
 
 // CreateVenue
 //
 //	INSERT INTO venues (
-//	    name, address, city, state, country, postal_code, capacity, layout_config
+//	    name, address, city, state, country, postal_code, capacity, layout_config, created_by
 //	) VALUES (
-//	    $1, $2, $3, $4, $5, $6, $7, $8
+//	    $1, $2, $3, $4, $5, $6, $7, $8, $9
 //	)
-//	RETURNING venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_at, updated_at
+//	RETURNING venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_by, created_at, updated_at
 func (q *Queries) CreateVenue(ctx context.Context, arg CreateVenueParams) (Venue, error) {
 	row := q.db.QueryRowContext(ctx, createVenue,
 		arg.Name,
@@ -74,6 +103,7 @@ func (q *Queries) CreateVenue(ctx context.Context, arg CreateVenueParams) (Venue
 		arg.PostalCode,
 		arg.Capacity,
 		arg.LayoutConfig,
+		arg.CreatedBy,
 	)
 	var i Venue
 	err := row.Scan(
@@ -86,6 +116,7 @@ func (q *Queries) CreateVenue(ctx context.Context, arg CreateVenueParams) (Venue
 		&i.PostalCode,
 		&i.Capacity,
 		&i.LayoutConfig,
+		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -105,12 +136,12 @@ func (q *Queries) DeleteVenue(ctx context.Context, venueID uuid.UUID) error {
 }
 
 const getVenueByID = `-- name: GetVenueByID :one
-SELECT venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_at, updated_at FROM venues WHERE venue_id = $1
+SELECT venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_by, created_at, updated_at FROM venues WHERE venue_id = $1
 `
 
 // GetVenueByID
 //
-//	SELECT venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_at, updated_at FROM venues WHERE venue_id = $1
+//	SELECT venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_by, created_at, updated_at FROM venues WHERE venue_id = $1
 func (q *Queries) GetVenueByID(ctx context.Context, venueID uuid.UUID) (Venue, error) {
 	row := q.db.QueryRowContext(ctx, getVenueByID, venueID)
 	var i Venue
@@ -124,6 +155,7 @@ func (q *Queries) GetVenueByID(ctx context.Context, venueID uuid.UUID) (Venue, e
 		&i.PostalCode,
 		&i.Capacity,
 		&i.LayoutConfig,
+		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -177,7 +209,7 @@ func (q *Queries) GetVenuesByCity(ctx context.Context, city string) ([]GetVenues
 }
 
 const listVenues = `-- name: ListVenues :many
-SELECT venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_at, updated_at FROM venues
+SELECT venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_by, created_at, updated_at FROM venues
 WHERE ($3::text IS NULL OR city ILIKE '%' || $3 || '%')
   AND ($4::text IS NULL OR state ILIKE '%' || $4 || '%')
 ORDER BY name
@@ -193,7 +225,7 @@ type ListVenuesParams struct {
 
 // ListVenues
 //
-//	SELECT venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_at, updated_at FROM venues
+//	SELECT venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_by, created_at, updated_at FROM venues
 //	WHERE ($3::text IS NULL OR city ILIKE '%' || $3 || '%')
 //	  AND ($4::text IS NULL OR state ILIKE '%' || $4 || '%')
 //	ORDER BY name
@@ -222,6 +254,7 @@ func (q *Queries) ListVenues(ctx context.Context, arg ListVenuesParams) ([]Venue
 			&i.PostalCode,
 			&i.Capacity,
 			&i.LayoutConfig,
+			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -239,7 +272,7 @@ func (q *Queries) ListVenues(ctx context.Context, arg ListVenuesParams) ([]Venue
 }
 
 const searchVenues = `-- name: SearchVenues :many
-SELECT venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_at, updated_at FROM venues
+SELECT venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_by, created_at, updated_at FROM venues
 WHERE name ILIKE '%' || $1 || '%'
    OR city ILIKE '%' || $1 || '%'
    OR address ILIKE '%' || $1 || '%'
@@ -251,7 +284,7 @@ LIMIT 10
 
 // SearchVenues
 //
-//	SELECT venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_at, updated_at FROM venues
+//	SELECT venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_by, created_at, updated_at FROM venues
 //	WHERE name ILIKE '%' || $1 || '%'
 //	   OR city ILIKE '%' || $1 || '%'
 //	   OR address ILIKE '%' || $1 || '%'
@@ -278,6 +311,7 @@ func (q *Queries) SearchVenues(ctx context.Context, dollar_1 sql.NullString) ([]
 			&i.PostalCode,
 			&i.Capacity,
 			&i.LayoutConfig,
+			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -306,7 +340,7 @@ SET name = COALESCE($2, name),
     layout_config = COALESCE($9, layout_config),
     updated_at = CURRENT_TIMESTAMP
 WHERE venue_id = $1
-RETURNING venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_at, updated_at
+RETURNING venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_by, created_at, updated_at
 `
 
 type UpdateVenueParams struct {
@@ -334,7 +368,7 @@ type UpdateVenueParams struct {
 //	    layout_config = COALESCE($9, layout_config),
 //	    updated_at = CURRENT_TIMESTAMP
 //	WHERE venue_id = $1
-//	RETURNING venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_at, updated_at
+//	RETURNING venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_by, created_at, updated_at
 func (q *Queries) UpdateVenue(ctx context.Context, arg UpdateVenueParams) (Venue, error) {
 	row := q.db.QueryRowContext(ctx, updateVenue,
 		arg.VenueID,
@@ -358,6 +392,7 @@ func (q *Queries) UpdateVenue(ctx context.Context, arg UpdateVenueParams) (Venue
 		&i.PostalCode,
 		&i.Capacity,
 		&i.LayoutConfig,
+		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

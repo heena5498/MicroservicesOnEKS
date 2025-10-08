@@ -3,9 +3,12 @@ package auth
 import (
 	"context"
 	"net/http"
+	"time"
 
+	"github.com/fyzanshaik/bookmyevent-ily/internal/cache"
 	"github.com/fyzanshaik/bookmyevent-ily/internal/utils"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 )
 
 type UserContextKey string
@@ -90,4 +93,94 @@ func RequireAdminAuth(jwtSecret string) func(http.HandlerFunc) http.HandlerFunc 
 func GetAdminIDFromContext(ctx context.Context) (uuid.UUID, bool) {
 	adminID, ok := ctx.Value(AdminIDKey).(uuid.UUID)
 	return adminID, ok
+}
+
+func RequireAuthWithCache(jwtSecret string, redisClient *cache.RedisClient) func(http.HandlerFunc) http.HandlerFunc {
+	return func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			token, err := GetBearerToken(r.Header)
+			if err != nil {
+				utils.RespondWithError(w, http.StatusUnauthorized, "Missing or invalid authorization header")
+				return
+			}
+
+			var userID uuid.UUID
+
+			if redisClient != nil {
+				cachedUserID, err := redisClient.GetCachedJWT(r.Context(), token)
+				if err == nil {
+					userID, err = uuid.Parse(cachedUserID)
+					if err == nil {
+						ctx := context.WithValue(r.Context(), UserIDKey, userID)
+						r = r.WithContext(ctx)
+						next(w, r)
+						return
+					}
+				} else if err != redis.Nil {
+					utils.RespondWithError(w, http.StatusInternalServerError, "Cache error")
+					return
+				}
+			}
+
+			userID, err = ValidateJWT(token, jwtSecret)
+			if err != nil {
+				utils.RespondWithError(w, http.StatusUnauthorized, "Invalid token")
+				return
+			}
+
+			if redisClient != nil {
+				go redisClient.CacheJWT(context.Background(), token, userID.String(), 15*time.Minute)
+			}
+
+			ctx := context.WithValue(r.Context(), UserIDKey, userID)
+			r = r.WithContext(ctx)
+
+			next(w, r)
+		}
+	}
+}
+
+func RequireAdminAuthWithCache(jwtSecret string, redisClient *cache.RedisClient) func(http.HandlerFunc) http.HandlerFunc {
+	return func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			token, err := GetBearerToken(r.Header)
+			if err != nil {
+				utils.RespondWithError(w, http.StatusUnauthorized, "Missing or invalid authorization header")
+				return
+			}
+
+			var adminID uuid.UUID
+
+			if redisClient != nil {
+				cachedAdminID, err := redisClient.GetCachedJWT(r.Context(), token)
+				if err == nil {
+					adminID, err = uuid.Parse(cachedAdminID)
+					if err == nil {
+						ctx := context.WithValue(r.Context(), AdminIDKey, adminID)
+						r = r.WithContext(ctx)
+						next(w, r)
+						return
+					}
+				} else if err != redis.Nil {
+					utils.RespondWithError(w, http.StatusInternalServerError, "Cache error")
+					return
+				}
+			}
+
+			claims, err := ValidateAdminJWT(token, jwtSecret)
+			if err != nil {
+				utils.RespondWithError(w, http.StatusUnauthorized, "Invalid admin token")
+				return
+			}
+
+			if redisClient != nil {
+				go redisClient.CacheJWT(context.Background(), token, claims.AdminID.String(), 15*time.Minute)
+			}
+
+			ctx := context.WithValue(r.Context(), AdminIDKey, claims.AdminID)
+			r = r.WithContext(ctx)
+
+			next(w, r)
+		}
+	}
 }

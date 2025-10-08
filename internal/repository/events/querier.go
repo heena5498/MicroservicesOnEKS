@@ -24,6 +24,26 @@ type Querier interface {
 	//  FROM events
 	//  WHERE event_id = $1 AND created_by = $2
 	CheckEventOwnership(ctx context.Context, arg CheckEventOwnershipParams) (CheckEventOwnershipRow, error)
+	//CheckVenueAvailability
+	//
+	//  SELECT event_id, name, start_datetime, end_datetime
+	//  FROM events
+	//  WHERE venue_id = $1
+	//    AND status != 'cancelled'
+	//    AND event_id != COALESCE($4, '00000000-0000-0000-0000-000000000000'::uuid)
+	//    AND (
+	//      (start_datetime <= $2 AND end_datetime > $2)
+	//      OR (start_datetime < $3 AND end_datetime >= $3)
+	//      OR (start_datetime >= $2 AND end_datetime <= $3)
+	//    )
+	//  LIMIT 1
+	CheckVenueAvailability(ctx context.Context, arg CheckVenueAvailabilityParams) (CheckVenueAvailabilityRow, error)
+	//CheckVenueOwnership
+	//
+	//  SELECT venue_id, created_by
+	//  FROM venues
+	//  WHERE venue_id = $1 AND created_by = $2
+	CheckVenueOwnership(ctx context.Context, arg CheckVenueOwnershipParams) (CheckVenueOwnershipRow, error)
 	//CleanupExpiredAdminTokens
 	//
 	//  DELETE FROM admin_refresh_tokens
@@ -82,11 +102,11 @@ type Querier interface {
 	//CreateVenue
 	//
 	//  INSERT INTO venues (
-	//      name, address, city, state, country, postal_code, capacity, layout_config
+	//      name, address, city, state, country, postal_code, capacity, layout_config, created_by
 	//  ) VALUES (
-	//      $1, $2, $3, $4, $5, $6, $7, $8
+	//      $1, $2, $3, $4, $5, $6, $7, $8, $9
 	//  )
-	//  RETURNING venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_at, updated_at
+	//  RETURNING venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_by, created_at, updated_at
 	CreateVenue(ctx context.Context, arg CreateVenueParams) (Venue, error)
 	//DeactivateAdmin
 	//
@@ -155,7 +175,7 @@ type Querier interface {
 	GetEventForBooking(ctx context.Context, eventID uuid.UUID) (GetEventForBookingRow, error)
 	//GetVenueByID
 	//
-	//  SELECT venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_at, updated_at FROM venues WHERE venue_id = $1
+	//  SELECT venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_by, created_at, updated_at FROM venues WHERE venue_id = $1
 	GetVenueByID(ctx context.Context, venueID uuid.UUID) (Venue, error)
 	//GetVenuesByCity
 	//
@@ -195,7 +215,7 @@ type Querier interface {
 	ListPublishedEvents(ctx context.Context, arg ListPublishedEventsParams) ([]ListPublishedEventsRow, error)
 	//ListVenues
 	//
-	//  SELECT venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_at, updated_at FROM venues
+	//  SELECT venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_by, created_at, updated_at FROM venues
 	//  WHERE ($3::text IS NULL OR city ILIKE '%' || $3 || '%')
 	//    AND ($4::text IS NULL OR state ILIKE '%' || $4 || '%')
 	//  ORDER BY name
@@ -233,7 +253,7 @@ type Querier interface {
 	RevokeAllAdminTokens(ctx context.Context, adminID uuid.UUID) error
 	//SearchVenues
 	//
-	//  SELECT venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_at, updated_at FROM venues
+	//  SELECT venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_by, created_at, updated_at FROM venues
 	//  WHERE name ILIKE '%' || $1 || '%'
 	//     OR city ILIKE '%' || $1 || '%'
 	//     OR address ILIKE '%' || $1 || '%'
@@ -309,7 +329,7 @@ type Querier interface {
 	//      layout_config = COALESCE($9, layout_config),
 	//      updated_at = CURRENT_TIMESTAMP
 	//  WHERE venue_id = $1
-	//  RETURNING venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_at, updated_at
+	//  RETURNING venue_id, name, address, city, state, country, postal_code, capacity, layout_config, created_by, created_at, updated_at
 	UpdateVenue(ctx context.Context, arg UpdateVenueParams) (Venue, error)
 }
 

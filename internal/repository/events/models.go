@@ -63,6 +63,7 @@ type Venue struct {
 	PostalCode   sql.NullString        `json:"postal_code"`
 	Capacity     int32                 `json:"capacity"`
 	LayoutConfig pqtype.NullRawMessage `json:"layout_config"`
+	CreatedBy    uuid.UUID             `json:"created_by"`
 	CreatedAt    sql.NullTime          `json:"created_at"`
 	UpdatedAt    sql.NullTime          `json:"updated_at"`
 }

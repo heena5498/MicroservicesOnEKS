@@ -1,0 +1,92 @@
+// Event Service Database Schema
+// Database: events_db
+
+Project events_db {
+  database_type: 'PostgreSQL'
+  Note: 'Event management, venue information, and admin authentication database'
+}
+
+Table venues {
+  venue_id uuid [pk, default: `gen_random_uuid()`]
+  name varchar(255) [not null]
+  address text [not null]
+  city varchar(100) [not null]
+  state varchar(100)
+  country varchar(100) [not null, default: 'USA']
+  postal_code varchar(20)
+  capacity integer [not null, note: 'CHECK: capacity > 0']
+  layout_config jsonb [default: '{}']
+  created_by uuid [not null, note: 'Admin who created the venue']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Physical locations where events take place'
+}
+
+Table events {
+  event_id uuid [pk, default: `gen_random_uuid()`]
+  name varchar(255) [not null]
+  description text
+  venue_id uuid [not null]
+  event_type varchar(50) [not null]
+  start_datetime timestamp [not null]
+  end_datetime timestamp [not null]
+  total_capacity integer [not null, note: 'CHECK: total_capacity > 0']
+  available_seats integer [not null, note: 'CHECK: available_seats >= 0, available_seats <= total_capacity']
+  base_price decimal(10,2) [not null, note: 'CHECK: base_price >= 0']
+  max_tickets_per_booking integer [default: 10, note: 'CHECK: max_tickets_per_booking > 0']
+  status varchar(20) [default: 'draft', note: "CHECK: status IN ('draft', 'published', 'sold_out', 'cancelled')"]
+  version integer [not null, default: 1, note: 'Optimistic locking version']
+  created_by uuid [not null, note: 'References admin_id']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: '''
+    Event catalog with availability tracking and optimistic locking.
+
+    EXCLUSION CONSTRAINT: no_overlapping_events
+    - Uses GIST index with tstzrange(start_datetime, end_datetime)
+    - Prevents double-booking venues by ensuring no time overlap for non-cancelled events
+    - Atomic guarantee at database level for venue scheduling conflicts
+  '''
+
+  Indexes {
+    (venue_id, start_datetime, end_datetime) [type: gist, name: 'no_overlapping_events', note: 'EXCLUDE: Prevents overlapping events at same venue (WHERE status != cancelled)']
+  }
+}
+
+Table admins {
+  admin_id uuid [pk, default: `gen_random_uuid()`]
+  email varchar(255) [unique, not null]
+  name varchar(255) [not null]
+  phone_number varchar(20)
+  password_hash varchar(255) [not null]
+  role varchar(50) [default: 'event_manager', note: "CHECK: role IN ('super_admin', 'event_manager', 'analyst')"]
+  permissions jsonb [default: '{}']
+  is_active boolean [default: true]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Admin users who can create and manage events'
+}
+
+Table admin_refresh_tokens {
+  token text [pk]
+  admin_id uuid [not null]
+  expires_at timestamp [not null]
+  revoked_at timestamp
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'JWT refresh tokens for admin sessions'
+
+  Indexes {
+    admin_id [name: 'idx_admin_refresh_tokens_admin_id']
+    (expires_at) [name: 'idx_admin_refresh_tokens_expires', note: 'WHERE revoked_at IS NULL']
+  }
+}
+
+Ref: venues.created_by > admins.admin_id
+Ref: events.venue_id > venues.venue_id
+Ref: events.created_by > admins.admin_id
+Ref: admin_refresh_tokens.admin_id > admins.admin_id [delete: cascade]

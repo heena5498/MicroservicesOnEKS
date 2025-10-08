@@ -127,3 +127,16 @@ WHERE e.event_id = $1;
 SELECT event_id, created_by, status, version
 FROM events
 WHERE event_id = $1 AND created_by = $2;
+
+-- name: CheckVenueAvailability :one
+SELECT event_id, name, start_datetime, end_datetime
+FROM events
+WHERE venue_id = $1
+  AND status != 'cancelled'
+  AND event_id != COALESCE($4, '00000000-0000-0000-0000-000000000000'::uuid)
+  AND (
+    (start_datetime <= $2 AND end_datetime > $2)
+    OR (start_datetime < $3 AND end_datetime >= $3)
+    OR (start_datetime >= $2 AND end_datetime <= $3)
+  )
+LIMIT 1;

@@ -1,9 +1,9 @@
 
 -- name: CreateVenue :one
 INSERT INTO venues (
-    name, address, city, state, country, postal_code, capacity, layout_config
+    name, address, city, state, country, postal_code, capacity, layout_config, created_by
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8
+    $1, $2, $3, $4, $5, $6, $7, $8, $9
 )
 RETURNING *;
 
@@ -53,3 +53,8 @@ ORDER BY
     CASE WHEN name ILIKE $1 || '%' THEN 1 ELSE 2 END,
     name
 LIMIT 10;
+
+-- name: CheckVenueOwnership :one
+SELECT venue_id, created_by
+FROM venues
+WHERE venue_id = $1 AND created_by = $2;

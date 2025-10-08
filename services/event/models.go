@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/fyzanshaik/bookmyevent-ily/internal/cache"
 	"github.com/fyzanshaik/bookmyevent-ily/internal/config"
 	"github.com/fyzanshaik/bookmyevent-ily/internal/logger"
 	"github.com/fyzanshaik/bookmyevent-ily/internal/repository/events"
@@ -17,6 +18,7 @@ type APIConfig struct {
 	Config       *config.EventServiceConfig
 	Logger       *logger.Logger
 	SearchClient *SearchServiceClient
+	RedisClient  *cache.RedisClient
 }
 
 type AdminRegisterRequest struct {
@@ -159,6 +161,7 @@ type VenueResponse struct {
 	PostalCode   *string         `json:"postal_code,omitempty"`
 	Capacity     int32           `json:"capacity"`
 	LayoutConfig json.RawMessage `json:"layout_config,omitempty"`
+	CreatedBy    uuid.UUID       `json:"created_by"`
 	CreatedAt    time.Time       `json:"created_at"`
 	UpdatedAt    time.Time       `json:"updated_at"`
 }

@@ -1,0 +1,85 @@
+// Booking Service Database Schema
+// Database: bookings_db
+
+Project bookings_db {
+  database_type: 'PostgreSQL'
+  Note: 'Ticket booking, payment processing, and waitlist management database'
+}
+
+Table bookings {
+  booking_id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null, note: 'References users.user_id in users_db']
+  event_id uuid [not null, note: 'References events.event_id in events_db']
+  booking_reference varchar(20) [unique, not null]
+  quantity integer [not null]
+  total_amount decimal(10,2) [not null]
+  status varchar(20) [not null, note: "e.g. 'pending', 'confirmed', 'cancelled'"]
+  payment_status varchar(20) [not null, note: "e.g. 'pending', 'completed', 'failed'"]
+  idempotency_key varchar(255) [unique, note: 'Prevents duplicate bookings']
+  booked_at timestamp [default: `CURRENT_TIMESTAMP`]
+  expires_at timestamp [note: 'Reservation expiration (5-minute hold)']
+  confirmed_at timestamp
+  cancelled_at timestamp
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Core booking records with two-phase reserve-confirm flow'
+}
+
+Table payments {
+  payment_id uuid [pk, default: `gen_random_uuid()`]
+  booking_id uuid [not null, note: 'References bookings.booking_id']
+  user_id uuid [not null, note: 'References users.user_id in users_db']
+  event_id uuid [not null, note: 'References events.event_id in events_db']
+  amount decimal(10,2) [not null]
+  currency varchar(3) [default: 'USD']
+  payment_method varchar(50)
+  payment_gateway varchar(50)
+  gateway_transaction_id varchar(255)
+  status varchar(20) [not null, note: "e.g. 'pending', 'completed', 'failed', 'refunded'"]
+  ticket_url text [note: 'URL to download tickets']
+  initiated_at timestamp [default: `CURRENT_TIMESTAMP`]
+  completed_at timestamp
+  failed_at timestamp
+  error_message text
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Payment transaction records and gateway integration'
+}
+
+Table waitlist {
+  waitlist_id uuid [pk, default: `gen_random_uuid()`]
+  event_id uuid [not null, note: 'References events.event_id in events_db']
+  user_id uuid [not null, note: 'References users.user_id in users_db']
+  position integer [not null, note: 'Queue position in waitlist']
+  quantity_requested integer [not null]
+  status varchar(20) [default: 'waiting', note: "e.g. 'waiting', 'offered', 'converted', 'expired'"]
+  joined_at timestamp [default: `CURRENT_TIMESTAMP`]
+  offered_at timestamp [note: 'When tickets were offered to user']
+  expires_at timestamp [note: 'Offer expiration time']
+  converted_at timestamp [note: 'When user completed booking']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Waitlist queue for sold-out events with automated notifications'
+}
+
+Table booking_seats {
+  booking_seat_id uuid [pk, default: `gen_random_uuid()`]
+  booking_id uuid [not null, note: 'References bookings.booking_id']
+  seat_number varchar(10)
+  seat_row varchar(10)
+  seat_section varchar(50)
+  status varchar(20) [default: 'booked', note: "e.g. 'booked', 'cancelled'"]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Individual seat assignments for bookings'
+}
+
+// Internal references within bookings_db
+Ref: payments.booking_id > bookings.booking_id
+Ref: booking_seats.booking_id > bookings.booking_id
+
+// Note: Cross-database references (user_id, event_id) are enforced at application level

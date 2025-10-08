@@ -4,8 +4,10 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/fyzanshaik/bookmyevent-ily/internal/auth"
+	"github.com/fyzanshaik/bookmyevent-ily/internal/cache"
 	"github.com/fyzanshaik/bookmyevent-ily/internal/config"
 	"github.com/fyzanshaik/bookmyevent-ily/internal/database"
 	"github.com/fyzanshaik/bookmyevent-ily/internal/logger"
@@ -24,7 +26,12 @@ func SetupRoutes(config *APIConfig) *http.ServeMux {
 	mux.HandleFunc("POST /api/v1/auth/refresh", config.RefreshToken)
 	mux.HandleFunc("POST /api/v1/auth/logout", config.RevokeToken)
 
-	authMiddleware := auth.RequireAuth(config.Config.JWTSecret)
+	var authMiddleware func(http.HandlerFunc) http.HandlerFunc
+	if config.RedisClient != nil {
+		authMiddleware = auth.RequireAuthWithCache(config.Config.JWTSecret, config.RedisClient)
+	} else {
+		authMiddleware = auth.RequireAuth(config.Config.JWTSecret)
+	}
 	mux.HandleFunc("GET /api/v1/users/profile", authMiddleware(config.GetProfile))
 	mux.HandleFunc("PUT /api/v1/users/profile", authMiddleware(config.UpdateProfile))
 	mux.HandleFunc("GET /api/v1/users/bookings", authMiddleware(config.GetUserBookings))
@@ -64,11 +71,25 @@ func InitUserService() (*APIConfig, *sql.DB) {
 
 	dbQueries := users.New()
 
+	var redisClient *cache.RedisClient
+	redisURL := os.Getenv("REDIS_URL")
+	if redisURL != "" {
+		redisClient, err = cache.NewRedisClient(redisURL)
+		if err != nil {
+			logger.Warn("Failed to connect to Redis, caching disabled", "error", err)
+		} else {
+			logger.Info("Redis client initialized successfully")
+		}
+	} else {
+		logger.Info("Redis URL not configured, caching disabled")
+	}
+
 	apiConfig := &APIConfig{
-		DB:      dbQueries,
-		DB_Conn: db,
-		Config:  cfg,
-		Logger:  logger,
+		DB:          dbQueries,
+		DB_Conn:     db,
+		Config:      cfg,
+		Logger:      logger,
+		RedisClient: redisClient,
 	}
 
 	return apiConfig, db

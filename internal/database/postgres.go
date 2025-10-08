@@ -17,10 +17,10 @@ type PostgresConfig struct {
 
 func DefaultPostgresConfig() PostgresConfig {
 	return PostgresConfig{
-		MaxOpenConns:    25,
-		MaxIdleConns:    5,
-		ConnMaxLifetime: 5 * time.Minute,
-		ConnMaxIdleTime: 1 * time.Minute,
+		MaxOpenConns:    100,
+		MaxIdleConns:    25,
+		ConnMaxLifetime: 10 * time.Minute,
+		ConnMaxIdleTime: 5 * time.Minute,
 	}
 }
 

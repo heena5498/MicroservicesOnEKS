@@ -397,6 +397,17 @@ func (cfg *APIConfig) GetEventByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if cfg.RedisClient != nil {
+		cachedEvent, err := cfg.RedisClient.Get(r.Context(), "event:"+eventID.String())
+		if err == nil {
+			var response EventResponse
+			if err := json.Unmarshal([]byte(cachedEvent), &response); err == nil {
+				utils.RespondWithJSON(w, http.StatusOK, response)
+				return
+			}
+		}
+	}
+
 	event, err := cfg.DB.GetEventByID(r.Context(), eventID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -430,6 +441,12 @@ func (cfg *APIConfig) GetEventByID(w http.ResponseWriter, r *http.Request) {
 		CreatedBy:            event.CreatedBy,
 		CreatedAt:            event.CreatedAt.Time,
 		UpdatedAt:            event.UpdatedAt.Time,
+	}
+
+	if cfg.RedisClient != nil {
+		if eventJSON, err := json.Marshal(response); err == nil {
+			go cfg.RedisClient.Set(r.Context(), "event:"+eventID.String(), string(eventJSON), 5*time.Minute)
+		}
 	}
 
 	utils.RespondWithJSON(w, http.StatusOK, response)

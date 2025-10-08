@@ -8,6 +8,7 @@ CREATE TABLE venues (
     postal_code VARCHAR(20),
     capacity INTEGER NOT NULL CHECK (capacity > 0),
     layout_config JSONB DEFAULT '{}',
+    created_by UUID NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

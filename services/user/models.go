@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"time"
 
+	"github.com/fyzanshaik/bookmyevent-ily/internal/cache"
 	"github.com/fyzanshaik/bookmyevent-ily/internal/config"
 	"github.com/fyzanshaik/bookmyevent-ily/internal/logger"
 	"github.com/fyzanshaik/bookmyevent-ily/internal/repository/users"
@@ -11,10 +12,11 @@ import (
 )
 
 type APIConfig struct {
-	DB      users.Querier
-	DB_Conn *sql.DB
-	Config  *config.UserServiceConfig
-	Logger  *logger.Logger
+	DB          users.Querier
+	DB_Conn     *sql.DB
+	Config      *config.UserServiceConfig
+	Logger      *logger.Logger
+	RedisClient *cache.RedisClient
 }
 
 type CreateUserRequest struct {

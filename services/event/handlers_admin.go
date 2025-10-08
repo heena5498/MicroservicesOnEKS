@@ -68,6 +68,26 @@ func (cfg *APIConfig) CreateEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	conflictingEvent, err := cfg.DB.CheckVenueAvailability(r.Context(), events.CheckVenueAvailabilityParams{
+		VenueID:         requestBody.VenueID,
+		StartDatetime:   requestBody.StartDatetime,
+		StartDatetime_2: requestBody.EndDatetime,
+		EventID:         uuid.Nil,
+	})
+	if err == nil {
+		cfg.Logger.WithFields(map[string]any{
+			"venue_id":          requestBody.VenueID,
+			"conflicting_event": conflictingEvent.Name,
+		}).Warn("Venue booking conflict detected")
+		utils.RespondWithError(w, http.StatusConflict, fmt.Sprintf("Venue is already booked for '%s' during this time period", conflictingEvent.Name))
+		return
+	}
+	if err != sql.ErrNoRows {
+		cfg.Logger.Error("Failed to check venue availability", "error", err)
+		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to validate venue availability")
+		return
+	}
+
 	maxTickets := requestBody.MaxTicketsPerBooking
 	if maxTickets <= 0 {
 		maxTickets = 10
@@ -272,6 +292,28 @@ func (cfg *APIConfig) UpdateEvent(w http.ResponseWriter, r *http.Request) {
 			return currentEvent.Status
 		}(),
 		Version: requestBody.Version,
+	}
+
+	if requestBody.VenueID != nil || requestBody.StartDatetime != nil || requestBody.EndDatetime != nil {
+		conflictingEvent, err := cfg.DB.CheckVenueAvailability(r.Context(), events.CheckVenueAvailabilityParams{
+			VenueID:         params.VenueID,
+			StartDatetime:   params.StartDatetime,
+			StartDatetime_2: params.EndDatetime,
+			EventID:         eventID,
+		})
+		if err == nil {
+			cfg.Logger.WithFields(map[string]any{
+				"venue_id":          params.VenueID,
+				"conflicting_event": conflictingEvent.Name,
+			}).Warn("Venue booking conflict detected during update")
+			utils.RespondWithError(w, http.StatusConflict, fmt.Sprintf("Venue is already booked for '%s' during this time period", conflictingEvent.Name))
+			return
+		}
+		if err != sql.ErrNoRows {
+			cfg.Logger.Error("Failed to check venue availability", "error", err)
+			utils.RespondWithError(w, http.StatusInternalServerError, "Failed to validate venue availability")
+			return
+		}
 	}
 
 	updatedEvent, err := cfg.DB.UpdateEvent(r.Context(), params)

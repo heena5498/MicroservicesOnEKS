@@ -15,7 +15,7 @@ import (
 )
 
 func (cfg *APIConfig) CreateVenue(w http.ResponseWriter, r *http.Request) {
-	_, ok := auth.GetAdminIDFromContext(r.Context())
+	adminID, ok := auth.GetAdminIDFromContext(r.Context())
 	if !ok {
 		utils.RespondWithError(w, http.StatusUnauthorized, "Admin not authenticated")
 		return
@@ -41,7 +41,7 @@ func (cfg *APIConfig) CreateVenue(w http.ResponseWriter, r *http.Request) {
 	}
 	country := requestBody.Country
 	if country == "" {
-		country = "USA"
+		country = "IN"
 	}
 	var layoutConfig pqtype.NullRawMessage
 	if requestBody.LayoutConfig != nil {
@@ -59,6 +59,7 @@ func (cfg *APIConfig) CreateVenue(w http.ResponseWriter, r *http.Request) {
 		PostalCode:   sql.NullString{String: requestBody.PostalCode, Valid: requestBody.PostalCode != ""},
 		Capacity:     requestBody.Capacity,
 		LayoutConfig: layoutConfig,
+		CreatedBy:    adminID,
 	}
 
 	venue, err := cfg.DB.CreateVenue(r.Context(), params)
@@ -68,7 +69,7 @@ func (cfg *APIConfig) CreateVenue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg.Logger.WithFields(map[string]any{"venue_id": venue.VenueID, "name": venue.Name}).Info("Venue created successfully")
+	cfg.Logger.WithFields(map[string]any{"venue_id": venue.VenueID, "name": venue.Name, "admin_id": adminID}).Info("Venue created successfully")
 
 	response := VenueResponse{
 		VenueID:      venue.VenueID,
@@ -80,6 +81,7 @@ func (cfg *APIConfig) CreateVenue(w http.ResponseWriter, r *http.Request) {
 		PostalCode:   utils.StringPtrFromNullString(venue.PostalCode),
 		Capacity:     venue.Capacity,
 		LayoutConfig: venue.LayoutConfig.RawMessage,
+		CreatedBy:    venue.CreatedBy,
 		CreatedAt:    venue.CreatedAt.Time,
 		UpdatedAt:    venue.UpdatedAt.Time,
 	}
@@ -134,6 +136,7 @@ func (cfg *APIConfig) ListVenues(w http.ResponseWriter, r *http.Request) {
 				PostalCode:   utils.StringPtrFromNullString(venue.PostalCode),
 				Capacity:     venue.Capacity,
 				LayoutConfig: venue.LayoutConfig.RawMessage,
+				CreatedBy:    venue.CreatedBy,
 				CreatedAt:    venue.CreatedAt.Time,
 				UpdatedAt:    venue.UpdatedAt.Time,
 			}
@@ -189,6 +192,7 @@ func (cfg *APIConfig) ListVenues(w http.ResponseWriter, r *http.Request) {
 			PostalCode:   utils.StringPtrFromNullString(venue.PostalCode),
 			Capacity:     venue.Capacity,
 			LayoutConfig: venue.LayoutConfig.RawMessage,
+			CreatedBy:    venue.CreatedBy,
 			CreatedAt:    venue.CreatedAt.Time,
 			UpdatedAt:    venue.UpdatedAt.Time,
 		}
@@ -206,7 +210,7 @@ func (cfg *APIConfig) ListVenues(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cfg *APIConfig) UpdateVenue(w http.ResponseWriter, r *http.Request) {
-	_, ok := auth.GetAdminIDFromContext(r.Context())
+	adminID, ok := auth.GetAdminIDFromContext(r.Context())
 	if !ok {
 		utils.RespondWithError(w, http.StatusUnauthorized, "Admin not authenticated")
 		return
@@ -222,6 +226,20 @@ func (cfg *APIConfig) UpdateVenue(w http.ResponseWriter, r *http.Request) {
 	var requestBody UpdateVenueRequest
 	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
 		utils.RespondWithError(w, http.StatusBadRequest, "Invalid JSON")
+		return
+	}
+
+	_, err = cfg.DB.CheckVenueOwnership(r.Context(), events.CheckVenueOwnershipParams{
+		VenueID:   venueID,
+		CreatedBy: adminID,
+	})
+	if err != nil {
+		if err == sql.ErrNoRows {
+			utils.RespondWithError(w, http.StatusNotFound, "Venue not found or you don't have permission")
+			return
+		}
+		cfg.Logger.Error("Failed to check venue ownership", "error", err)
+		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to verify venue ownership")
 		return
 	}
 
@@ -309,6 +327,7 @@ func (cfg *APIConfig) UpdateVenue(w http.ResponseWriter, r *http.Request) {
 		PostalCode:   utils.StringPtrFromNullString(updatedVenue.PostalCode),
 		Capacity:     updatedVenue.Capacity,
 		LayoutConfig: updatedVenue.LayoutConfig.RawMessage,
+		CreatedBy:    updatedVenue.CreatedBy,
 		CreatedAt:    updatedVenue.CreatedAt.Time,
 		UpdatedAt:    updatedVenue.UpdatedAt.Time,
 	}
@@ -317,7 +336,7 @@ func (cfg *APIConfig) UpdateVenue(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cfg *APIConfig) DeleteVenue(w http.ResponseWriter, r *http.Request) {
-	_, ok := auth.GetAdminIDFromContext(r.Context())
+	adminID, ok := auth.GetAdminIDFromContext(r.Context())
 	if !ok {
 		utils.RespondWithError(w, http.StatusUnauthorized, "Admin not authenticated")
 		return
@@ -327,6 +346,20 @@ func (cfg *APIConfig) DeleteVenue(w http.ResponseWriter, r *http.Request) {
 	venueID, err := uuid.Parse(venueIDStr)
 	if err != nil {
 		utils.RespondWithError(w, http.StatusBadRequest, "Invalid venue ID")
+		return
+	}
+
+	_, err = cfg.DB.CheckVenueOwnership(r.Context(), events.CheckVenueOwnershipParams{
+		VenueID:   venueID,
+		CreatedBy: adminID,
+	})
+	if err != nil {
+		if err == sql.ErrNoRows {
+			utils.RespondWithError(w, http.StatusNotFound, "Venue not found or you don't have permission")
+			return
+		}
+		cfg.Logger.Error("Failed to check venue ownership", "error", err)
+		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to verify venue ownership")
 		return
 	}
 

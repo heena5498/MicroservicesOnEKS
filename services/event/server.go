@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/fyzanshaik/bookmyevent-ily/internal/auth"
+	"github.com/fyzanshaik/bookmyevent-ily/internal/cache"
 	"github.com/fyzanshaik/bookmyevent-ily/internal/config"
 	"github.com/fyzanshaik/bookmyevent-ily/internal/database"
 	"github.com/fyzanshaik/bookmyevent-ily/internal/logger"
@@ -26,17 +28,20 @@ func SetupRoutes(config *APIConfig) *http.ServeMux {
 	mux.HandleFunc("POST /api/v1/auth/admin/refresh", config.AdminRefreshToken)
 	mux.HandleFunc("POST /api/v1/auth/admin/logout", config.AdminLogout)
 
-	//Never to be used by the client, added only for testing purposed and a fallback from using elastisearch
 	mux.HandleFunc("GET /api/v1/events", config.ListPublishedEvents)
 	mux.HandleFunc("GET /api/v1/events/{id}", config.GetEventByID)
 	mux.HandleFunc("GET /api/v1/events/{id}/availability", config.GetEventAvailability)
 
-	adminAuth := auth.RequireAdminAuth(config.Config.JWTSecret)
+	var adminAuth func(http.HandlerFunc) http.HandlerFunc
+	if config.RedisClient != nil {
+		adminAuth = auth.RequireAdminAuthWithCache(config.Config.JWTSecret, config.RedisClient)
+	} else {
+		adminAuth = auth.RequireAdminAuth(config.Config.JWTSecret)
+	}
 	mux.HandleFunc("POST /api/v1/admin/events", adminAuth(config.CreateEvent))
 	mux.HandleFunc("PUT /api/v1/admin/events/{id}", adminAuth(config.UpdateEvent))
 	mux.HandleFunc("DELETE /api/v1/admin/events/{id}", adminAuth(config.DeleteEvent))
 	mux.HandleFunc("GET /api/v1/admin/events", adminAuth(config.ListAdminEvents))
-	//Analytics KEY DO NOT FORGET TO ADD INC CLIENT
 	mux.HandleFunc("GET /api/v1/admin/events/{id}/analytics", adminAuth(config.GetEventAnalytics))
 
 	mux.HandleFunc("POST /api/v1/admin/venues", adminAuth(config.CreateVenue))
@@ -91,12 +96,26 @@ func InitEventService() (*APIConfig, *sql.DB) {
 		fmt.Printf("DEBUG: SearchServiceURL is empty, no SearchClient created\n")
 	}
 
+	var redisClient *cache.RedisClient
+	redisURL := os.Getenv("REDIS_URL")
+	if redisURL != "" {
+		redisClient, err = cache.NewRedisClient(redisURL)
+		if err != nil {
+			logger.Warn("Failed to connect to Redis, caching disabled", "error", err)
+		} else {
+			logger.Info("Redis client initialized successfully")
+		}
+	} else {
+		logger.Info("Redis URL not configured, caching disabled")
+	}
+
 	apiConfig := &APIConfig{
 		DB:           dbQueries,
 		DB_Conn:      db,
 		Config:       cfg,
 		Logger:       logger,
 		SearchClient: searchClient,
+		RedisClient:  redisClient,
 	}
 
 	return apiConfig, db
