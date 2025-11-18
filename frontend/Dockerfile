@@ -16,10 +16,11 @@ WORKDIR /source
 # software dependencies in the Microsoft ecosystem. The "dotnet restore" command
 # reads this information and retrieves these software dependencies. Typically,
 # when building manually, this step is done implicitly behind build commands;
-# however, caching software dependencies in its own layer improves build time
-# and minimizes trips to NuGet. In addition, since this layer is separate from
-# the rest of the build, only changes to the software dependencies will cause
-# this layer to be re-created.
+# however, caching software dependencies in its own layer improves build time,
+# minimizes trips to NuGet, and allows reuse across different versions of the
+# image. In addition, since this layer is separate from the rest of the build,
+# only changes to the software dependencies will cause this layer to be
+# re-created.
 
 COPY *.sln .
 
@@ -46,11 +47,11 @@ RUN dotnet publish --configuration release --output /app --no-restore
 # contains what is necessary to run the application. The only thing that
 # persists from the build stage are the contents of the /app directory.
 # Adhering to the principle of least privilege, a non-root user is created and
-# used for the container's lifetime.
+# used to run the application.
 
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 
-# Set some useful annotations as defined by the Open Containers Initiative (OCI)
+# Set useful annotations as defined by the Open Containers Initiative (OCI).
 # https://specs.opencontainers.org/image-spec/annotations/
 LABEL org.opencontainers.image.title="Video Dashboard Frontend" \
     org.opencontainers.image.description="A web application featuring video upload & streaming as well as analytics tracking capabilities." \
@@ -63,11 +64,12 @@ RUN groupadd --system frontend-group && \
 
 USER frontend-app
 
-# The container will listen for HTTP on this port.
-EXPOSE 8080
-
 WORKDIR /app
 
 COPY --chown=frontend-app:frontend-group --from=build /app ./
+
+# The container will listen for HTTP on this port. Note that EXPOSE is used for
+# documentation only.
+EXPOSE 8080
 
 ENTRYPOINT ["dotnet", "VideoDashboard.Web.dll"]
