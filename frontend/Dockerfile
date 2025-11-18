@@ -58,16 +58,16 @@ LABEL org.opencontainers.image.title="Video Dashboard Frontend" \
     org.opencontainers.image.source="https://github.com/heena5498/MicroservicesOnEKS" \
     org.opencontainers.image.authors="Marc Gabriel N. Badilla (badillam@umd.edu)"
 
-RUN groupadd --system frontend && \
-    useradd --no-log-init --system --gid frontend frontend
+RUN groupadd --system frontend-group && \
+    useradd --no-log-init --system --gid frontend-group frontend-app
 
-USER frontend
+USER frontend-app
 
 # The container will listen for HTTP on this port.
 EXPOSE 8080
 
 WORKDIR /app
 
-COPY --chown=frontend:frontend --from=build /app ./
+COPY --chown=frontend-app:frontend-group --from=build /app ./
 
 ENTRYPOINT ["dotnet", "VideoDashboard.Web.dll"]
