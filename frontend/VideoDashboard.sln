@@ -5,6 +5,8 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VideoDashboard.Web", "VideoDashboard.Web\VideoDashboard.Web.csproj", "{FAFD91D3-B993-4167-8185-7D6CE47A39E1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VideoDashboard.Interfaces", "VideoDashboard.Interfaces\VideoDashboard.Interfaces.csproj", "{0AA9B5FC-152A-4ACA-AACD-79F0A8D9CC41}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,18 @@ Global
 		{FAFD91D3-B993-4167-8185-7D6CE47A39E1}.Release|x64.Build.0 = Release|Any CPU
 		{FAFD91D3-B993-4167-8185-7D6CE47A39E1}.Release|x86.ActiveCfg = Release|Any CPU
 		{FAFD91D3-B993-4167-8185-7D6CE47A39E1}.Release|x86.Build.0 = Release|Any CPU
+		{0AA9B5FC-152A-4ACA-AACD-79F0A8D9CC41}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0AA9B5FC-152A-4ACA-AACD-79F0A8D9CC41}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0AA9B5FC-152A-4ACA-AACD-79F0A8D9CC41}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{0AA9B5FC-152A-4ACA-AACD-79F0A8D9CC41}.Debug|x64.Build.0 = Debug|Any CPU
+		{0AA9B5FC-152A-4ACA-AACD-79F0A8D9CC41}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{0AA9B5FC-152A-4ACA-AACD-79F0A8D9CC41}.Debug|x86.Build.0 = Debug|Any CPU
+		{0AA9B5FC-152A-4ACA-AACD-79F0A8D9CC41}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0AA9B5FC-152A-4ACA-AACD-79F0A8D9CC41}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0AA9B5FC-152A-4ACA-AACD-79F0A8D9CC41}.Release|x64.ActiveCfg = Release|Any CPU
+		{0AA9B5FC-152A-4ACA-AACD-79F0A8D9CC41}.Release|x64.Build.0 = Release|Any CPU
+		{0AA9B5FC-152A-4ACA-AACD-79F0A8D9CC41}.Release|x86.ActiveCfg = Release|Any CPU
+		{0AA9B5FC-152A-4ACA-AACD-79F0A8D9CC41}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
