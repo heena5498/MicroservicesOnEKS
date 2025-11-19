@@ -10,6 +10,10 @@ The application was written using C# and runs using ASP.NET Core MVC (.NET 9.0).
 # Build
 docker build --tag frontend:0.0.0 .
 
+# (Local) Scan
+# This requires having a Docker account to use Docker Scout.
+docker scout cves local://frontend:0.0.0
+
 # Run
 docker run --detach --publish 8080:8080 --name frontend-container frontend:0.0.0
 
