@@ -49,7 +49,17 @@ RUN dotnet publish --configuration release --output /app --no-restore
 # Adhering to the principle of least privilege, a non-root user is created and
 # used to run the application.
 
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
+# Excerpt from https://mcr.microsoft.com/en-us/artifact/mar/dotnet/aspnet/about:
+# .NET distroless container images contain only the minimal set of packages .NET
+# needs, with everything else removed. Due to their limited set of packages,
+# distroless containers have a minimized security attack surface, smaller
+# deployment sizes, and faster start-up time compared to their non-distroless
+# counterparts. They contain the following features:
+#   * Minimal set of packages required for .NET applications
+#   * Non-root user by default
+#   * No package manager
+#   * No shell
+FROM mcr.microsoft.com/dotnet/aspnet:9.0-azurelinux3.0-distroless AS final
 
 # Set useful annotations as defined by the Open Containers Initiative (OCI).
 # https://specs.opencontainers.org/image-spec/annotations/
@@ -59,14 +69,9 @@ LABEL org.opencontainers.image.title="Video Dashboard Frontend" \
     org.opencontainers.image.source="https://github.com/heena5498/MicroservicesOnEKS" \
     org.opencontainers.image.authors="Marc Gabriel N. Badilla (badillam@umd.edu)"
 
-RUN groupadd --system frontend-group && \
-    useradd --no-log-init --system --gid frontend-group frontend-app
-
-USER frontend-app
-
 WORKDIR /app
 
-COPY --chown=frontend-app:frontend-group --from=build /app ./
+COPY --from=build /app ./
 
 # The container will listen for HTTP on this port. Note that EXPOSE is used for
 # documentation only.
