@@ -12,7 +12,11 @@ public class HomeController(IMediaService mediaService, IAnalyticsService analyt
 
     public IActionResult Index()
     {
-        return View();
+        IndexViewModel model = new()
+        {
+            Videos = _mediaService.ListVideos(),
+        };
+        return View(model);
     }
 
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]

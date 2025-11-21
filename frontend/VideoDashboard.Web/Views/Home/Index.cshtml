@@ -1,8 +1,23 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+﻿@model VideoDashboard.Web.Models.IndexViewModel
+
+@{
+    ViewData["Title"] = "Videos";
 }
 
 <div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+    <h1 class="display-4">Videos</h1>
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        @foreach (VideoDashboard.Interfaces.IVideoModel video in Model.Videos)
+        {
+            <div class="col">
+                <div class="card h-100">
+                    <img class="card-img-top" src="@video.ThumbnailUri" alt="Thumbnail for @video.Name">
+                    <div class="card-body">
+                        <h5 class="card-title">@video.Name</h5>
+                        <a href="@Url.Action("Video")" class="btn btn-primary">Open Video</a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
 </div>

@@ -5,9 +5,9 @@ namespace StubbedServices;
 public class StubbedMediaService : IMediaService
 {
     private readonly List<FakeVideoModel> _fakeVideos = [
-        new () { Id = "zuPt", Name = "Sample Video 1", ThumbnailUri = "~/assets/thumbnail/1.png", VideoUri = "~/assets/video/1.mov" },
-        new () { Id = "l84w", Name = "Sample Video 2", ThumbnailUri = "~/assets/thumbnail/2.png", VideoUri = "~/assets/video/2.mov" },
-        new () { Id = "CuQ1", Name = "Sample Video 3", ThumbnailUri = "~/assets/thumbnail/3.png", VideoUri = "~/assets/video/3.mov" },
+        new () { Id = "zuPt", Name = "Sample Video 1", ThumbnailUri = "/assets/thumbnails/1.jpg", VideoUri = "/assets/videos/1.mov" },
+        new () { Id = "l84w", Name = "Sample Video 2", ThumbnailUri = "/assets/thumbnails/2.jpg", VideoUri = "/assets/videos/2.mov" },
+        new () { Id = "CuQ1", Name = "Sample Video 3", ThumbnailUri = "/assets/thumbnails/3.jpg", VideoUri = "/assets/videos/3.mov" },
     ];
 
     bool IMediaService.IsServiceReady => true;
