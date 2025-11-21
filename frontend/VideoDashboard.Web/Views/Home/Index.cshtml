@@ -14,7 +14,7 @@
                     <img class="card-img-top" src="@video.ThumbnailUri" alt="Thumbnail for @video.Name">
                     <div class="card-body">
                         <h5 class="card-title">@video.Name</h5>
-                        <a href="@Url.Action("Video")" class="btn btn-primary">Open Video</a>
+                        <a href="@Url.Action("Video", new { videoId = video.Id })" class="btn btn-primary">Open Video</a>
                     </div>
                 </div>
             </div>

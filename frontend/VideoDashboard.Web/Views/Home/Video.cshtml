@@ -1,0 +1,41 @@
+@model VideoDashboard.Web.Models.VideoViewModel
+
+@{
+    ViewData["Title"] = Model.Video.Name;
+}
+
+<div class="text-center">
+    <h1 class="display-4">@Model.Video.Name</h1>
+    <div class="row">
+        <div class="col">
+            <div class="card h-100">
+                <div class="card-body">
+                    <video width="320" height="240" controls>
+                        <source src="@Model.Video.VideoUri" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+                <div class="card-footer text-body-secondary">
+                    <i class="bi bi-eye"></i> @Model.VideoAnalytics.Views
+                    |
+                    <i class="bi bi-hand-thumbs-up"></i> @Model.VideoAnalytics.Likes
+                    |
+                    <i class="bi bi-hand-thumbs-down"></i> @Model.VideoAnalytics.Dislikes
+                </div>
+                <ul class="list-group list-group-flush">
+                    @if (Model.VideoAnalytics.Comments.Any())
+                    {
+                        @foreach (string comment in Model.VideoAnalytics.Comments)
+                        {
+                            <li class="list-group-item">@comment</li>
+                        }
+                    }
+                    else
+                    {
+                        <li class="list-group-item">No Comments</li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>

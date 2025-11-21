@@ -19,6 +19,16 @@ public class HomeController(IMediaService mediaService, IAnalyticsService analyt
         return View(model);
     }
 
+    public IActionResult Video(string videoId)
+    {
+        VideoViewModel model = new()
+        {
+            Video = _mediaService.GetVideo(videoId),
+            VideoAnalytics = _analyticsService.GetVideoAnalytics(videoId),
+        };
+        return View(model);
+    }
+
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Error()
     {
