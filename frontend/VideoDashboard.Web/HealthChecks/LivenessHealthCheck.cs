@@ -19,9 +19,6 @@ public class LivenessHealthCheck : IHealthCheck
             };
         }
 
-        // TODO
-        // Add logic to determine the liveness of the application.
-
         return Task.FromResult(HealthCheckResult.Healthy());
     }
 }
