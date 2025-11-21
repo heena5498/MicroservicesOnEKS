@@ -1,4 +1,6 @@
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using StubbedServices;
+using VideoDashboard.Interfaces;
 using VideoDashboard.Web.HealthChecks;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -14,6 +16,10 @@ builder.Services.AddHealthChecks()
         tags: ["readiness"]);
 
 builder.Services.AddControllersWithViews();
+
+builder.Services.AddSingleton<IMediaService>(new StubbedMediaService());
+
+builder.Services.AddSingleton<IAnalyticsService>(new StubbedAnalyticsService());
 
 WebApplication app = builder.Build();
 
