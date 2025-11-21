@@ -24,6 +24,11 @@ WORKDIR /source
 
 COPY *.sln .
 
+# TODO: Remove after implementing connections to actual services.
+COPY StubbedServices/*.csproj ./StubbedServices/
+
+COPY VideoDashboard.Interfaces/*.csproj ./VideoDashboard.Interfaces/
+
 COPY VideoDashboard.Web/*.csproj ./VideoDashboard.Web/
 
 RUN dotnet restore
@@ -31,6 +36,11 @@ RUN dotnet restore
 # The next half of the build compiles the software dependencies and source code.
 # By the end of the build, all production-ready files will be found in the /app
 # directory.
+
+# TODO: Remove after implementing connections to actual services.
+COPY StubbedServices/. ./StubbedServices/
+
+COPY VideoDashboard.Interfaces/. ./VideoDashboard.Interfaces/
 
 COPY VideoDashboard.Web/. ./VideoDashboard.Web/
 
