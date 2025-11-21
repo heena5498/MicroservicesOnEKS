@@ -1,14 +1,14 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using VideoDashboard.Interfaces;
 using VideoDashboard.Web.Models;
 
 namespace VideoDashboard.Web.Controllers;
 
-public class HomeController : Controller
+public class HomeController(IMediaService mediaService, IAnalyticsService analyticsService) : Controller
 {
-    public HomeController()
-    {
-    }
+    private readonly IMediaService _mediaService = mediaService;
+    private readonly IAnalyticsService _analyticsService = analyticsService;
 
     public IActionResult Index()
     {
