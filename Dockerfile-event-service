@@ -6,14 +6,11 @@ WORKDIR /app
 # Install git for go modules
 RUN apk add --no-cache git
 
-# Copy go mod and sum files
-COPY go.mod go.sum ./
-
-# Download dependencies
-RUN go mod download
-
-# Copy source code
+# Copy everything first
 COPY . .
+
+# Download dependencies and generate go.sum
+RUN go mod tidy && go mod download
 
 # Build the event service binary
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o event-service ./cmd/event-service
@@ -28,9 +25,6 @@ WORKDIR /root/
 
 # Copy the binary from builder
 COPY --from=builder /app/event-service .
-
-# Copy the .env file for configuration
-COPY --from=builder /app/.env .
 
 # Expose port
 EXPOSE 8002

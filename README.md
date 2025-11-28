@@ -11,6 +11,32 @@ BookMyEvent is a scalable, high-performance event booking platform designed to h
 - **Smart Waitlisting**: An automated queueing system for sold-out events to notify users when tickets become available.
 - **Two-Phase Booking**: A reserve-then-confirm workflow ensures a smooth and fair booking process.
 
+## 👥 For Team Members - Getting Started
+
+**New to the project?** Start here:
+
+1. **Clone the repository**:
+   ```bash
+   git clone <repository-url>
+   cd bookmyevent-ily
+   ```
+
+2. **Follow the setup guide**: See **[GITHUB_SETUP.md](GITHUB_SETUP.md)** for detailed instructions on:
+   - Setting up your development environment
+   - Configuring secrets and environment variables
+   - Deploying locally or to production
+   - Troubleshooting common issues
+
+3. **Quick local setup**:
+   ```bash
+   make dev-setup-full
+   ```
+
+> ⚠️ **Security Note**: Before deploying to production, make sure to:
+> - Generate secure secrets (see `GITHUB_SETUP.md`)
+> - Update `k8s/02-secrets.yaml` with your own credentials
+> - Never commit real production secrets to Git
+
 ## 🚀 Quick Start (Production Deployment)
 
 **One command deployment** - Ready for DigitalOcean or any Docker environment:
