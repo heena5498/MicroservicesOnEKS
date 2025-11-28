@@ -230,3 +230,4 @@ If images are missing:
 2. Keep running
 3. Monitor costs in AWS Console
 
+

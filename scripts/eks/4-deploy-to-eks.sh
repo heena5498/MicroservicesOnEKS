@@ -127,3 +127,4 @@ echo "kubectl describe pod <pod-name> -n bookmyevent    # Debug pod issues"
 
 
 
+
