@@ -1,0 +1,110 @@
+Project bookings_db {
+  database_type: 'PostgreSQL'
+}
+
+Table bookings {
+  booking_id UUID [pk, default: `gen_random_uuid()`]
+  user_id UUID [not null]
+  event_id UUID [not null]
+  booking_reference varchar(20) [unique, not null]
+  quantity integer [not null]
+  total_amount decimal(10,2) [not null]
+  status varchar(20) [not null]
+  payment_status varchar(20) [not null]
+  idempotency_key varchar(255) [unique]
+  booked_at timestamp [default: `CURRENT_TIMESTAMP`]
+  expires_at timestamp
+  confirmed_at timestamp
+  cancelled_at timestamp
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, status) [name: 'idx_bookings_user']
+    (event_id, status) [name: 'idx_bookings_event']
+    booking_reference [name: 'idx_bookings_reference']
+    idempotency_key [name: 'idx_bookings_idempotency']
+    status [name: 'idx_bookings_status']
+    expires_at [name: 'idx_bookings_expires_at']
+  }
+}
+
+Table payments {
+  payment_id UUID [pk, default: `gen_random_uuid()`]
+  booking_id UUID [not null]
+  user_id UUID [not null]
+  event_id UUID [not null]
+  amount decimal(10,2) [not null]
+  currency varchar(3) [default: 'USD']
+  payment_method varchar(50)
+  payment_gateway varchar(50)
+  gateway_transaction_id varchar(255)
+  status varchar(20) [not null]
+  ticket_url text
+  initiated_at timestamp [default: `CURRENT_TIMESTAMP`]
+  completed_at timestamp
+  failed_at timestamp
+  error_message text
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    booking_id [name: 'idx_payments_booking']
+    (user_id, status) [name: 'idx_payments_user']
+    (event_id, status) [name: 'idx_payments_event']
+    gateway_transaction_id [name: 'idx_payments_gateway_transaction']
+    status [name: 'idx_payments_status']
+    completed_at [name: 'idx_payments_completed_at']
+  }
+}
+
+Table waitlist {
+  waitlist_id UUID [pk, default: `gen_random_uuid()`]
+  event_id UUID [not null]
+  user_id UUID [not null]
+  position integer [not null]
+  quantity_requested integer [not null]
+  status varchar(20) [default: 'waiting']
+  joined_at timestamp [default: `CURRENT_TIMESTAMP`]
+  offered_at timestamp
+  expires_at timestamp
+  converted_at timestamp
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, event_id) [unique, name: 'unique_user_event']
+    (event_id, position) [name: 'idx_waitlist_event_position']
+    user_id [name: 'idx_waitlist_user']
+    status [name: 'idx_waitlist_status']
+    expires_at [name: 'idx_waitlist_offered_expires']
+    (event_id, status) [name: 'idx_waitlist_event_status']
+  }
+}
+
+Table booking_seats {
+  booking_seat_id UUID [pk, default: `gen_random_uuid()`]
+  booking_id UUID [not null]
+  seat_number varchar(10)
+  seat_row varchar(10)
+  seat_section varchar(50)
+  status varchar(20) [default: 'booked']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    booking_id [name: 'idx_booking_seats_booking']
+    status [name: 'idx_booking_seats_status']
+    (seat_section, seat_row) [name: 'idx_booking_seats_section_row']
+  }
+}
+
+Ref: payments.booking_id > bookings.booking_id [delete: cascade]
+Ref: booking_seats.booking_id > bookings.booking_id [delete: cascade]
+
+Ref: bookings.user_id - users_db.users.user_id
+Ref: bookings.event_id - events_db.events.event_id
+Ref: payments.user_id - users_db.users.user_id
+Ref: payments.event_id - events_db.events.event_id
+Ref: waitlist.user_id - users_db.users.user_id
+Ref: waitlist.event_id - events_db.events.event_id
