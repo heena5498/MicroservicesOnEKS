@@ -1,0 +1,137 @@
+# Go build artifacts
+/bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go test files
+*.test
+
+# Go coverage files
+*.out
+coverage.html
+coverage.txt
+
+# Note: go.sum SHOULD be committed for reproducible builds
+# Only ignore if you're using a vendoring approach
+
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+*.env
+!*.env.example
+!*.env.template
+
+# Docker volumes and data
+/data/
+docker-data/
+postgres_data/
+redis_data/
+elasticsearch_data/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-*
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+*~
+
+# Node modules (frontend)
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# AWS credentials (if accidentally committed)
+.aws/
+*.pem
+*.key
+
+# Kubernetes secrets (if any local overrides)
+k8s/secrets.local.yaml
+k8s/*-secrets.yaml
+!k8s/02-secrets.yaml.example
+
+# Build outputs
+dist/
+build/
+*.tar.gz
+*.zip
+
+# Exclude unnecessary PowerShell scripts from root
+build-push-all.ps1
+complete-deployment.ps1
+deploy-and-dns.ps1
+fix-deployment.ps1
+fix-dns.ps1
+fix-root-dns.ps1
+setup-dns-now.ps1
+wait-and-setup-dns.ps1
+
+# Exclude unnecessary EKS scripts (keep only deploy-complete.ps1 and 5-cleanup.ps1)
+scripts/eks/1-create-ecr-repos.ps1
+scripts/eks/2-build-push-images.ps1
+scripts/eks/3-create-eks-cluster.ps1
+scripts/eks/4-deploy-to-eks.ps1
+scripts/eks/5-cleanup-complete.ps1
+scripts/eks/6-setup-dns.ps1
+scripts/eks/7-setup-ssl.ps1
+scripts/eks/setup-domain-free.ps1
+# Keep these EKS scripts
+!scripts/eks/deploy-complete.ps1
+!scripts/eks/5-cleanup.ps1
+
+# Keep important markdown files
+!README.md
+!GITHUB_SETUP.md
+!WHAT_TO_PUSH.md
+!DEPLOYMENT_GUIDE.md
+!EKS_DEPLOYMENT_GUIDE.md
+# Keep docs directory
+!docs/
+!docs/**/*.md
+# Keep README files in subdirectories
+!**/README.md
+# Keep dbml-schemas README
+!dbml-schemas/README.md
+# Exclude unnecessary markdown files
+DNS_SETUP_GUIDE.md
+DNS_SETUP_INSTRUCTIONS.md
+QUICK_REFERENCE.md
+HOW_TO_TEST.md
+BOOKING_EVENT_ARCHITECTURE.md
+ENPM818R*.pdf

@@ -1,0 +1,238 @@
+// ====================================
+// USERS_DB - Separate Database
+// ====================================
+
+Table users as "users_db.users" {
+  user_id UUID [pk, default: `gen_random_uuid()`]
+  email varchar(255) [unique, not null]
+  phone_number varchar(20)
+  name varchar(255) [not null]
+  password_hash varchar(255) [not null]
+  is_active boolean [default: true]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    email [name: 'idx_users_email']
+    phone_number [name: 'idx_users_phone']
+  }
+}
+
+Table refresh_tokens as "users_db.refresh_tokens" {
+  token text [pk]
+  user_id UUID [not null]
+  expires_at timestamp [not null]
+  revoked_at timestamp
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    user_id [name: 'idx_refresh_tokens_user_id']
+    expires_at [name: 'idx_refresh_tokens_expires']
+  }
+}
+
+// ====================================
+// EVENTS_DB - Separate Database
+// ====================================
+
+Table admins as "events_db.admins" {
+  admin_id UUID [pk, default: `gen_random_uuid()`]
+  email varchar(255) [unique, not null]
+  name varchar(255) [not null]
+  phone_number varchar(20)
+  password_hash varchar(255) [not null]
+  role varchar(50) [default: 'event_manager']
+  permissions jsonb [default: '{}']
+  is_active boolean [default: true]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+}
+
+Table admin_refresh_tokens as "events_db.admin_refresh_tokens" {
+  token text [pk]
+  admin_id UUID [not null]
+  expires_at timestamp [not null]
+  revoked_at timestamp
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    admin_id [name: 'idx_admin_refresh_tokens_admin_id']
+    expires_at [name: 'idx_admin_refresh_tokens_expires']
+  }
+}
+
+Table venues as "events_db.venues" {
+  venue_id UUID [pk, default: `gen_random_uuid()`]
+  name varchar(255) [not null]
+  address text [not null]
+  city varchar(100) [not null]
+  state varchar(100)
+  country varchar(100) [not null, default: 'USA']
+  postal_code varchar(20)
+  capacity integer [not null]
+  layout_config jsonb [default: '{}']
+  created_by UUID [not null]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+}
+
+Table events as "events_db.events" {
+  event_id UUID [pk, default: `gen_random_uuid()`]
+  name varchar(255) [not null]
+  description text
+  venue_id UUID [not null]
+  event_type varchar(50) [not null]
+  start_datetime timestamp [not null]
+  end_datetime timestamp [not null]
+  total_capacity integer [not null]
+  available_seats integer [not null]
+  base_price decimal(10,2) [not null]
+  max_tickets_per_booking integer [default: 10]
+  status varchar(20) [default: 'draft']
+  version integer [not null, default: 1, note: 'Optimistic locking']
+  created_by UUID [not null]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (venue_id, start_datetime, end_datetime) [name: 'no_overlapping_events', note: 'GIST exclusion constraint']
+  }
+}
+
+// ====================================
+// BOOKINGS_DB - Separate Database
+// ====================================
+
+Table bookings as "bookings_db.bookings" {
+  booking_id UUID [pk, default: `gen_random_uuid()`]
+  user_id UUID [not null, note: 'FK to users_db.users.user_id']
+  event_id UUID [not null, note: 'FK to events_db.events.event_id']
+  booking_reference varchar(20) [unique, not null]
+  quantity integer [not null]
+  total_amount decimal(10,2) [not null]
+  status varchar(20) [not null]
+  payment_status varchar(20) [not null]
+  idempotency_key varchar(255) [unique]
+  booked_at timestamp [default: `CURRENT_TIMESTAMP`]
+  expires_at timestamp
+  confirmed_at timestamp
+  cancelled_at timestamp
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, status) [name: 'idx_bookings_user']
+    (event_id, status) [name: 'idx_bookings_event']
+    booking_reference [name: 'idx_bookings_reference']
+    idempotency_key [name: 'idx_bookings_idempotency']
+    status [name: 'idx_bookings_status']
+    expires_at [name: 'idx_bookings_expires_at']
+  }
+}
+
+Table payments as "bookings_db.payments" {
+  payment_id UUID [pk, default: `gen_random_uuid()`]
+  booking_id UUID [not null]
+  user_id UUID [not null, note: 'FK to users_db.users.user_id']
+  event_id UUID [not null, note: 'FK to events_db.events.event_id']
+  amount decimal(10,2) [not null]
+  currency varchar(3) [default: 'USD']
+  payment_method varchar(50)
+  payment_gateway varchar(50)
+  gateway_transaction_id varchar(255)
+  status varchar(20) [not null]
+  ticket_url text
+  initiated_at timestamp [default: `CURRENT_TIMESTAMP`]
+  completed_at timestamp
+  failed_at timestamp
+  error_message text
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    booking_id [name: 'idx_payments_booking']
+    (user_id, status) [name: 'idx_payments_user']
+    (event_id, status) [name: 'idx_payments_event']
+    gateway_transaction_id [name: 'idx_payments_gateway_transaction']
+    status [name: 'idx_payments_status']
+    completed_at [name: 'idx_payments_completed_at']
+  }
+}
+
+Table waitlist as "bookings_db.waitlist" {
+  waitlist_id UUID [pk, default: `gen_random_uuid()`]
+  event_id UUID [not null, note: 'FK to events_db.events.event_id']
+  user_id UUID [not null, note: 'FK to users_db.users.user_id']
+  quantity_requested integer [not null]
+  status varchar(20) [default: 'waiting', note: 'waiting | offered | expired | converted']
+  joined_at timestamp [default: `CURRENT_TIMESTAMP`, note: 'Used for FIFO ordering, position calculated on-demand']
+  offered_at timestamp [note: 'When exclusive booking offer was made']
+  expires_at timestamp [note: '2-minute exclusive booking window']
+  converted_at timestamp [note: 'When user successfully completed booking']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, event_id) [unique, name: 'unique_user_event']
+    (event_id, joined_at) [name: 'idx_waitlist_event_joined', note: 'Critical: FIFO ordering for timestamp-based queue']
+    (event_id, status, joined_at) [name: 'idx_waitlist_event_status_joined', note: 'For position calculation queries']
+    user_id [name: 'idx_waitlist_user']
+    status [name: 'idx_waitlist_status']
+    expires_at [name: 'idx_waitlist_offered_expires', note: 'For expiration background job']
+    (event_id, status) [name: 'idx_waitlist_event_status']
+  }
+
+  Note: '''
+    Timestamp-based waitlist system for scalability:
+    - Position is NOT stored, calculated on-demand using ROW_NUMBER() OVER (ORDER BY joined_at)
+    - O(1) write operations (join, leave, offer)
+    - O(n) position queries (acceptable trade-off for infrequent reads)
+    - Fair FIFO ordering based on joined_at timestamp
+    - No position reordering overhead on insertions/deletions
+  '''
+}
+
+Table booking_seats as "bookings_db.booking_seats" {
+  booking_seat_id UUID [pk, default: `gen_random_uuid()`]
+  booking_id UUID [not null]
+  seat_number varchar(10)
+  seat_row varchar(10)
+  seat_section varchar(50)
+  status varchar(20) [default: 'booked']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    booking_id [name: 'idx_booking_seats_booking']
+    status [name: 'idx_booking_seats_status']
+    (seat_section, seat_row) [name: 'idx_booking_seats_section_row']
+  }
+}
+
+// ====================================
+// Within Database Relationships
+// ====================================
+
+Ref: "users_db.refresh_tokens".user_id > "users_db.users".user_id [delete: cascade]
+
+Ref: "events_db.admin_refresh_tokens".admin_id > "events_db.admins".admin_id [delete: cascade]
+Ref: "events_db.venues".created_by > "events_db.admins".admin_id
+Ref: "events_db.events".venue_id > "events_db.venues".venue_id
+Ref: "events_db.events".created_by > "events_db.admins".admin_id
+
+Ref: "bookings_db.payments".booking_id > "bookings_db.bookings".booking_id [delete: cascade]
+Ref: "bookings_db.booking_seats".booking_id > "bookings_db.bookings".booking_id [delete: cascade]
+
+// ====================================
+// Cross-Database Relationships
+// Application-level enforcement only
+// ====================================
+
+Ref: "bookings_db.bookings".user_id > "users_db.users".user_id
+Ref: "bookings_db.bookings".event_id > "events_db.events".event_id
+Ref: "bookings_db.payments".user_id > "users_db.users".user_id
+Ref: "bookings_db.payments".event_id > "events_db.events".event_id
+Ref: "bookings_db.waitlist".user_id > "users_db.users".user_id
+Ref: "bookings_db.waitlist".event_id > "events_db.events".event_id
