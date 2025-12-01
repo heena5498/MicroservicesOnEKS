@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { searchService, formatError } from '../services/api';
-import { Calendar, Search, Users, Star, ArrowRight, Ticket, Shield } from 'lucide-react';
+import { Calendar, Search, Users, Star, ArrowRight, Shield, University } from 'lucide-react';
 
 const Home = () => {
     const { isAuthenticated, isAdminAuthenticated } = useAuth();
@@ -29,12 +29,12 @@ const Home = () => {
             {/* Hero Section */}
             <section className="text-center py-16 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg">
                 <div className="max-w-4xl mx-auto px-6">
-                    <Calendar className="h-16 w-16 mx-auto mb-6" />
+                    <University className="h-16 w-16 mx-auto mb-6" />
                     <h1 className="text-5xl font-bold mb-6">
-                        Book Your Perfect Event
+                        University Event Hub
                     </h1>
                     <p className="text-xl mb-8 opacity-90">
-                        Discover amazing events, book tickets instantly, and create unforgettable memories
+                        Discover events happening on campus and create unforgettable memories!
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
                         <Link
@@ -53,44 +53,6 @@ const Home = () => {
                                 Get Started
                             </Link>
                         )}
-                    </div>
-                </div>
-            </section>
-
-            {/* Features Section */}
-            <section className="py-16">
-                <div className="text-center mb-12">
-                    <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                        Why Choose BookMyEvent?
-                    </h2>
-                    <p className="text-gray-600 max-w-2xl mx-auto">
-                        Experience the most reliable and user-friendly event booking platform
-                    </p>
-                </div>
-
-                <div className="grid md:grid-cols-3 gap-8">
-                    <div className="text-center p-6 bg-white rounded-lg shadow-md">
-                        <Ticket className="h-12 w-12 text-blue-600 mx-auto mb-4" />
-                        <h3 className="text-xl font-semibold mb-3">Zero Overselling</h3>
-                        <p className="text-gray-600">
-                            Advanced concurrency control ensures you get the tickets you reserve
-                        </p>
-                    </div>
-
-                    <div className="text-center p-6 bg-white rounded-lg shadow-md">
-                        <Search className="h-12 w-12 text-green-600 mx-auto mb-4" />
-                        <h3 className="text-xl font-semibold mb-3">Lightning Fast Search</h3>
-                        <p className="text-gray-600">
-                            Find events in under 25ms with our advanced search technology
-                        </p>
-                    </div>
-
-                    <div className="text-center p-6 bg-white rounded-lg shadow-md">
-                        <Shield className="h-12 w-12 text-purple-600 mx-auto mb-4" />
-                        <h3 className="text-xl font-semibold mb-3">Secure Payments</h3>
-                        <p className="text-gray-600">
-                            Two-phase booking system with secure payment processing
-                        </p>
                     </div>
                 </div>
             </section>
@@ -146,11 +108,8 @@ const Home = () => {
                                     </p>
 
                                     <div className="flex justify-between items-center">
-                                        <span className="text-lg font-bold text-blue-600">
-                                            ${event.base_price}
-                                        </span>
                                         <span className="text-sm text-gray-500">
-                                            {event.available_seats} seats left
+                                            {event.available_seats} spots available
                                         </span>
                                     </div>
 
@@ -187,7 +146,7 @@ const Home = () => {
                         Ready to Get Started?
                     </h2>
                     <p className="text-gray-600 text-lg mb-8">
-                        Join thousands of users who trust BookMyEvent for their event booking needs
+                        Connect with thousands of students on campus and never miss out on exciting events!
                     </p>
 
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
