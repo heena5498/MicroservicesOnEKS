@@ -9,6 +9,7 @@ $ErrorActionPreference = "Stop"
 Write-Host @"
 ============================================================
   BookMyEvent - Complete EKS Deployment Script
+  With Security Best Practices
 ============================================================
 "@ -ForegroundColor Cyan
 
@@ -17,7 +18,7 @@ if (-not $env:AWS_REGION) { $env:AWS_REGION = "us-east-1" }
 if (-not $env:CLUSTER_NAME) { $env:CLUSTER_NAME = "bookmyevent-cluster" }
 
 # Get AWS Account ID
-Write-Host "`n[1/8] Getting AWS Account ID..." -ForegroundColor Yellow
+Write-Host "`n[1/9] Getting AWS Account ID..." -ForegroundColor Yellow
 $env:AWS_ACCOUNT_ID = (aws sts get-caller-identity --query Account --output text)
 $ECR_REGISTRY = "$env:AWS_ACCOUNT_ID.dkr.ecr.$env:AWS_REGION.amazonaws.com"
 
@@ -30,7 +31,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location (Join-Path $ScriptDir "../..")
 
 # Step 2: Create ECR Repositories
-Write-Host "`n[2/8] Creating ECR Repositories..." -ForegroundColor Yellow
+Write-Host "`n[2/9] Creating ECR Repositories..." -ForegroundColor Yellow
 $services = @("bookmyevent/user-service", "bookmyevent/event-service", "bookmyevent/search-service", "bookmyevent/booking-service", "bookmyevent/init-container", "bookmyevent/frontend")
 foreach ($service in $services) {
     aws ecr create-repository --repository-name $service --region $env:AWS_REGION --image-scanning-configuration scanOnPush=true 2>$null
@@ -38,13 +39,14 @@ foreach ($service in $services) {
 }
 
 # Step 3: Login to ECR
-Write-Host "`n[3/8] Logging into ECR..." -ForegroundColor Yellow
+Write-Host "`n[3/9] Logging into ECR..." -ForegroundColor Yellow
 $loginPassword = aws ecr get-login-password --region $env:AWS_REGION
 $loginPassword | docker login --username AWS --password-stdin $ECR_REGISTRY
 Write-Host "  ECR login successful" -ForegroundColor Green
 
-# Step 4: Build and Push Images
-Write-Host "`n[4/8] Building and Pushing Docker Images..." -ForegroundColor Yellow
+# Step 4: Build and Push Images (with security features)
+Write-Host "`n[4/9] Building and Pushing Docker Images (with security features)..." -ForegroundColor Yellow
+Write-Host "  Security: Non-root user, HEALTHCHECK, multi-stage builds" -ForegroundColor Cyan
 
 # Create .env if needed
 if (-not (Test-Path ".env")) { New-Item -ItemType File -Path ".env" -Force | Out-Null }
@@ -65,7 +67,7 @@ foreach ($service in $dockerfiles.Keys) {
 }
 
 # Step 5: Create EKS Cluster
-Write-Host "`n[5/8] Creating EKS Cluster (this takes 15-20 minutes)..." -ForegroundColor Yellow
+Write-Host "`n[5/9] Creating EKS Cluster (this takes 15-20 minutes)..." -ForegroundColor Yellow
 $clusterExists = eksctl get cluster --name $env:CLUSTER_NAME --region $env:AWS_REGION 2>$null
 if ($clusterExists) {
     Write-Host "  Cluster already exists, updating kubeconfig..." -ForegroundColor Yellow
@@ -76,9 +78,9 @@ if ($clusterExists) {
         --region $env:AWS_REGION `
         --nodegroup-name "bookmyevent-nodes" `
         --node-type t3.medium `
-        --nodes 2 `
-        --nodes-min 1 `
-        --nodes-max 4 `
+        --nodes 3 `
+        --nodes-min 2 `
+        --nodes-max 5 `
         --managed `
         --with-oidc `
         --full-ecr-access
@@ -102,13 +104,17 @@ eksctl create addon --name aws-ebs-csi-driver --cluster $env:CLUSTER_NAME --regi
 Write-Host "  EBS CSI Driver installed" -ForegroundColor Green
 
 # Step 6: Deploy Kubernetes Resources
-Write-Host "`n[6/8] Deploying Kubernetes Resources..." -ForegroundColor Yellow
+Write-Host "`n[6/9] Deploying Kubernetes Resources..." -ForegroundColor Yellow
 
 # Namespace and configs
 kubectl apply -f k8s/00-namespace.yaml
 kubectl apply -f k8s/01-configmap.yaml
 kubectl apply -f k8s/02-secrets.yaml
 kubectl apply -f k8s/03-env-file-configmap.yaml
+
+# Network Policy for security
+Write-Host "  Applying Network Policy..." -ForegroundColor White
+kubectl apply -f k8s/network-policy.yaml
 
 # Infrastructure
 Write-Host "  Deploying infrastructure..." -ForegroundColor White
@@ -126,7 +132,7 @@ kubectl apply -f k8s/jobs/db-migrations.yaml
 Start-Sleep -Seconds 30
 kubectl wait --for=condition=complete --timeout=120s job/db-migrations -n bookmyevent
 
-# Deploy services with variable substitution
+# Deploy services with correct image names (not template variables)
 Write-Host "  Deploying microservices..." -ForegroundColor White
 $serviceFiles = @("user-service", "event-service", "search-service", "booking-service")
 foreach ($service in $serviceFiles) {
@@ -134,6 +140,18 @@ foreach ($service in $serviceFiles) {
     $content = $content -replace '\$\{AWS_ACCOUNT_ID\}', $env:AWS_ACCOUNT_ID
     $content = $content -replace '\$\{AWS_REGION\}', $env:AWS_REGION
     $content | kubectl apply -f -
+}
+
+# Update volume mounts to /app/.env for non-root containers
+Write-Host "  Patching volume mounts for non-root containers..." -ForegroundColor White
+foreach ($service in $serviceFiles) {
+    kubectl patch deployment $service -n bookmyevent --type=json -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/volumeMounts/0/mountPath", "value": "/app/.env"}]' 2>$null
+}
+
+# Set correct image names
+Write-Host "  Setting correct image names..." -ForegroundColor White
+foreach ($service in $serviceFiles) {
+    kubectl set image deployment/$service $service="$ECR_REGISTRY/bookmyevent/${service}:latest" -n bookmyevent
 }
 
 Start-Sleep -Seconds 30
@@ -152,7 +170,7 @@ $API_URL = kubectl get svc nginx-gateway -n bookmyevent -o jsonpath='{.status.lo
 Write-Host "  API Gateway URL: http://$API_URL" -ForegroundColor Cyan
 
 # Step 7: Build and deploy frontend with correct API URL
-Write-Host "`n[7/8] Building Frontend with API URL..." -ForegroundColor Yellow
+Write-Host "`n[7/9] Building Frontend with API URL..." -ForegroundColor Yellow
 docker build --build-arg VITE_API_URL="http://$API_URL" -t "$ECR_REGISTRY/bookmyevent/frontend:latest" -f Dockerfile-frontend . | Out-Null
 docker push "$ECR_REGISTRY/bookmyevent/frontend:latest" | Out-Null
 
@@ -160,17 +178,24 @@ $frontendContent = Get-Content "k8s/services/frontend.yaml" -Raw
 $frontendContent = $frontendContent -replace '\$\{AWS_ACCOUNT_ID\}', $env:AWS_ACCOUNT_ID
 $frontendContent = $frontendContent -replace '\$\{AWS_REGION\}', $env:AWS_REGION
 $frontendContent | kubectl apply -f -
+
+# Set frontend image
+kubectl set image deployment/frontend frontend="$ECR_REGISTRY/bookmyevent/frontend:latest" -n bookmyevent
 kubectl wait --for=condition=available --timeout=300s deployment/frontend -n bookmyevent
 Write-Host "  Frontend deployed" -ForegroundColor Green
 
 # Step 8: Seed data
-Write-Host "`n[8/8] Seeding test data..." -ForegroundColor Yellow
+Write-Host "`n[8/9] Seeding test data..." -ForegroundColor Yellow
 $initContent = Get-Content "k8s/services/init-container.yaml" -Raw
 $initContent = $initContent -replace '\$\{AWS_ACCOUNT_ID\}', $env:AWS_ACCOUNT_ID
 $initContent = $initContent -replace '\$\{AWS_REGION\}', $env:AWS_REGION
 $initContent | kubectl apply -f -
 Start-Sleep -Seconds 30
 Write-Host "  Test data seeded" -ForegroundColor Green
+
+# Step 9: Verify deployment
+Write-Host "`n[9/9] Verifying deployment..." -ForegroundColor Yellow
+kubectl get pods -n bookmyevent
 
 # Get URLs
 $FRONTEND_URL = kubectl get svc frontend -n bookmyevent -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
@@ -189,14 +214,22 @@ Test Credentials:
   User:  atlanuser1@mail.com / 11111111
   Admin: atlanadmin@mail.com / 11111111
 
+Security Features Deployed:
+  - Non-root containers (appuser)
+  - HEALTHCHECK in all Dockerfiles
+  - Multi-stage Docker builds
+  - NetworkPolicy applied
+  - Resource limits on all pods
+  - Liveness/Readiness probes
+
+Next Steps (Optional):
+  1. Setup RDS: .\scripts\eks\setup-rds.ps1
+  2. Setup DNS/SSL: .\scripts\eks\setup-dns-ssl.ps1
+
 Useful Commands:
   kubectl get pods -n bookmyevent
   kubectl logs deployment/user-service -n bookmyevent
 
-To cleanup: .\scripts\eks\5-cleanup.ps1
+To cleanup: .\scripts\eks\cleanup-all.ps1
 ============================================================
 "@ -ForegroundColor Cyan
-
-
-
-
