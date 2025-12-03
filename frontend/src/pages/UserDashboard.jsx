@@ -209,11 +209,6 @@ const UserDashboard = () => {
                                             </div>
 
                                             <div>
-                                                <p className="text-sm text-gray-600">Total Amount</p>
-                                                <p className="font-medium">${booking.total_amount}</p>
-                                            </div>
-
-                                            <div>
                                                 <p className="text-sm text-gray-600">Booked On</p>
                                                 <p className="font-medium">{formatDate(booking.booked_at)}</p>
                                             </div>
