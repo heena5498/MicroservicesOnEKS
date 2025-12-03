@@ -77,7 +77,7 @@ const UserRegister = () => {
                 <div className="text-center mb-6">
                     <UserPlus className="h-12 w-12 text-blue-600 mx-auto mb-4" />
                     <h2 className="text-2xl font-bold text-gray-900">Create Account</h2>
-                    <p className="text-gray-600">Join BookMyEvent today</p>
+                    <p className="text-gray-600">Join CampusEventManager today</p>
                 </div>
 
                 {error && (

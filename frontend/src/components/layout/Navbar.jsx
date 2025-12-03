@@ -24,7 +24,7 @@ const Navbar = () => {
                     {/* Logo */}
                     <Link to="/" className="flex items-center space-x-2 text-xl font-bold text-blue-600">
                         <Calendar className="h-6 w-6" />
-                        <span>BookMyEvent</span>
+                        <span>CampusEventManager</span>
                     </Link>
 
                     {/* Navigation Links */}
