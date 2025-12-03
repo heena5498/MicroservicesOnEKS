@@ -167,9 +167,11 @@ jobs:
         run: |
           IMAGE_TAG=${GITHUB_SHA::7}
           
+          # Create namespace if it doesn't exist
+          kubectl create namespace $K8S_NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
+          
           helm upgrade --install bookmyevent ./helm \
             --namespace $K8S_NAMESPACE \
-            --create-namespace \
             --set global.imageRegistry="${ECR_REGISTRY}" \
             --set imageTags.userService="${IMAGE_TAG}" \
             --set imageTags.eventService="${IMAGE_TAG}" \
