@@ -77,5 +77,5 @@ jobs:
             -f k8s/services/user-service.yaml \
             -f k8s/services/event-service.yaml \
             -f k8s/services/search-service.yaml \
-            -f k8s/servicesbooking-service.yaml \
+            -f k8s/services/booking-service.yaml \
             -f k8s
