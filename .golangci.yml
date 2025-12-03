@@ -1,0 +1,82 @@
+# golangci-lint configuration for BookMyEvent
+# See https://golangci-lint.run/usage/configuration/
+
+run:
+  timeout: 5m
+  tests: true
+  build-tags:
+    - integration
+
+linters:
+  enable:
+    - errcheck      # Check for unchecked errors
+    - gofmt         # Check formatting
+    - goimports     # Check import organization
+    - govet         # Standard Go vet
+    - staticcheck   # Advanced static analysis
+    - unused        # Check for unused code
+    - gosimple      # Simplification suggestions
+    - ineffassign   # Detect ineffectual assignments
+    - typecheck     # Type checking
+    - misspell      # Spelling mistakes
+    - gocyclo       # Cyclomatic complexity
+    - goconst       # Find repeated strings
+    - godot         # Check comments end in period
+    - unparam       # Find unused function parameters
+    - unconvert     # Unnecessary type conversions
+    - prealloc      # Slice preallocation
+    - exportloopref # Loop variable reference issues
+    - nilerr        # Nil error return issues
+
+  disable:
+    - structcheck   # Deprecated
+    - deadcode      # Deprecated
+    - varcheck      # Deprecated
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+  
+  gocyclo:
+    min-complexity: 15
+  
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+  
+  misspell:
+    locale: US
+  
+  gofmt:
+    simplify: true
+  
+  goimports:
+    local-prefixes: github.com/heena5498/eks-microservices
+
+issues:
+  exclude-rules:
+    # Exclude test files from certain linters
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - errcheck
+        - dupl
+    
+    # Exclude migrations from linting
+    - path: migrations/
+      linters:
+        - all
+    
+    # Exclude generated code
+    - path: sqlc/
+      linters:
+        - all
+  
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true

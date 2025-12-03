@@ -54,9 +54,9 @@ kubectl wait --for=condition=available --timeout=300s deployment/elasticsearch -
 # Step 3: Deploy microservices (substitute ECR registry)
 echo ""
 echo "Step 3: Deploying microservices..."
-for SERVICE_FILE in k8s/services/user-service.yaml k8s/services/event-service.yaml k8s/services/search-service.yaml k8s/services/booking-service.yaml; do
-    echo "Deploying $(basename $SERVICE_FILE)..."
-    substitute_vars "$SERVICE_FILE" | kubectl apply -f -
+for SERVICE in user-service event-service search-service booking-service; do
+    echo "Deploying $SERVICE..."
+    substitute_vars "k8s/services/$SERVICE/$SERVICE.yaml" | kubectl apply -f -
 done
 
 # Wait for services to be ready
@@ -68,21 +68,21 @@ done
 # Step 4: Deploy nginx gateway
 echo ""
 echo "Step 4: Deploying nginx gateway..."
-kubectl apply -f k8s/services/nginx-gateway.yaml
+kubectl apply -f k8s/services/nginx-gateway/nginx-gateway.yaml
 
 kubectl wait --for=condition=available --timeout=300s deployment/nginx-gateway -n bookmyevent
 
 # Step 5: Deploy frontend
 echo ""
 echo "Step 5: Deploying frontend..."
-substitute_vars "k8s/services/frontend.yaml" | kubectl apply -f -
+substitute_vars "k8s/services/frontend/frontend.yaml" | kubectl apply -f -
 
 kubectl wait --for=condition=available --timeout=300s deployment/frontend -n bookmyevent
 
 # Step 6: Run database migrations (via init container)
 echo ""
 echo "Step 6: Running database initialization..."
-substitute_vars "k8s/services/init-container.yaml" | kubectl apply -f -
+substitute_vars "k8s/services/init-container/init-container.yaml" | kubectl apply -f -
 
 # Wait for init job to complete
 echo "Waiting for initialization to complete..."

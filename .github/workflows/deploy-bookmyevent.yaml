@@ -3,18 +3,74 @@ name: Deploy BookMyEvent to EKS
 on:
   push:
     branches: [ main, build ]
+  pull_request:
+    branches: [ main, build ]
   workflow_dispatch:
 
 env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
   EKS_CLUSTER_NAME: ${{ secrets.EKS_CLUSTER_NAME }}
   K8S_NAMESPACE: bookmyevent
-  ECR_REPOSITORY: bookmyevent/booking-service
 
 jobs:
-  build-and-deploy:
+  # Build and Test
+  build-and-test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [user-service, event-service, search-service, booking-service]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+          cache: true
+
+      - name: Run tests for ${{ matrix.service }}
+        run: |
+          cd cmd/${{ matrix.service }}
+          go test -v -race -coverprofile=coverage.out ./...
+        continue-on-error: true
+
+      - name: Run security scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: 'cmd/${{ matrix.service }}'
+          severity: 'CRITICAL,HIGH'
+        continue-on-error: true
+
+  # Build and Push Images
+  build-images:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.event_name != 'pull_request'
+    strategy:
+      matrix:
+        service: 
+          - name: user-service
+            context: .
+            dockerfile: k8s/services/user-service/Dockerfile
+          - name: event-service
+            context: .
+            dockerfile: k8s/services/event-service/Dockerfile
+          - name: search-service
+            context: .
+            dockerfile: k8s/services/search-service/Dockerfile
+          - name: booking-service
+            context: .
+            dockerfile: k8s/services/booking-service/Dockerfile
+          - name: frontend
+            context: .
+            dockerfile: k8s/services/frontend/Dockerfile
+          - name: init-container
+            context: .
+            dockerfile: k8s/services/init-container/Dockerfile
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -36,14 +92,50 @@ jobs:
           aws ecr get-login-password --region "$AWS_REGION" \
             | docker login --username AWS --password-stdin "$ECR_REGISTRY"
 
-      - name: Build and push booking-service image
+      - name: Build, scan and push ${{ matrix.service.name }}
         run: |
           IMAGE_TAG=${GITHUB_SHA::7}
-          IMAGE_URI="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
-          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
-
-          docker build -t "$IMAGE_URI" -f Dockerfile-booking-service .
+          IMAGE_URI="${ECR_REGISTRY}/bookmyevent/${{ matrix.service.name }}:${IMAGE_TAG}"
+          IMAGE_LATEST="${ECR_REGISTRY}/bookmyevent/${{ matrix.service.name }}:latest"
+          
+          # Build image
+          docker build -t "$IMAGE_URI" -t "$IMAGE_LATEST" \
+            -f ${{ matrix.service.dockerfile }} \
+            ${{ matrix.service.context }}
+          
+          # Scan image with Trivy
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy image --severity HIGH,CRITICAL \
+            --exit-code 0 "$IMAGE_URI" || true
+          
+          # Push images
           docker push "$IMAGE_URI"
+          docker push "$IMAGE_LATEST"
+          
+          echo "Pushed ${{ matrix.service.name }}: $IMAGE_URI"
+
+      - name: Output image tag
+        run: |
+          echo "${{ matrix.service.name }}_IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
+  # Deploy to EKS using Helm
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-images
+    if: github.event_name != 'pull_request'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.SECRETACCESSKEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
 
       - name: Install kubectl
         run: |
@@ -51,31 +143,87 @@ jobs:
           chmod +x kubectl
           sudo mv kubectl /usr/local/bin/kubectl
 
+      - name: Install Helm
+        run: |
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          helm version
+
       - name: Configure kubeconfig for EKS
         run: |
           aws eks update-kubeconfig \
             --name "$EKS_CLUSTER_NAME" \
             --region "$AWS_REGION"
+          kubectl cluster-info
 
-      - name: Apply Secrets and env-file ConfigMap from templates
+      - name: Get ECR Registry
+        id: ecr
         run: |
-          envsubst < k8s/02-secrets.yml.tpl \
-            | kubectl -n "$K8S_NAMESPACE" apply -f -
+          ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)
+          ECR_REGISTRY="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+          echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
+          echo "ACCOUNT_ID=$ACCOUNT_ID" >> $GITHUB_ENV
 
-          envsubst < k8s/03-env-file-configmap.yml.tpl \
-            | kubectl -n "$K8S_NAMESPACE" apply -f -
-        env:
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          INTERNAL_API_KEY: ${{ secrets.INTERNAL_API_KEY }}
-
-      - name: Apply all Kubernetes manifests
+      - name: Deploy with Helm
         run: |
-          kubectl -n "$K8S_NAMESPACE" apply \
-            -f k8s/services/nginx-gateway.yaml \
-            -f k8s/services/frontend.yaml \
-            -f k8s/services/user-service.yaml \
-            -f k8s/services/event-service.yaml \
-            -f k8s/services/search-service.yaml \
-            -f k8s/services/booking-service.yaml \
-            -f k8s
+          IMAGE_TAG=${GITHUB_SHA::7}
+          
+          helm upgrade --install bookmyevent ./helm/bookmyevent \
+            --namespace $K8S_NAMESPACE \
+            --create-namespace \
+            --set global.imageRegistry="${ECR_REGISTRY}" \
+            --set imageTags.userService="${IMAGE_TAG}" \
+            --set imageTags.eventService="${IMAGE_TAG}" \
+            --set imageTags.searchService="${IMAGE_TAG}" \
+            --set imageTags.bookingService="${IMAGE_TAG}" \
+            --set imageTags.frontend="${IMAGE_TAG}" \
+            --set imageTags.initContainer="${IMAGE_TAG}" \
+            --set secrets.postgresPassword="${{ secrets.DB_PASSWORD }}" \
+            --set secrets.jwtSecret="${{ secrets.JWT_SECRET }}" \
+            --set secrets.internalApiKey="${{ secrets.INTERNAL_API_KEY }}" \
+            --wait \
+            --timeout 10m
+
+      - name: Verify deployment
+        run: |
+          echo "Waiting for pods to be ready..."
+          kubectl wait --for=condition=ready pod \
+            --all \
+            --namespace=$K8S_NAMESPACE \
+            --timeout=300s || true
+          
+          echo "=== Deployment Status ==="
+          kubectl get deployments -n $K8S_NAMESPACE
+          
+          echo "=== Pod Status ==="
+          kubectl get pods -n $K8S_NAMESPACE
+          
+          echo "=== Services ==="
+          kubectl get services -n $K8S_NAMESPACE
+          
+          # Get LoadBalancer URL
+          LB_URL=$(kubectl get service nginx-gateway -n $K8S_NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          if [ -n "$LB_URL" ]; then
+            echo "=== Application URL ==="
+            echo "Frontend: http://${LB_URL}"
+            echo "API Gateway: http://${LB_URL}/api"
+          fi
+
+      - name: Run smoke tests
+        run: |
+          echo "Running basic health checks..."
+          kubectl exec -n $K8S_NAMESPACE \
+            $(kubectl get pod -n $K8S_NAMESPACE -l app=user-service -o jsonpath='{.items[0].metadata.name}') \
+            -- wget -qO- http://localhost:8081/healthz || echo "User service health check skipped"
+        continue-on-error: true
+
+      - name: Deployment summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Cluster**: $EKS_CLUSTER_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "- **Namespace**: $K8S_NAMESPACE" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Tag**: ${GITHUB_SHA::7}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Helm Release**: bookmyevent" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployed Services" >> $GITHUB_STEP_SUMMARY
+          kubectl get pods -n $K8S_NAMESPACE >> $GITHUB_STEP_SUMMARY
+

@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/fyzanshaik/bookmyevent-ily/internal/constants"
+	"github.com/heena5498/eks-microservices/internal/constants"
 )
 
 func RespondWithError(w http.ResponseWriter, code int, msg string) {

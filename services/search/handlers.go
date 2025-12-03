@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/fyzanshaik/bookmyevent-ily/internal/utils"
+	"github.com/heena5498/eks-microservices/internal/utils"
 	"github.com/google/uuid"
 )
 

@@ -33,12 +33,12 @@ fi
 
 # Build and push each service
 SERVICES=(
-    "user-service:Dockerfile-user-service"
-    "event-service:Dockerfile-event-service"
-    "search-service:Dockerfile-search-service"
-    "booking-service:Dockerfile-booking-service"
-    "init-container:Dockerfile-init-container"
-    "frontend:Dockerfile-frontend"
+    "user-service:k8s/services/user-service/Dockerfile"
+    "event-service:k8s/services/event-service/Dockerfile"
+    "search-service:k8s/services/search-service/Dockerfile"
+    "booking-service:k8s/services/booking-service/Dockerfile"
+    "init-container:k8s/services/init-container/Dockerfile"
+    "frontend:k8s/services/frontend/Dockerfile"
 )
 
 for SERVICE_DOCKERFILE in "${SERVICES[@]}"; do

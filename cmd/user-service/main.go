@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/fyzanshaik/bookmyevent-ily/services/user"
+	"github.com/heena5498/eks-microservices/services/user"
 	"github.com/joho/godotenv"
 )
 

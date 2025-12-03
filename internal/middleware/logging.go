@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/fyzanshaik/bookmyevent-ily/internal/logger"
+	"github.com/heena5498/eks-microservices/internal/logger"
 	"github.com/google/uuid"
 )
 

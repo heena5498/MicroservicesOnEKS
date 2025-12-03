@@ -1,0 +1,13 @@
+---
+# Service Account for External Secrets Operator with IRSA
+# This service account will be annotated with an IAM role ARN
+# to allow the External Secrets Operator to access AWS Secrets Manager
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: external-secrets-sa
+  namespace: bookmyevent
+  annotations:
+    # This will be updated during deployment with the actual IAM role ARN
+    # Format: arn:aws:iam::{ACCOUNT_ID}:role/ExternalSecretsRole
+    eks.amazonaws.com/role-arn: "REPLACE_WITH_IAM_ROLE_ARN"

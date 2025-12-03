@@ -35,7 +35,6 @@ elasticsearch_data/
 *.swp
 *.swo
 *.sublime-*
-*.github
 
 # OS generated files
 .DS_Store

@@ -1,0 +1,57 @@
+# Patterns to ignore when building images
+.git/
+.github/
+*.md
+README.md
+CHANGELOG.md
+LICENSE
+CONTRIBUTING.md
+
+# Development files
+.env
+.env.*
+.env.example
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+tests/
+test/
+testdata/
+*_test.go
+*.test
+coverage.out
+*.coverprofile
+
+# Documentation
+docs/
+build/*.md
+*.drawio
+*.xml
+schema.png
+
+# Dependencies (handled by multi-stage builds)
+node_modules/
+vendor/
+
+# Build artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+bin/
+dist/
+build/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp

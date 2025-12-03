@@ -7,6 +7,29 @@
 
 set -e
 
+# Ensure Docker Buildx multi-arch builder exists and is in use
+ensure_buildx() {
+  # Check if buildx is available at all
+  if ! docker buildx version >/dev/null 2>&1; then
+    echo "[ERROR] docker buildx is not available. Please update Docker Desktop or enable Buildx."
+    exit 1
+  fi
+
+  # If our 'multiarch' builder doesn't exist, create it
+  if docker buildx ls | grep -q 'multiarch'; then
+    echo "[INFO] Using existing Buildx builder 'multiarch'..."
+    docker buildx use multiarch
+  elif docker buildx ls | grep -q 'desktop-linux'; then
+    echo "[INFO] Using default Docker Desktop Buildx builder 'desktop-linux'..."
+    docker buildx use desktop-linux
+  else
+    echo "[INFO] Creating new Buildx builder 'multiarch'..."
+    docker buildx create --name multiarch --use
+  fi
+
+docker buildx inspect --bootstrap
+}
+
 echo "============================================================"
 echo "  BookMyEvent - Complete EKS Deployment Script"
 echo "============================================================"
@@ -45,13 +68,20 @@ aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS 
 echo ""
 echo "[4/8] Building and Pushing Docker Images..."
 
+echo "[STEP] Ensuring Docker Buildx multi-arch builder is configured..."
+ensure_buildx
+
 # Create .env if needed
 [ ! -f .env ] && touch .env
 
 for SERVICE in user-service event-service search-service booking-service init-container; do
-    echo "  Building $SERVICE..."
-    docker build -t "$ECR_REGISTRY/bookmyevent/$SERVICE:latest" -f "Dockerfile-$SERVICE" . > /dev/null
-    docker push "$ECR_REGISTRY/bookmyevent/$SERVICE:latest" > /dev/null
+    echo "  Building $SERVICE (multi-arch: linux/amd64, linux/arm64)..."
+    docker buildx build \
+      --platform linux/amd64,linux/arm64 \
+      -t "$ECR_REGISTRY/bookmyevent/$SERVICE:latest" \
+      -f "Dockerfile-$SERVICE" \
+      . \
+      --push > /dev/null
     echo "  Pushed: $SERVICE"
 done
 
@@ -119,7 +149,7 @@ kubectl wait --for=condition=complete --timeout=120s job/db-migrations -n bookmy
 
 echo "  Deploying microservices..."
 for SERVICE in user-service event-service search-service booking-service; do
-    substitute_vars "k8s/services/$SERVICE.yaml" | kubectl apply -f -
+    substitute_vars "k8s/services/$SERVICE/$SERVICE.yaml" | kubectl apply -f -
 done
 
 sleep 30
@@ -128,7 +158,7 @@ for SERVICE in user-service event-service search-service booking-service; do
 done
 
 echo "  Deploying API gateway..."
-kubectl apply -f k8s/services/nginx-gateway.yaml
+kubectl apply -f k8s/services/nginx-gateway/nginx-gateway.yaml
 kubectl wait --for=condition=available --timeout=300s deployment/nginx-gateway -n bookmyevent
 
 sleep 30
@@ -137,17 +167,22 @@ echo "  API Gateway URL: http://$API_URL"
 
 # Step 7: Build and deploy frontend
 echo ""
-echo "[7/8] Building Frontend with API URL..."
-docker build --build-arg VITE_API_URL="http://$API_URL" -t "$ECR_REGISTRY/bookmyevent/frontend:latest" -f Dockerfile-frontend . > /dev/null
-docker push "$ECR_REGISTRY/bookmyevent/frontend:latest" > /dev/null
+echo "[7/8] Building Frontend with API URL (multi-arch)..."
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  --build-arg VITE_API_URL="http://$API_URL" \
+  -t "$ECR_REGISTRY/bookmyevent/frontend:latest" \
+  -f Dockerfile-frontend \
+  . \
+  --push > /dev/null
 
-substitute_vars "k8s/services/frontend.yaml" | kubectl apply -f -
+substitute_vars "k8s/services/frontend/frontend.yaml" | kubectl apply -f -
 kubectl wait --for=condition=available --timeout=300s deployment/frontend -n bookmyevent
 
 # Step 8: Seed data
 echo ""
 echo "[8/8] Seeding test data..."
-substitute_vars "k8s/services/init-container.yaml" | kubectl apply -f -
+substitute_vars "k8s/services/init-container/init-container.yaml" | kubectl apply -f -
 sleep 30
 
 FRONTEND_URL=$(kubectl get svc frontend -n bookmyevent -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')

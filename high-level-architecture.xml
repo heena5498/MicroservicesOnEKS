@@ -1,0 +1,187 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="BookMyEvent Architecture">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        
+        <!-- Title -->
+        <mxCell id="title" value="BookMyEvent - Microservices Architecture on EKS" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="550" y="20" width="500" height="40" as="geometry"/>
+        </mxCell>
+        
+        <!-- Internet/Users -->
+        <mxCell id="users" value="Users / Browsers" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="750" y="80" width="40" height="80" as="geometry"/>
+        </mxCell>
+        
+        <!-- AWS Cloud Container -->
+        <mxCell id="aws" value="AWS Cloud" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;verticalAlign=top;fontSize=16;fontStyle=1;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="200" width="1520" height="660" as="geometry"/>
+        </mxCell>
+        
+        <!-- EKS Cluster -->
+        <mxCell id="eks" value="EKS Cluster (bookmyevent-cluster)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=14;fontStyle=1;align=left;" vertex="1" parent="1">
+          <mxGeometry x="80" y="240" width="1440" height="580" as="geometry"/>
+        </mxCell>
+        
+        <!-- Load Balancer -->
+        <mxCell id="nlb" value="AWS Network Load Balancer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="680" y="280" width="180" height="60" as="geometry"/>
+        </mxCell>
+        
+        <!-- Arrow from Users to NLB -->
+        <mxCell id="arrow1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="users" target="nlb">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <!-- Nginx Gateway -->
+        <mxCell id="nginx" value="Nginx API Gateway&#xa;(Reverse Proxy)&#xa;Port 80" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="680" y="380" width="180" height="80" as="geometry"/>
+        </mxCell>
+        
+        <!-- Arrow from NLB to Nginx -->
+        <mxCell id="arrow2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="nlb" target="nginx">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <!-- Frontend Service -->
+        <mxCell id="frontend" value="Frontend Service&#xa;(React + Vite)&#xa;Port 80" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b1ddf0;strokeColor=#10739e;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="920" y="380" width="140" height="80" as="geometry"/>
+        </mxCell>
+        
+        <!-- Microservices Layer -->
+        <mxCell id="user-svc" value="User Service&#xa;Port 8001&#xa;• Authentication&#xa;• JWT Tokens&#xa;• User Profiles" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="120" y="500" width="140" height="100" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="event-svc" value="Event Service&#xa;Port 8002&#xa;• Event CRUD&#xa;• Venue Mgmt&#xa;• Availability" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="500" width="140" height="100" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="search-svc" value="Search Service&#xa;Port 8003&#xa;• Full-text Search&#xa;• Filters&#xa;• Caching" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="480" y="500" width="140" height="100" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="booking-svc" value="Booking Service&#xa;Port 8004&#xa;• Reservations&#xa;• Payments&#xa;• Waitlist" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="660" y="500" width="140" height="100" as="geometry"/>
+        </mxCell>
+        
+        <!-- Arrows from Nginx to Services -->
+        <mxCell id="arrow3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;dashed=1;" edge="1" parent="1" source="nginx" target="user-svc">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;dashed=1;" edge="1" parent="1" source="nginx" target="event-svc">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;dashed=1;" edge="1" parent="1" source="nginx" target="search-svc">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;dashed=1;" edge="1" parent="1" source="nginx" target="booking-svc">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <!-- Infrastructure Layer -->
+        <mxCell id="postgres" value="PostgreSQL&#xa;(3 Databases)&#xa;• users_db&#xa;• events_db&#xa;• bookings_db" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="120" y="680" width="140" height="110" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="redis" value="Redis&#xa;• Session Cache&#xa;• Booking Locks&#xa;• Search Cache" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="300" y="680" width="140" height="110" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="elastic" value="Elasticsearch&#xa;• Event Search&#xa;• Full-text Index&#xa;• Filters" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="480" y="680" width="140" height="110" as="geometry"/>
+        </mxCell>
+        
+        <!-- Arrows from Services to Infrastructure -->
+        <mxCell id="arrow7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="user-svc" target="postgres">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="event-svc" target="postgres">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="booking-svc" target="postgres">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="search-svc" target="redis">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="search-svc" target="elastic">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="booking-svc" target="redis">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <!-- Persistent Storage -->
+        <mxCell id="ebs" value="AWS EBS CSI Driver&#xa;Persistent Volumes" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="660" y="680" width="140" height="80" as="geometry"/>
+        </mxCell>
+        
+        <!-- ECR -->
+        <mxCell id="ecr" value="Amazon ECR&#xa;Container Registry&#xa;• All Service Images" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b1ddf0;strokeColor=#10739e;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="280" width="160" height="80" as="geometry"/>
+        </mxCell>
+        
+        <!-- Secrets & Config -->
+        <mxCell id="config" value="K8s ConfigMaps&#xa;& Secrets&#xa;• Environment Vars&#xa;• Database URLs&#xa;• JWT Secrets" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="400" width="160" height="100" as="geometry"/>
+        </mxCell>
+        
+        <!-- Namespace Label -->
+        <mxCell id="namespace" value="Namespace: bookmyevent" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontSize=11;fontStyle=2;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="100" y="260" width="180" height="30" as="geometry"/>
+        </mxCell>
+        
+        <!-- Init Container -->
+        <mxCell id="init" value="Init Container&#xa;(DB Migrations&#xa;& Seeding)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="840" y="680" width="120" height="70" as="geometry"/>
+        </mxCell>
+        
+        <!-- Legend -->
+        <mxCell id="legend-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;verticalAlign=top;align=left;" vertex="1" parent="1">
+          <mxGeometry x="1100" y="500" width="400" height="280" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend-title" value="Legend &amp; Key Features" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="510" width="200" height="30" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="legend1" value="✓ Microservices Architecture with Go" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="545" width="360" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend2" value="✓ Event-driven booking system with Redis locks" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="565" width="360" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend3" value="✓ PostgreSQL with 3 separate databases" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="585" width="360" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend4" value="✓ Elasticsearch for full-text search" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="605" width="360" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend5" value="✓ Redis caching &amp; distributed locks" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="625" width="360" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend6" value="✓ JWT-based authentication" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="645" width="360" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend7" value="✓ Nginx reverse proxy API gateway" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="665" width="360" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend8" value="✓ React frontend with Vite" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="685" width="360" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend9" value="✓ AWS EKS deployment with ECR" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="705" width="360" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend10" value="✓ EBS CSI Driver for persistent storage" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="725" width="360" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend11" value="✓ Concurrent booking handling with waitlist" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="745" width="360" height="20" as="geometry"/>
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
