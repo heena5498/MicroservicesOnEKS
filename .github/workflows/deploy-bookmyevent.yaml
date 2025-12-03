@@ -199,8 +199,16 @@ jobs:
         run: |
           IMAGE_TAG=${GITHUB_SHA::7}
           
-          # Create namespace if it doesn't exist
-          kubectl get namespace $K8S_NAMESPACE 2>/dev/null || kubectl create namespace $K8S_NAMESPACE
+          # Create namespace if it doesn't exist, or add Helm labels if created by kubectl
+          if ! kubectl get namespace $K8S_NAMESPACE 2>/dev/null; then
+            kubectl create namespace $K8S_NAMESPACE
+          else
+            # Add Helm labels to existing namespace so Helm can manage it
+            kubectl label namespace $K8S_NAMESPACE app.kubernetes.io/managed-by=Helm --overwrite
+            kubectl annotate namespace $K8S_NAMESPACE meta.helm.sh/release-name=bookmyevent --overwrite
+            kubectl annotate namespace $K8S_NAMESPACE meta.helm.sh/release-namespace=$K8S_NAMESPACE --overwrite
+            echo "✓ Added Helm labels to existing namespace"
+          fi
           
           # Save current revision for rollback
           CURRENT_REVISION=$(helm list -n $K8S_NAMESPACE -o json | jq -r '.[] | select(.name=="bookmyevent") | .revision' 2>/dev/null || echo "0")
