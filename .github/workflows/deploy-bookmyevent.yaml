@@ -167,7 +167,7 @@ jobs:
         run: |
           IMAGE_TAG=${GITHUB_SHA::7}
           
-          helm upgrade --install bookmyevent ./helm/bookmyevent \
+          helm upgrade --install bookmyevent ./helm \
             --namespace $K8S_NAMESPACE \
             --create-namespace \
             --set global.imageRegistry="${ECR_REGISTRY}" \
