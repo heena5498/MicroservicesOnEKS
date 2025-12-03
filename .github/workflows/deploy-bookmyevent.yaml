@@ -72,10 +72,10 @@ jobs:
       - name: Apply all Kubernetes manifests
         run: |
           kubectl -n "$K8S_NAMESPACE" apply \
-            -f k8s/nginx-gateway.yaml \
-            -f k8s/frontend.yaml \
-            -f k8s/user-service.yaml \
-            -f k8s/event-service.yaml \
-            -f k8s/search-service.yaml \
-            -f k8s/booking-service.yaml \
-            -f k8
+            -f k8s/services/nginx-gateway.yaml \
+            -f k8s/services/frontend.yaml \
+            -f k8s/services/user-service.yaml \
+            -f k8s/services/event-service.yaml \
+            -f k8s/services/search-service.yaml \
+            -f k8s/servicesbooking-service.yaml \
+            -f k8s
