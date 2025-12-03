@@ -6,7 +6,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: env-file
-  namespace: bookmyevent-cluster
+  namespace: bookmyevent
 data:
   .env: |
     # Service Ports

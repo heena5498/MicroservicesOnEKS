@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: bookmyevent-secrets
-  namespace: bookmyevent-cluster
+  namespace: bookmyevent
 type: Opaque
 stringData:
   POSTGRES_USER: "postgres"
