@@ -294,16 +294,6 @@ const BookingFlow = () => {
                                 </button>
                             </div>
                         </div>
-
-                        <div className="flex justify-between items-center p-4 bg-gray-50 rounded">
-                            <span className="font-medium">Price per ticket:</span>
-                            <span>${event.base_price}</span>
-                        </div>
-
-                        <div className="flex justify-between items-center p-4 bg-blue-50 rounded border border-blue-200">
-                            <span className="font-bold text-lg">Total:</span>
-                            <span className="font-bold text-lg text-blue-600">${totalAmount}</span>
-                        </div>
                     </div>
 
                     <div className="bg-yellow-50 border border-yellow-200 rounded p-4 mb-6">
@@ -362,59 +352,7 @@ const BookingFlow = () => {
                     <div className="space-y-4 mb-6">
                         <div className="flex justify-between items-center p-4 bg-gray-50 rounded">
                             <span className="font-medium">Total Amount:</span>
-                            <span className="font-bold text-lg">${reservation.total_amount}</span>
-                        </div>
-                    </div>
-
-                    {/* Mock Payment Form */}
-                    <div className="space-y-4 mb-6">
-                        <h3 className="text-lg font-semibold">Payment Method</h3>
-
-                        <div className="space-y-3">
-                            <label className="flex items-center">
-                                <input
-                                    type="radio"
-                                    name="payment_method"
-                                    value="credit_card"
-                                    checked={paymentData.payment_method === 'credit_card'}
-                                    onChange={(e) => setPaymentData({ ...paymentData, payment_method: e.target.value })}
-                                    className="mr-3"
-                                />
-                                <CreditCard className="h-5 w-5 mr-2" />
-                                Credit Card
-                            </label>
-
-                            <label className="flex items-center">
-                                <input
-                                    type="radio"
-                                    name="payment_method"
-                                    value="debit_card"
-                                    checked={paymentData.payment_method === 'debit_card'}
-                                    onChange={(e) => setPaymentData({ ...paymentData, payment_method: e.target.value })}
-                                    className="mr-3"
-                                />
-                                <CreditCard className="h-5 w-5 mr-2" />
-                                Debit Card
-                            </label>
-
-                            <label className="flex items-center">
-                                <input
-                                    type="radio"
-                                    name="payment_method"
-                                    value="paypal"
-                                    checked={paymentData.payment_method === 'paypal'}
-                                    onChange={(e) => setPaymentData({ ...paymentData, payment_method: e.target.value })}
-                                    className="mr-3"
-                                />
-                                <DollarSign className="h-5 w-5 mr-2" />
-                                PayPal
-                            </label>
-                        </div>
-
-                        <div className="bg-blue-50 border border-blue-200 rounded p-4">
-                            <p className="text-blue-800 text-sm">
-                                <strong>Demo Mode:</strong> This is a simulated payment. No actual charges will be made.
-                            </p>
+                            <span className="font-bold text-lg">Free</span>
                         </div>
                     </div>
 
@@ -423,7 +361,7 @@ const BookingFlow = () => {
                         disabled={loading || timeLeft <= 0}
                         className="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors font-semibold disabled:opacity-50"
                     >
-                        {loading ? 'Processing Payment...' : `Pay $${reservation.total_amount}`}
+                        {loading ? 'Processing Payment...' : `Complete Payment`}
                     </button>
                 </div>
             )}
@@ -455,11 +393,6 @@ const BookingFlow = () => {
                         <div className="flex justify-between items-center p-4 bg-gray-50 rounded">
                             <span className="font-medium">Quantity:</span>
                             <span>{quantity} ticket{quantity > 1 ? 's' : ''}</span>
-                        </div>
-
-                        <div className="flex justify-between items-center p-4 bg-gray-50 rounded">
-                            <span className="font-medium">Total Paid:</span>
-                            <span className="font-bold">${booking.payment?.amount || booking.total_amount}</span>
                         </div>
 
                         {booking.ticket_url && (
