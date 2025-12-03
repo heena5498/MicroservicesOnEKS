@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { eventService, formatError } from '../../services/api';
-import { Calendar, Plus, Edit, Trash2, Eye, Users, DollarSign } from 'lucide-react';
+import { Calendar, Plus, Edit, Trash2, Eye, Users } from 'lucide-react';
 
 const AdminEvents = () => {
     const [events, setEvents] = useState([]);
