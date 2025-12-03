@@ -92,32 +92,63 @@ jobs:
           aws ecr get-login-password --region "$AWS_REGION" \
             | docker login --username AWS --password-stdin "$ECR_REGISTRY"
 
-      - name: Build, scan and push ${{ matrix.service.name }}
+      - name: Build image for ${{ matrix.service.name }}
+        id: build
         run: |
           IMAGE_TAG=${GITHUB_SHA::7}
           IMAGE_URI="${ECR_REGISTRY}/bookmyevent/${{ matrix.service.name }}:${IMAGE_TAG}"
           IMAGE_LATEST="${ECR_REGISTRY}/bookmyevent/${{ matrix.service.name }}:latest"
           
-          # Build image
+          echo "Building ${{ matrix.service.name }}..."
           docker build -t "$IMAGE_URI" -t "$IMAGE_LATEST" \
             -f ${{ matrix.service.dockerfile }} \
             ${{ matrix.service.context }}
           
-          # Scan image with Trivy
-          docker run --rm \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            aquasec/trivy image --severity HIGH,CRITICAL \
-            --exit-code 0 "$IMAGE_URI" || true
-          
-          # Push images
-          docker push "$IMAGE_URI"
-          docker push "$IMAGE_LATEST"
-          
-          echo "Pushed ${{ matrix.service.name }}: $IMAGE_URI"
+          echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
+          echo "image_latest=$IMAGE_LATEST" >> $GITHUB_OUTPUT
+          echo "Built ${{ matrix.service.name }}: $IMAGE_URI"
 
-      - name: Output image tag
+      - name: Run Trivy vulnerability scanner on ${{ matrix.service.name }}
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.build.outputs.image_uri }}
+          format: 'sarif'
+          output: 'trivy-${{ matrix.service.name }}.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'  # Don't fail build, just report
+        continue-on-error: true
+
+      - name: Upload Trivy results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-${{ matrix.service.name }}.sarif'
+          category: 'trivy-${{ matrix.service.name }}'
+        continue-on-error: true
+
+      - name: Run Trivy vulnerability scanner (table output)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.build.outputs.image_uri }}
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'  # Fail if CRITICAL vulnerabilities found
+        continue-on-error: false  # Block deployment if critical issues
+
+      - name: Push images to ECR
+        if: success()
+        run: |
+          echo "Pushing ${{ matrix.service.name }} images..."
+          docker push "${{ steps.build.outputs.image_uri }}"
+          docker push "${{ steps.build.outputs.image_latest }}"
+          echo "✅ Pushed ${{ matrix.service.name }}: ${{ steps.build.outputs.image_uri }}"
+
+      - name: Output image details
         run: |
           echo "${{ matrix.service.name }}_IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+          echo "### ${{ matrix.service.name }} Build Complete" >> $GITHUB_STEP_SUMMARY
+          echo "- Image: \`${{ steps.build.outputs.image_uri }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Latest: \`${{ steps.build.outputs.image_latest }}\`" >> $GITHUB_STEP_SUMMARY
 
   # Deploy to EKS using Helm
   deploy:
@@ -163,14 +194,40 @@ jobs:
           echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
           echo "ACCOUNT_ID=$ACCOUNT_ID" >> $GITHUB_ENV
 
-      - name: Deploy with Helm
+      - name: Deploy with Helm (using RDS)
+        id: helm-deploy
         run: |
           IMAGE_TAG=${GITHUB_SHA::7}
           
           # Create namespace if it doesn't exist
           kubectl get namespace $K8S_NAMESPACE 2>/dev/null || kubectl create namespace $K8S_NAMESPACE
           
-          # Deploy with Helm (without --wait to avoid timeout)
+          # Save current revision for rollback
+          CURRENT_REVISION=$(helm list -n $K8S_NAMESPACE -o json | jq -r '.[] | select(.name=="bookmyevent") | .revision' 2>/dev/null || echo "0")
+          echo "current_revision=$CURRENT_REVISION" >> $GITHUB_OUTPUT
+          echo "📌 Current Helm revision: $CURRENT_REVISION"
+          
+          # Create RDS secrets from GitHub secrets (no hardcoded values!)
+          echo "Creating RDS secrets from GitHub Secrets..."
+          cat <<EOF | kubectl apply -f -
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: bookmyevent-secrets
+            namespace: $K8S_NAMESPACE
+          type: Opaque
+          stringData:
+            POSTGRES_USER: "postgres"
+            POSTGRES_PASSWORD: "${{ secrets.RDS_PASSWORD }}"
+            USER_SERVICE_DB_URL: "postgresql://postgres:${{ secrets.RDS_PASSWORD }}@${{ secrets.RDS_ENDPOINT }}:5432/users_db?sslmode=require"
+            EVENT_SERVICE_DB_URL: "postgresql://postgres:${{ secrets.RDS_PASSWORD }}@${{ secrets.RDS_ENDPOINT }}:5432/events_db?sslmode=require"
+            BOOKING_SERVICE_DB_URL: "postgresql://postgres:${{ secrets.RDS_PASSWORD }}@${{ secrets.RDS_ENDPOINT }}:5432/bookings_db?sslmode=require"
+            JWT_SECRET: "${{ secrets.JWT_SECRET }}"
+            INTERNAL_API_KEY: "${{ secrets.INTERNAL_API_KEY }}"
+          EOF
+          
+          # Deploy with Helm (postgres disabled for RDS)
+          echo "Deploying with Helm (RDS mode - postgres disabled)..."
           helm upgrade --install bookmyevent ./helm \
             --namespace $K8S_NAMESPACE \
             --set global.imageRegistry="${ECR_REGISTRY}" \
@@ -180,27 +237,144 @@ jobs:
             --set imageTags.bookingService="${IMAGE_TAG}" \
             --set imageTags.frontend="${IMAGE_TAG}" \
             --set imageTags.initContainer="${IMAGE_TAG}" \
-            --set secrets.postgresPassword="${{ secrets.DB_PASSWORD }}" \
-            --set secrets.jwtSecret="${{ secrets.JWT_SECRET }}" \
-            --set secrets.internalApiKey="${{ secrets.INTERNAL_API_KEY }}" \
-            --timeout 15m
+            --set database.postgres.enabled=false \
+            --set secrets.create=false \
+            --timeout 15m \
+            --atomic \
+            --wait
           
-          echo "✅ Helm deployment completed"
+          NEW_REVISION=$(helm list -n $K8S_NAMESPACE -o json | jq -r '.[] | select(.name=="bookmyevent") | .revision')
+          echo "new_revision=$NEW_REVISION" >> $GITHUB_OUTPUT
+          echo "✅ Helm deployment completed - Revision: $NEW_REVISION"
           
-          # Wait for infrastructure pods first (they take longest)
-          echo "Waiting for infrastructure pods..."
-          kubectl wait --for=condition=ready pod -l app=postgres -n $K8S_NAMESPACE --timeout=300s || true
+          # Wait for infrastructure pods (Redis and Elasticsearch only, no Postgres)
+          echo "Waiting for infrastructure pods (Redis, Elasticsearch)..."
           kubectl wait --for=condition=ready pod -l app=redis -n $K8S_NAMESPACE --timeout=300s || true
           kubectl wait --for=condition=ready pod -l app=elasticsearch -n $K8S_NAMESPACE --timeout=300s || true
           
+          # Run RDS migrations (using GitHub secrets, not hardcoded!)
+          echo "Running RDS migrations against RDS endpoint: ${{ secrets.RDS_ENDPOINT }}..."
+          cat <<EOF | kubectl apply -f -
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+            name: run-migrations-rds-${GITHUB_SHA::7}
+            namespace: $K8S_NAMESPACE
+          spec:
+            ttlSecondsAfterFinished: 600
+            backoffLimit: 3
+            template:
+              metadata:
+                labels:
+                  app: run-migrations-rds
+              spec:
+                restartPolicy: OnFailure
+                containers:
+                  - name: migrations
+                    image: postgres:15-alpine
+                    env:
+                      - name: PGPASSWORD
+                        valueFrom:
+                          secretKeyRef:
+                            name: bookmyevent-secrets
+                            key: POSTGRES_PASSWORD
+                      - name: RDS_ENDPOINT
+                        value: "${{ secrets.RDS_ENDPOINT }}"
+                    command:
+                      - /bin/sh
+                      - -c
+                      - |
+                        echo "Running database migrations on RDS..."
+                        echo "RDS Endpoint: \$RDS_ENDPOINT"
+                        
+                        # Function to run migrations for a service
+                        run_migrations() {
+                          SERVICE=\$1
+                          DB=\$2
+                          echo "Migrating \$SERVICE to \$DB..."
+                          for sql_file in /migrations/\$SERVICE/*.sql; do
+                            if [ -f "\$sql_file" ]; then
+                              echo "  Running \$(basename \$sql_file)..."
+                              psql -h "\$RDS_ENDPOINT" -U postgres -d "\$DB" -f "\$sql_file" || echo "  Warning: \$sql_file failed"
+                            fi
+                          done
+                        }
+                        
+                        run_migrations "user-service" "users_db"
+                        run_migrations "event-service" "events_db"
+                        run_migrations "booking-service" "bookings_db"
+                        
+                        echo "All migrations completed!"
+                    volumeMounts:
+                      - name: user-migrations
+                        mountPath: /migrations/user-service
+                      - name: event-migrations
+                        mountPath: /migrations/event-service
+                      - name: booking-migrations
+                        mountPath: /migrations/booking-service
+                    resources:
+                      requests:
+                        memory: "64Mi"
+                        cpu: "50m"
+                      limits:
+                        memory: "128Mi"
+                        cpu: "100m"
+                volumes:
+                  - name: user-migrations
+                    configMap:
+                      name: user-migrations
+                  - name: event-migrations
+                    configMap:
+                      name: event-migrations
+                  - name: booking-migrations
+                    configMap:
+                      name: booking-migrations
+          EOF
+          kubectl wait --for=condition=complete --timeout=300s job/run-migrations-rds-${GITHUB_SHA::7} -n $K8S_NAMESPACE || true
+          
           # Then wait for service pods
-          echo "Waiting for service pods..."
-          kubectl wait --for=condition=ready pod -l app=user-service -n $K8S_NAMESPACE --timeout=300s || true
-          kubectl wait --for=condition=ready pod -l app=event-service -n $K8S_NAMESPACE --timeout=300s || true
-          kubectl wait --for=condition=ready pod -l app=search-service -n $K8S_NAMESPACE --timeout=300s || true
-          kubectl wait --for=condition=ready pod -l app=booking-service -n $K8S_NAMESPACE --timeout=300s || true
-          kubectl wait --for=condition=ready pod -l app=frontend -n $K8S_NAMESPACE --timeout=300s || true
-          kubectl wait --for=condition=ready pod -l app=nginx-gateway -n $K8S_NAMESPACE --timeout=300s || true
+          echo "Waiting for service pods to be ready..."
+          kubectl wait --for=condition=ready pod -l app=user-service -n $K8S_NAMESPACE --timeout=300s
+          kubectl wait --for=condition=ready pod -l app=event-service -n $K8S_NAMESPACE --timeout=300s
+          kubectl wait --for=condition=ready pod -l app=search-service -n $K8S_NAMESPACE --timeout=300s
+          kubectl wait --for=condition=ready pod -l app=booking-service -n $K8S_NAMESPACE --timeout=300s
+          kubectl wait --for=condition=ready pod -l app=frontend -n $K8S_NAMESPACE --timeout=300s
+          kubectl wait --for=condition=ready pod -l app=nginx-gateway -n $K8S_NAMESPACE --timeout=300s
+          
+          echo "✅ All pods are ready!"
+
+      - name: Rollback on deployment failure
+        if: failure() && steps.helm-deploy.outcome == 'failure'
+        run: |
+          echo "🔄 Deployment failed! Rolling back..."
+          
+          # Rollback using Helm
+          PREV_REVISION="${{ steps.helm-deploy.outputs.current_revision }}"
+          if [ "$PREV_REVISION" != "0" ]; then
+            echo "Rolling back Helm release to revision $PREV_REVISION..."
+            helm rollback bookmyevent $PREV_REVISION -n $K8S_NAMESPACE --wait --timeout 10m
+            echo "✅ Helm rollback completed"
+          else
+            echo "No previous revision found. This was the first deployment."
+          fi
+          
+          # Also rollback individual deployments using kubectl
+          echo "Rolling back deployments using kubectl..."
+          kubectl rollout undo deployment/user-service -n $K8S_NAMESPACE || true
+          kubectl rollout undo deployment/event-service -n $K8S_NAMESPACE || true
+          kubectl rollout undo deployment/search-service -n $K8S_NAMESPACE || true
+          kubectl rollout undo deployment/booking-service -n $K8S_NAMESPACE || true
+          kubectl rollout undo deployment/frontend -n $K8S_NAMESPACE || true
+          kubectl rollout undo deployment/nginx-gateway -n $K8S_NAMESPACE || true
+          
+          # Wait for rollback to complete
+          kubectl rollout status deployment/user-service -n $K8S_NAMESPACE --timeout=300s || true
+          kubectl rollout status deployment/event-service -n $K8S_NAMESPACE --timeout=300s || true
+          kubectl rollout status deployment/search-service -n $K8S_NAMESPACE --timeout=300s || true
+          kubectl rollout status deployment/booking-service -n $K8S_NAMESPACE --timeout=300s || true
+          
+          echo "❌ Deployment failed and was rolled back"
+          exit 1
 
       - name: Verify deployment
         run: |
@@ -225,7 +399,7 @@ jobs:
           for i in {1..30}; do
             LB_URL=$(kubectl get service nginx-gateway -n $K8S_NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "")
             if [ -n "$LB_URL" ]; then
-              echo "✅ Application URLs:"
+              echo "Application URLs:"
               echo "   Frontend: http://${LB_URL}"
               echo "   API Gateway: http://${LB_URL}/api"
               break

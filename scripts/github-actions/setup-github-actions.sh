@@ -46,7 +46,7 @@ echo "============================================================"
 
 # Check if user exists
 if aws iam get-user --user-name "$IAM_USER_NAME" 2>/dev/null; then
-    echo -e "${YELLOW}⚠️  IAM user '$IAM_USER_NAME' already exists${NC}"
+    echo -e "${YELLOW} IAM user '$IAM_USER_NAME' already exists${NC}"
     read -p "Delete and recreate? (y/n) " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then

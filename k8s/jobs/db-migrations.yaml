@@ -1,3 +1,4 @@
+
 ---
 # Database Migration Job - Creates all tables with correct schema
 apiVersion: batch/v1
@@ -233,7 +234,3 @@ spec:
             limits:
               memory: "128Mi"
               cpu: "100m"
-
-
-
-

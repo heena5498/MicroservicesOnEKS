@@ -83,6 +83,7 @@ aws-auth-backup*.yaml
 # Kubernetes secrets
 k8s/secrets.local.yaml
 k8s/*-secrets.yaml
+k8s/02-secrets-rds.yml
 !k8s/02-secrets.yaml.example
 k8s/03-env-file-configmap.yaml
 !k8s/03-env-file-configmap.yaml.example

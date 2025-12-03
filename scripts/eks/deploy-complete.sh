@@ -34,19 +34,46 @@ echo "============================================================"
 echo "  BookMyEvent - Complete EKS Deployment Script"
 echo "============================================================"
 
+# Load environment variables from .env file if it exists (for local runs)
+if [ -f .env ]; then
+    echo "Loading environment variables from .env file..."
+    set -a
+    source .env
+    set +a
+fi
+
 # Configuration
 export AWS_REGION="${AWS_REGION:-us-east-1}"
 export CLUSTER_NAME="${CLUSTER_NAME:-bookmyevent-cluster}"
+export RDS_INSTANCE="${RDS_INSTANCE:-bookmyevent-rds}"
+
+# Check required secrets
+if [ -z "$DB_PASSWORD" ]; then
+    echo "ERROR: DB_PASSWORD is not set"
+    echo "For local runs, create a .env file with:"
+    echo "  DB_PASSWORD=your_password"
+    echo "  JWT_SECRET=your_jwt_secret"
+    echo "  INTERNAL_API_KEY=your_api_key"
+    exit 1
+fi
+
+# Generate secrets if not set (for local convenience)
+export JWT_SECRET="${JWT_SECRET:-$(openssl rand -base64 32)}"
+export INTERNAL_API_KEY="${INTERNAL_API_KEY:-$(openssl rand -hex 32)}"
 
 # Get AWS Account ID
 echo ""
-echo "[1/8] Getting AWS Account ID..."
+echo "[1/8] Getting AWS Account ID and RDS Endpoint..."
 export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 export ECR_REGISTRY="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
+
+# Get RDS Endpoint
+export RDS_ENDPOINT=$(aws rds describe-db-instances --db-instance-identifier "$RDS_INSTANCE" --region "$AWS_REGION" --query 'DBInstances[0].Endpoint.Address' --output text)
 
 echo "  Account: $AWS_ACCOUNT_ID"
 echo "  Region: $AWS_REGION"
 echo "  Registry: $ECR_REGISTRY"
+echo "  RDS Endpoint: $RDS_ENDPOINT"
 
 # Change to project root
 cd "$(dirname "$0")/../.."
@@ -125,20 +152,43 @@ echo ""
 echo "[6/8] Deploying Kubernetes Resources..."
 
 substitute_vars() {
-    sed -e "s|\${AWS_ACCOUNT_ID}|$AWS_ACCOUNT_ID|g" -e "s|\${AWS_REGION}|$AWS_REGION|g" "$1"
+    sed -e "s|\${AWS_ACCOUNT_ID}|$AWS_ACCOUNT_ID|g" \
+        -e "s|\${AWS_REGION}|$AWS_REGION|g" \
+        -e "s|\${RDS_ENDPOINT}|$RDS_ENDPOINT|g" \
+        -e "s|\${DB_PASSWORD}|$DB_PASSWORD|g" \
+        -e "s|\${JWT_SECRET}|$JWT_SECRET|g" \
+        -e "s|\${INTERNAL_API_KEY}|$INTERNAL_API_KEY|g" "$1"
 }
 
 kubectl apply -f k8s/00-namespace.yaml
-kubectl apply -f k8s/01-configmap.yaml
-kubectl apply -f k8s/02-secrets.yaml
-kubectl apply -f k8s/03-env-file-configmap.yaml
 
-echo "  Deploying infrastructure..."
-kubectl apply -f k8s/infrastructure/
+echo "  Creating ConfigMap..."
+kubectl apply -f k8s/01-configmap.yml
+
+echo "  Creating Secrets with RDS credentials..."
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bookmyevent-secrets
+  namespace: bookmyevent
+type: Opaque
+stringData:
+  POSTGRES_USER: "postgres"
+  POSTGRES_PASSWORD: "$DB_PASSWORD"
+  USER_SERVICE_DB_URL: "postgresql://postgres:$DB_PASSWORD@$RDS_ENDPOINT:5432/users_db?sslmode=require"
+  EVENT_SERVICE_DB_URL: "postgresql://postgres:$DB_PASSWORD@$RDS_ENDPOINT:5432/events_db?sslmode=require"
+  BOOKING_SERVICE_DB_URL: "postgresql://postgres:$DB_PASSWORD@$RDS_ENDPOINT:5432/bookings_db?sslmode=require"
+  JWT_SECRET: "$JWT_SECRET"
+  INTERNAL_API_KEY: "$INTERNAL_API_KEY"
+EOF
+
+echo "  Deploying infrastructure (Redis & Elasticsearch only, using RDS for PostgreSQL)..."
+kubectl apply -f k8s/infrastructure/redis.yaml
+kubectl apply -f k8s/infrastructure/elasticsearch.yaml
 
 echo "  Waiting for infrastructure..."
-sleep 60
-kubectl wait --for=condition=available --timeout=300s deployment/postgres -n bookmyevent
+sleep 30
 kubectl wait --for=condition=available --timeout=300s deployment/redis -n bookmyevent
 kubectl wait --for=condition=available --timeout=300s deployment/elasticsearch -n bookmyevent
 

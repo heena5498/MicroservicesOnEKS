@@ -8,7 +8,7 @@ set -e
 
 # Configuration - UPDATE THESE
 export AWS_REGION="${AWS_REGION:-us-east-1}"
-export CLUSTER_NAME="${CLUSTER_NAME:-bookmyevent}"
+export CLUSTER_NAME="${CLUSTER_NAME:-bookmyevent-cluster}"
 export NODE_TYPE="${NODE_TYPE:-t3.medium}"
 export NODE_COUNT="${NODE_COUNT:-3}"
 export NODE_MIN="${NODE_MIN:-3}"

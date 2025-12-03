@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# Script: 5-cleanup.sh
+# Script: 5-cleanup-all.sh
 # Description: Cleans up all EKS resources
 # =============================================================================
 
@@ -12,7 +12,7 @@ export CLUSTER_NAME="${CLUSTER_NAME:-bookmyevent-cluster}"
 export AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID:-$(aws sts get-caller-identity --query Account --output text)}"
 
 echo "======================================"
-echo "⚠️  WARNING: This will delete all resources!"
+echo "WARNING: This will delete all resources!"
 echo "Cluster: $CLUSTER_NAME"
 echo "Region: $AWS_REGION"
 echo "======================================"

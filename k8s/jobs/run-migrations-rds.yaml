@@ -1,0 +1,68 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: run-migrations-rds
+  namespace: bookmyevent
+spec:
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app: run-migrations-rds
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: migrations
+          image: postgres:15-alpine
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Running User Service migrations..."
+              PGPASSWORD='BookMyEvent2024!' psql -h bookmyevent-rds.cspimyi4mj08.us-east-1.rds.amazonaws.com -U postgres -d users_db -f /migrations/user-service/00001_create_users_table.sql
+              PGPASSWORD='BookMyEvent2024!' psql -h bookmyevent-rds.cspimyi4mj08.us-east-1.rds.amazonaws.com -U postgres -d users_db -f /migrations/user-service/00002_create_refresh_tokens_table.sql
+              PGPASSWORD='BookMyEvent2024!' psql -h bookmyevent-rds.cspimyi4mj08.us-east-1.rds.amazonaws.com -U postgres -d users_db -f /migrations/user-service/00003_add_user_indexes.sql
+              
+              echo "Running Event Service migrations..."
+              PGPASSWORD='BookMyEvent2024!' psql -h bookmyevent-rds.cspimyi4mj08.us-east-1.rds.amazonaws.com -U postgres -d events_db -f /migrations/event-service/00001_create_venues_table.sql
+              PGPASSWORD='BookMyEvent2024!' psql -h bookmyevent-rds.cspimyi4mj08.us-east-1.rds.amazonaws.com -U postgres -d events_db -f /migrations/event-service/00002_create_events_table.sql
+              PGPASSWORD='BookMyEvent2024!' psql -h bookmyevent-rds.cspimyi4mj08.us-east-1.rds.amazonaws.com -U postgres -d events_db -f /migrations/event-service/00003_create_admins_table.sql
+              PGPASSWORD='BookMyEvent2024!' psql -h bookmyevent-rds.cspimyi4mj08.us-east-1.rds.amazonaws.com -U postgres -d events_db -f /migrations/event-service/00004_add_strategic_indexes.sql
+              PGPASSWORD='BookMyEvent2024!' psql -h bookmyevent-rds.cspimyi4mj08.us-east-1.rds.amazonaws.com -U postgres -d events_db -f /migrations/event-service/00005_create_admin_refresh_tokens_table.sql
+              PGPASSWORD='BookMyEvent2024!' psql -h bookmyevent-rds.cspimyi4mj08.us-east-1.rds.amazonaws.com -U postgres -d events_db -f /migrations/event-service/00006_add_created_by_to_venues.sql
+              PGPASSWORD='BookMyEvent2024!' psql -h bookmyevent-rds.cspimyi4mj08.us-east-1.rds.amazonaws.com -U postgres -d events_db -f /migrations/event-service/00007_add_venue_overlap_constraint.sql
+              
+              echo "Running Booking Service migrations..."
+              PGPASSWORD='BookMyEvent2024!' psql -h bookmyevent-rds.cspimyi4mj08.us-east-1.rds.amazonaws.com -U postgres -d bookings_db -f /migrations/booking-service/00001_create_bookings_table.sql
+              PGPASSWORD='BookMyEvent2024!' psql -h bookmyevent-rds.cspimyi4mj08.us-east-1.rds.amazonaws.com -U postgres -d bookings_db -f /migrations/booking-service/00002_create_payments_table.sql
+              PGPASSWORD='BookMyEvent2024!' psql -h bookmyevent-rds.cspimyi4mj08.us-east-1.rds.amazonaws.com -U postgres -d bookings_db -f /migrations/booking-service/00003_create_waitlist_table.sql
+              PGPASSWORD='BookMyEvent2024!' psql -h bookmyevent-rds.cspimyi4mj08.us-east-1.rds.amazonaws.com -U postgres -d bookings_db -f /migrations/booking-service/00004_create_booking_seats_table.sql
+              PGPASSWORD='BookMyEvent2024!' psql -h bookmyevent-rds.cspimyi4mj08.us-east-1.rds.amazonaws.com -U postgres -d bookings_db -f /migrations/booking-service/00005_add_strategic_indexes.sql
+              PGPASSWORD='BookMyEvent2024!' psql -h bookmyevent-rds.cspimyi4mj08.us-east-1.rds.amazonaws.com -U postgres -d bookings_db -f /migrations/booking-service/00006_waitlist_timestamp_based.sql
+              PGPASSWORD='BookMyEvent2024!' psql -h bookmyevent-rds.cspimyi4mj08.us-east-1.rds.amazonaws.com -U postgres -d bookings_db -f /migrations/booking-service/00007_drop_position_column.sql
+              
+              echo "All migrations completed!"
+          volumeMounts:
+            - name: user-migrations
+              mountPath: /migrations/user-service
+            - name: event-migrations
+              mountPath: /migrations/event-service
+            - name: booking-migrations
+              mountPath: /migrations/booking-service
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+      volumes:
+        - name: user-migrations
+          configMap:
+            name: user-migrations
+        - name: event-migrations
+          configMap:
+            name: event-migrations
+        - name: booking-migrations
+          configMap:
+            name: booking-migrations

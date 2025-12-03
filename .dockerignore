@@ -1,57 +1,54 @@
-# Patterns to ignore when building images
-.git/
-.github/
-*.md
-README.md
-CHANGELOG.md
-LICENSE
-CONTRIBUTING.md
 
-# Development files
-.env
-.env.*
-.env.example
-.vscode/
-.idea/
+# Git
+.git
+.gitignore
+
+# Node modules
+node_modules
+npm-debug.log
+yarn-error.log
+
+# IDE and editors
+.idea
+.vscode
 *.swp
 *.swo
 *~
-.DS_Store
 
-# Testing
-tests/
-test/
-testdata/
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build outputs
+dist
+build
+*.exe
+
+# Test files
 *_test.go
-*.test
-coverage.out
-*.coverprofile
+tests-scripts/
+test-*.sh
 
 # Documentation
+*.md
 docs/
-build/*.md
-*.drawio
-*.xml
-schema.png
 
-# Dependencies (handled by multi-stage builds)
-node_modules/
-vendor/
+# Kubernetes manifests (not needed in image)
+k8s/
 
-# Build artifacts
-*.exe
-*.dll
-*.so
-*.dylib
-bin/
-dist/
-build/
+# Scripts
+scripts/
 
-# Logs
-*.log
-logs/
+# Database files
+*.sql
+
+# Environment files
+.env
+.env.*
+!.env.example
 
 # Temporary files
 tmp/
 temp/
 *.tmp
+*.log
