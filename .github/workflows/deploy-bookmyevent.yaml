@@ -168,8 +168,9 @@ jobs:
           IMAGE_TAG=${GITHUB_SHA::7}
           
           # Create namespace if it doesn't exist
-          kubectl create namespace $K8S_NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
+          kubectl get namespace $K8S_NAMESPACE 2>/dev/null || kubectl create namespace $K8S_NAMESPACE
           
+          # Deploy with Helm (without --wait to avoid timeout)
           helm upgrade --install bookmyevent ./helm \
             --namespace $K8S_NAMESPACE \
             --set global.imageRegistry="${ECR_REGISTRY}" \
@@ -182,33 +183,56 @@ jobs:
             --set secrets.postgresPassword="${{ secrets.DB_PASSWORD }}" \
             --set secrets.jwtSecret="${{ secrets.JWT_SECRET }}" \
             --set secrets.internalApiKey="${{ secrets.INTERNAL_API_KEY }}" \
-            --wait \
-            --timeout 10m
+            --timeout 15m
+          
+          echo "✅ Helm deployment completed"
+          
+          # Wait for infrastructure pods first (they take longest)
+          echo "Waiting for infrastructure pods..."
+          kubectl wait --for=condition=ready pod -l app=postgres -n $K8S_NAMESPACE --timeout=300s || true
+          kubectl wait --for=condition=ready pod -l app=redis -n $K8S_NAMESPACE --timeout=300s || true
+          kubectl wait --for=condition=ready pod -l app=elasticsearch -n $K8S_NAMESPACE --timeout=300s || true
+          
+          # Then wait for service pods
+          echo "Waiting for service pods..."
+          kubectl wait --for=condition=ready pod -l app=user-service -n $K8S_NAMESPACE --timeout=300s || true
+          kubectl wait --for=condition=ready pod -l app=event-service -n $K8S_NAMESPACE --timeout=300s || true
+          kubectl wait --for=condition=ready pod -l app=search-service -n $K8S_NAMESPACE --timeout=300s || true
+          kubectl wait --for=condition=ready pod -l app=booking-service -n $K8S_NAMESPACE --timeout=300s || true
+          kubectl wait --for=condition=ready pod -l app=frontend -n $K8S_NAMESPACE --timeout=300s || true
+          kubectl wait --for=condition=ready pod -l app=nginx-gateway -n $K8S_NAMESPACE --timeout=300s || true
 
       - name: Verify deployment
         run: |
-          echo "Waiting for pods to be ready..."
-          kubectl wait --for=condition=ready pod \
-            --all \
-            --namespace=$K8S_NAMESPACE \
-            --timeout=300s || true
-          
           echo "=== Deployment Status ==="
           kubectl get deployments -n $K8S_NAMESPACE
           
+          echo ""
           echo "=== Pod Status ==="
-          kubectl get pods -n $K8S_NAMESPACE
+          kubectl get pods -n $K8S_NAMESPACE -o wide
           
+          echo ""
           echo "=== Services ==="
           kubectl get services -n $K8S_NAMESPACE
           
+          echo ""
+          echo "=== Pod Details (if any are not running) ==="
+          kubectl get pods -n $K8S_NAMESPACE --field-selector=status.phase!=Running -o wide || echo "All pods running!"
+          
           # Get LoadBalancer URL
-          LB_URL=$(kubectl get service nginx-gateway -n $K8S_NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-          if [ -n "$LB_URL" ]; then
-            echo "=== Application URL ==="
-            echo "Frontend: http://${LB_URL}"
-            echo "API Gateway: http://${LB_URL}/api"
-          fi
+          echo ""
+          echo "=== Waiting for LoadBalancer URL ==="
+          for i in {1..30}; do
+            LB_URL=$(kubectl get service nginx-gateway -n $K8S_NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "")
+            if [ -n "$LB_URL" ]; then
+              echo "✅ Application URLs:"
+              echo "   Frontend: http://${LB_URL}"
+              echo "   API Gateway: http://${LB_URL}/api"
+              break
+            fi
+            echo "Waiting for LoadBalancer... ($i/30)"
+            sleep 10
+          done
 
       - name: Run smoke tests
         run: |
