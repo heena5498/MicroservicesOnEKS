@@ -141,7 +141,7 @@ jobs:
           echo "Pushing ${{ matrix.service.name }} images..."
           docker push "${{ steps.build.outputs.image_uri }}"
           docker push "${{ steps.build.outputs.image_latest }}"
-          echo "✅ Pushed ${{ matrix.service.name }}: ${{ steps.build.outputs.image_uri }}"
+          echo "Pushed ${{ matrix.service.name }}: ${{ steps.build.outputs.image_uri }}"
 
       - name: Output image details
         run: |
@@ -205,7 +205,7 @@ jobs:
           # Save current revision for rollback
           CURRENT_REVISION=$(helm list -n $K8S_NAMESPACE -o json | jq -r '.[] | select(.name=="bookmyevent") | .revision' 2>/dev/null || echo "0")
           echo "current_revision=$CURRENT_REVISION" >> $GITHUB_OUTPUT
-          echo "📌 Current Helm revision: $CURRENT_REVISION"
+          echo "Current Helm revision: $CURRENT_REVISION"
           
           # Create RDS secrets from GitHub secrets (no hardcoded values!)
           echo "Creating RDS secrets from GitHub Secrets..."
@@ -245,7 +245,7 @@ jobs:
           
           NEW_REVISION=$(helm list -n $K8S_NAMESPACE -o json | jq -r '.[] | select(.name=="bookmyevent") | .revision')
           echo "new_revision=$NEW_REVISION" >> $GITHUB_OUTPUT
-          echo "✅ Helm deployment completed - Revision: $NEW_REVISION"
+          echo "Helm deployment completed - Revision: $NEW_REVISION"
           
           # Wait for infrastructure pods (Redis and Elasticsearch only, no Postgres)
           echo "Waiting for infrastructure pods (Redis, Elasticsearch)..."
@@ -341,39 +341,29 @@ jobs:
           kubectl wait --for=condition=ready pod -l app=frontend -n $K8S_NAMESPACE --timeout=300s
           kubectl wait --for=condition=ready pod -l app=nginx-gateway -n $K8S_NAMESPACE --timeout=300s
           
-          echo "✅ All pods are ready!"
+          echo "All pods are ready!"
 
       - name: Rollback on deployment failure
-        if: failure() && steps.helm-deploy.outcome == 'failure'
+        if: failure() && steps.helm-deploy.outputs.current_revision != '0'
         run: |
           echo "🔄 Deployment failed! Rolling back..."
           
-          # Rollback using Helm
+          # Note: Helm --atomic flag already attempted automatic rollback
+          # This step provides additional kubectl-level rollback for safety
+          
           PREV_REVISION="${{ steps.helm-deploy.outputs.current_revision }}"
-          if [ "$PREV_REVISION" != "0" ]; then
-            echo "Rolling back Helm release to revision $PREV_REVISION..."
-            helm rollback bookmyevent $PREV_REVISION -n $K8S_NAMESPACE --wait --timeout 10m
-            echo "✅ Helm rollback completed"
-          else
-            echo "No previous revision found. This was the first deployment."
-          fi
+          echo "Previous revision was: $PREV_REVISION"
           
-          # Also rollback individual deployments using kubectl
+          # Rollback individual deployments using kubectl (in case Helm rollback failed)
           echo "Rolling back deployments using kubectl..."
-          kubectl rollout undo deployment/user-service -n $K8S_NAMESPACE || true
-          kubectl rollout undo deployment/event-service -n $K8S_NAMESPACE || true
-          kubectl rollout undo deployment/search-service -n $K8S_NAMESPACE || true
-          kubectl rollout undo deployment/booking-service -n $K8S_NAMESPACE || true
-          kubectl rollout undo deployment/frontend -n $K8S_NAMESPACE || true
-          kubectl rollout undo deployment/nginx-gateway -n $K8S_NAMESPACE || true
+          kubectl rollout undo deployment/user-service -n $K8S_NAMESPACE 2>/dev/null || echo "No previous deployment for user-service"
+          kubectl rollout undo deployment/event-service -n $K8S_NAMESPACE 2>/dev/null || echo "No previous deployment for event-service"
+          kubectl rollout undo deployment/search-service -n $K8S_NAMESPACE 2>/dev/null || echo "No previous deployment for search-service"
+          kubectl rollout undo deployment/booking-service -n $K8S_NAMESPACE 2>/dev/null || echo "No previous deployment for booking-service"
+          kubectl rollout undo deployment/frontend -n $K8S_NAMESPACE 2>/dev/null || echo "No previous deployment for frontend"
+          kubectl rollout undo deployment/nginx-gateway -n $K8S_NAMESPACE 2>/dev/null || echo "No previous deployment for nginx-gateway"
           
-          # Wait for rollback to complete
-          kubectl rollout status deployment/user-service -n $K8S_NAMESPACE --timeout=300s || true
-          kubectl rollout status deployment/event-service -n $K8S_NAMESPACE --timeout=300s || true
-          kubectl rollout status deployment/search-service -n $K8S_NAMESPACE --timeout=300s || true
-          kubectl rollout status deployment/booking-service -n $K8S_NAMESPACE --timeout=300s || true
-          
-          echo "❌ Deployment failed and was rolled back"
+          echo "Deployment failed (Helm --atomic already performed automatic rollback)"
           exit 1
 
       - name: Verify deployment
