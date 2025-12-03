@@ -1,0 +1,81 @@
+name: Deploy BookMyEvent to EKS
+
+on:
+  push:
+    branches: [ main, build ]
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  EKS_CLUSTER_NAME: ${{ secrets.EKS_CLUSTER_NAME }}
+  K8S_NAMESPACE: bookmyevent
+  ECR_REPOSITORY: bookmyevent/booking-service
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.SECRETACCESSKEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)
+          echo "ACCOUNT_ID=$ACCOUNT_ID" >> $GITHUB_ENV
+          ECR_REGISTRY="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+          echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
+          aws ecr get-login-password --region "$AWS_REGION" \
+            | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+
+      - name: Build and push booking-service image
+        run: |
+          IMAGE_TAG=${GITHUB_SHA::7}
+          IMAGE_URI="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
+
+          docker build -t "$IMAGE_URI" -f services/booking-service/Dockerfile .
+          docker push "$IMAGE_URI"
+
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/kubectl
+
+      - name: Configure kubeconfig for EKS
+        run: |
+          aws eks update-kubeconfig \
+            --name "$EKS_CLUSTER_NAME" \
+            --region "$AWS_REGION"
+
+      - name: Apply Secrets and env-file ConfigMap from templates
+        run: |
+          envsubst < k8s/02-secrets.yml.tpl \
+            | kubectl -n "$K8S_NAMESPACE" apply -f -
+
+          envsubst < k8s/03-env-file-configmap.yml.tpl \
+            | kubectl -n "$K8S_NAMESPACE" apply -f -
+        env:
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          INTERNAL_API_KEY: ${{ secrets.INTERNAL_API_KEY }}
+
+      - name: Apply all Kubernetes manifests
+        run: |
+          kubectl -n "$K8S_NAMESPACE" apply \
+            -f k8s/nginx-gateway.yaml \
+            -f k8s/frontend.yaml \
+            -f k8s/user-service.yaml \
+            -f k8s/event-service.yaml \
+            -f k8s/search-service.yaml \
+            -f k8s/booking-service.yaml \
+            -f k8
