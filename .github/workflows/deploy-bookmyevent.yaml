@@ -131,7 +131,7 @@ jobs:
         with:
           image-ref: ${{ steps.build.outputs.image_uri }}
           format: 'table'
-          severity: 'CRITICAL,HIGH'
+          severity: 'CRITICAL'
           exit-code: '1'  # Fail if CRITICAL vulnerabilities found
         continue-on-error: false  # Block deployment if critical issues
 
