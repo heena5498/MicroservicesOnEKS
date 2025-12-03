@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { eventService, bookingService, formatError } from '../services/api';
 import {
-    MapPin, Calendar, Users, DollarSign, Clock,
+    MapPin, Calendar, Users, Clock,
     Ticket, AlertCircle, CheckCircle, ArrowLeft
 } from 'lucide-react';
 
@@ -247,21 +247,11 @@ const EventDetails = () => {
                                 <Users className="h-5 w-5 mr-3 text-blue-600" />
                                 <div>
                                     <p className="font-semibold">
-                                        {availability?.available_seats || event.available_seats} seats available
+                                        {availability?.available_seats || event.available_seats} spots available
                                     </p>
                                     <p className="text-sm text-gray-600">
                                         Total capacity: {event.total_capacity}
                                     </p>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center text-gray-700">
-                                <DollarSign className="h-5 w-5 mr-3 text-blue-600" />
-                                <div>
-                                    <p className="font-semibold text-2xl text-green-600">
-                                        ${availability?.base_price || event.base_price}
-                                    </p>
-                                    <p className="text-sm text-gray-600">Starting price per ticket</p>
                                 </div>
                             </div>
 
@@ -324,7 +314,7 @@ const EventDetails = () => {
                                 ) : (
                                     <div className="flex items-center text-red-600">
                                         <AlertCircle className="h-4 w-4 mr-2" />
-                                        Not enough seats available
+                                        Not enough spots available
                                     </div>
                                 )
                             ) : (
@@ -333,18 +323,6 @@ const EventDetails = () => {
                                     Fully booked
                                 </div>
                             )}
-                        </div>
-
-                        {/* Total Price */}
-                        <div className="mb-6 p-3 bg-white rounded border">
-                            <div className="flex justify-between items-center">
-                                <span className="text-gray-600">
-                                    {quantity} × ${availability?.base_price || event.base_price}
-                                </span>
-                                <span className="text-xl font-bold text-green-600">
-                                    ${totalPrice.toFixed(2)}
-                                </span>
-                            </div>
                         </div>
 
                         {/* Book Button */}
@@ -436,7 +414,6 @@ const EventDetails = () => {
                         <ul className="text-gray-600 space-y-1 text-sm">
                             <li>• Maximum {availability?.max_per_booking || event.max_tickets_per_booking} tickets per booking</li>
                             <li>• 5-minute reservation window</li>
-                            <li>• Secure payment processing</li>
                             <li>• Instant ticket delivery</li>
                         </ul>
                     </div>
