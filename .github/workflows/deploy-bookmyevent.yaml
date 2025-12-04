@@ -211,6 +211,25 @@ jobs:
           kubectl annotate namespace $K8S_NAMESPACE meta.helm.sh/release-name=bookmyevent --overwrite
           kubectl annotate namespace $K8S_NAMESPACE meta.helm.sh/release-namespace=$K8S_NAMESPACE --overwrite
           
+          # Create RDS secrets BEFORE Helm deployment so pods can find them
+          echo "Creating RDS secrets from GitHub Secrets..."
+          cat <<EOF | kubectl apply -f -
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: bookmyevent-secrets
+            namespace: $K8S_NAMESPACE
+          type: Opaque
+          stringData:
+            POSTGRES_USER: "postgres"
+            POSTGRES_PASSWORD: "${{ secrets.RDS_PASSWORD }}"
+            USER_SERVICE_DB_URL: "postgresql://postgres:${{ secrets.RDS_PASSWORD }}@${{ secrets.RDS_ENDPOINT }}:5432/users_db?sslmode=require"
+            EVENT_SERVICE_DB_URL: "postgresql://postgres:${{ secrets.RDS_PASSWORD }}@${{ secrets.RDS_ENDPOINT }}:5432/events_db?sslmode=require"
+            BOOKING_SERVICE_DB_URL: "postgresql://postgres:${{ secrets.RDS_PASSWORD }}@${{ secrets.RDS_ENDPOINT }}:5432/bookings_db?sslmode=require"
+            JWT_SECRET: "${{ secrets.JWT_SECRET }}"
+            INTERNAL_API_KEY: "${{ secrets.INTERNAL_API_KEY }}"
+          EOF
+          
           # Save current revision for rollback
           CURRENT_REVISION=$(helm list -n $K8S_NAMESPACE -o json | jq -r '.[] | select(.name=="bookmyevent") | .revision' 2>/dev/null || echo "0")
           echo "current_revision=$CURRENT_REVISION" >> $GITHUB_OUTPUT
@@ -232,25 +251,6 @@ jobs:
             --timeout 15m \
             --atomic \
             --wait
-          
-          # Create RDS secrets from GitHub secrets AFTER namespace is created by Helm
-          echo "Creating RDS secrets from GitHub Secrets..."
-          cat <<EOF | kubectl apply -f -
-          apiVersion: v1
-          kind: Secret
-          metadata:
-            name: bookmyevent-secrets
-            namespace: $K8S_NAMESPACE
-          type: Opaque
-          stringData:
-            POSTGRES_USER: "postgres"
-            POSTGRES_PASSWORD: "${{ secrets.RDS_PASSWORD }}"
-            USER_SERVICE_DB_URL: "postgresql://postgres:${{ secrets.RDS_PASSWORD }}@${{ secrets.RDS_ENDPOINT }}:5432/users_db?sslmode=require"
-            EVENT_SERVICE_DB_URL: "postgresql://postgres:${{ secrets.RDS_PASSWORD }}@${{ secrets.RDS_ENDPOINT }}:5432/events_db?sslmode=require"
-            BOOKING_SERVICE_DB_URL: "postgresql://postgres:${{ secrets.RDS_PASSWORD }}@${{ secrets.RDS_ENDPOINT }}:5432/bookings_db?sslmode=require"
-            JWT_SECRET: "${{ secrets.JWT_SECRET }}"
-            INTERNAL_API_KEY: "${{ secrets.INTERNAL_API_KEY }}"
-          EOF
           
           NEW_REVISION=$(helm list -n $K8S_NAMESPACE -o json | jq -r '.[] | select(.name=="bookmyevent") | .revision')
           echo "new_revision=$NEW_REVISION" >> $GITHUB_OUTPUT
