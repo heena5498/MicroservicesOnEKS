@@ -199,13 +199,20 @@ jobs:
         run: |
           IMAGE_TAG=${GITHUB_SHA::7}
           
+          # Ensure namespace exists with proper Helm labels
+          if kubectl get namespace $K8S_NAMESPACE 2>/dev/null; then
+            echo "Namespace exists, adding Helm labels..."
+            kubectl label namespace $K8S_NAMESPACE app.kubernetes.io/managed-by=Helm --overwrite
+            kubectl annotate namespace $K8S_NAMESPACE meta.helm.sh/release-name=bookmyevent --overwrite
+            kubectl annotate namespace $K8S_NAMESPACE meta.helm.sh/release-namespace=$K8S_NAMESPACE --overwrite
+          fi
+          
           # Save current revision for rollback
           CURRENT_REVISION=$(helm list -n $K8S_NAMESPACE -o json | jq -r '.[] | select(.name=="bookmyevent") | .revision' 2>/dev/null || echo "0")
           echo "current_revision=$CURRENT_REVISION" >> $GITHUB_OUTPUT
           echo "Current Helm revision: $CURRENT_REVISION"
           
           # Deploy with Helm (postgres disabled for RDS)
-          # Helm will create the namespace automatically with --create-namespace flag
           echo "Deploying with Helm (RDS mode - postgres disabled)..."
           helm upgrade --install bookmyevent ./helm \
             --namespace $K8S_NAMESPACE \
