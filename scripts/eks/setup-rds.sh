@@ -1,219 +1,204 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # =============================================================================
-# BookMyEvent - AWS RDS PostgreSQL Setup Script
+# BookMyEvent - RDS PostgreSQL Creation Script
 # =============================================================================
-# This script creates an RDS PostgreSQL instance for the BookMyEvent application
-# Prerequisites: AWS CLI configured, EKS cluster running
+# Creates:
+#   - Security group for RDS
+#   - DB subnet group (using subnets from EKS cluster VPC)
+#   - Secrets Manager secret with master username/password
+#   - RDS PostgreSQL instance (db.t3.micro, single AZ, 20 GiB gp2)
 # =============================================================================
 
-set -e
+set -euo pipefail
 
-# Configuration
+# ---------------------- CONFIG (EDIT) ----------------------
 REGION="${AWS_REGION:-us-east-1}"
-DB_INSTANCE_IDENTIFIER="${DB_INSTANCE_IDENTIFIER:-bookmyevent-rds}"
-DB_PASSWORD="${DB_PASSWORD:-BookMyEvent2024!}"
-CLUSTER_NAME="${CLUSTER_NAME:-bookmyevent-cluster}"
+CLUSTER_NAME="${CLUSTER_NAME:-bookmyevent-eks}"
 
-echo "========================================"
-echo "Setting up AWS RDS for BookMyEvent"
-echo "========================================"
+DB_INSTANCE_IDENTIFIER="bookmyevent-rds"
+MASTER_USERNAME="postgres"
+ALLOCATED_STORAGE_GB=20
 
-# Get VPC ID from EKS cluster or use default VPC
-echo ""
-echo "[1/6] Getting VPC information..."
+SG_NAME="bookmyevent-rds-sg"
+DB_SUBNET_GROUP_NAME="bookmyevent-db-subnet"
+SECRET_NAME="bookmyevent-rds-master-credentials"
+# -----------------------------------------------------------
 
-# Try to get VPC from EKS cluster first
-VPC_ID=$(aws eks describe-cluster --name "$CLUSTER_NAME" --query "cluster.resourcesVpcConfig.vpcId" --output text --region "$REGION" 2>/dev/null || echo "")
+command -v aws >/dev/null 2>&1 || { echo "aws CLI not installed"; exit 1; }
+command -v jq  >/dev/null 2>&1 || { echo "jq not installed"; exit 1; }
+command -v openssl >/dev/null 2>&1 || { echo "openssl not installed"; exit 1; }
 
-if [ -z "$VPC_ID" ] || [ "$VPC_ID" == "None" ]; then
-    echo "  EKS cluster not found, using default VPC..."
-    VPC_ID=$(aws ec2 describe-vpcs --filters "Name=isDefault,Values=true" --query "Vpcs[0].VpcId" --output text --region "$REGION")
-    if [ -z "$VPC_ID" ] || [ "$VPC_ID" == "None" ]; then
-        echo "  ERROR: No default VPC found. Please create an EKS cluster first or specify a VPC."
-        exit 1
-    fi
+echo "[1/7] Get VPC from EKS cluster '$CLUSTER_NAME' ..."
+VPC_ID=$(aws eks describe-cluster \
+  --name "$CLUSTER_NAME" \
+  --region "$REGION" \
+  --query "cluster.resourcesVpcConfig.vpcId" \
+  --output text)
+
+if [[ -z "$VPC_ID" || "$VPC_ID" == "None" ]]; then
+  echo "ERROR: Could not get VPC for cluster $CLUSTER_NAME"; exit 1;
 fi
+echo "  VPC: $VPC_ID"
 
-echo "  VPC ID: $VPC_ID"
-
-# Get Subnets - find subnets with routes to Internet Gateway (truly public)
-echo "  Finding public subnets with Internet Gateway routes..."
-
-# Step 1: Find route tables with IGW routes
+echo
+echo "[2/7] Find public subnets (with Internet Gateway route) ..."
 IGW_ROUTE_TABLES=$(aws ec2 describe-route-tables \
-    --filters "Name=vpc-id,Values=$VPC_ID" \
-    --query "RouteTables[?Routes[?GatewayId!=null && starts_with(GatewayId, 'igw-')]].RouteTableId" \
-    --output text \
-    --region "$REGION")
+  --region "$REGION" \
+  --filters "Name=vpc-id,Values=$VPC_ID" \
+  --query "RouteTables[?Routes[?GatewayId!=null && starts_with(GatewayId, 'igw-')]].RouteTableId" \
+  --output text)
 
-if [ -z "$IGW_ROUTE_TABLES" ]; then
-    echo "  ERROR: No route tables with Internet Gateway found in VPC $VPC_ID"
-    echo "  Cannot create publicly-accessible RDS without IGW"
-    exit 1
+if [[ -z "$IGW_ROUTE_TABLES" ]]; then
+  echo "ERROR: No route tables with IGW in VPC $VPC_ID"; exit 1;
 fi
 
-echo "  Found route tables with IGW: $IGW_ROUTE_TABLES"
-
-# Step 2: Find subnets associated with these route tables
 SUBNETS=""
 for RTB in $IGW_ROUTE_TABLES; do
-    RTB_SUBNETS=$(aws ec2 describe-route-tables \
-        --route-table-ids "$RTB" \
-        --query "RouteTables[0].Associations[?SubnetId!=null].SubnetId" \
-        --output text \
-        --region "$REGION")
-    SUBNETS="$SUBNETS $RTB_SUBNETS"
+  RTB_SUBNETS=$(aws ec2 describe-route-tables \
+    --region "$REGION" \
+    --route-table-ids "$RTB" \
+    --query "RouteTables[0].Associations[?SubnetId!=null].SubnetId" \
+    --output text)
+  SUBNETS="$SUBNETS $RTB_SUBNETS"
 done
 
-# Remove extra spaces and duplicates
-SUBNETS=$(echo $SUBNETS | tr ' ' '\n' | sort -u | tr '\n' ' ' | xargs)
+SUBNETS=$(echo "$SUBNETS" | tr ' ' '\n' | sort -u | tr '\n' ' ' | xargs)
+SUBNET_COUNT=$(echo "$SUBNETS" | wc -w)
 
-if [ -z "$SUBNETS" ]; then
-    echo "  ERROR: No subnets found associated with IGW route tables"
-    exit 1
+if [[ $SUBNET_COUNT -lt 2 ]]; then
+  echo "ERROR: Need at least 2 public subnets, found $SUBNET_COUNT"; exit 1;
 fi
+echo "  Public subnets: $SUBNETS"
 
-SUBNET_COUNT=$(echo $SUBNETS | wc -w)
-echo "  Found $SUBNET_COUNT public subnet(s): $SUBNETS"
+AZ_COUNT=$(aws ec2 describe-subnets \
+  --region "$REGION" \
+  --subnet-ids $SUBNETS \
+  --query "Subnets[*].AvailabilityZone" \
+  --output text | tr '\t' '\n' | sort -u | wc -l)
 
-# Verify we have at least 2 subnets in different AZs
-if [ $SUBNET_COUNT -lt 2 ]; then
-    echo "  ERROR: At least 2 subnets in different AZs required for RDS"
-    echo "  Found only $SUBNET_COUNT subnet(s)"
-    exit 1
+if [[ $AZ_COUNT -lt 2 ]]; then
+  echo "ERROR: Subnets must span at least 2 AZs, found $AZ_COUNT"; exit 1;
 fi
+echo "  Subnets span $AZ_COUNT AZs"
 
-# Verify subnets are in different AZs
-AZ_COUNT=$(aws ec2 describe-subnets --subnet-ids $SUBNETS --region "$REGION" \
-    --query 'Subnets[*].AvailabilityZone' --output text | tr '\t' '\n' | sort -u | wc -l)
-
-if [ $AZ_COUNT -lt 2 ]; then
-    echo "  ERROR: Subnets must be in at least 2 different Availability Zones"
-    echo "  Found subnets in only $AZ_COUNT AZ(s)"
-    exit 1
-fi
-
-echo "  ✓ Subnets span $AZ_COUNT availability zones"
-
-# Create Security Group
-echo ""
-echo "[2/6] Setting up Security Group..."
+echo
+echo "[3/7] Create / get Security Group '$SG_NAME' ..."
 SG_ID=$(aws ec2 describe-security-groups \
-    --filters "Name=group-name,Values=bookmyevent-rds-sg" "Name=vpc-id,Values=$VPC_ID" \
-    --query "SecurityGroups[0].GroupId" \
-    --output text \
-    --region "$REGION" 2>/dev/null || echo "")
+  --region "$REGION" \
+  --filters "Name=group-name,Values=$SG_NAME" "Name=vpc-id,Values=$VPC_ID" \
+  --query "SecurityGroups[0].GroupId" \
+  --output text 2>/dev/null || echo "")
 
-if [ -z "$SG_ID" ] || [ "$SG_ID" == "None" ]; then
-    echo "  Creating new security group..."
-    SG_ID=$(aws ec2 create-security-group \
-        --group-name bookmyevent-rds-sg \
-        --description "RDS security group for BookMyEvent" \
-        --vpc-id "$VPC_ID" \
-        --query "GroupId" \
-        --output text \
-        --region "$REGION")
+if [[ -z "$SG_ID" || "$SG_ID" == "None" ]]; then
+  SG_ID=$(aws ec2 create-security-group \
+    --region "$REGION" \
+    --group-name "$SG_NAME" \
+    --description "RDS SG for BookMyEvent" \
+    --vpc-id "$VPC_ID" \
+    --query "GroupId" --output text)
+  echo "  Created SG: $SG_ID"
+else
+  echo "  Using existing SG: $SG_ID"
 fi
-echo "  Security Group: $SG_ID"
 
-# Add ingress rule
 aws ec2 authorize-security-group-ingress \
-    --group-id "$SG_ID" \
-    --protocol tcp \
-    --port 5432 \
-    --cidr 0.0.0.0/0 \
-    --region "$REGION" 2>/dev/null || echo "  Ingress rule already exists"
-echo "  ✓ Ingress rule configured"
+  --region "$REGION" \
+  --group-id "$SG_ID" \
+  --protocol tcp --port 5432 \
+  --cidr 0.0.0.0/0 2>/dev/null || echo "  Ingress already present"
 
-# Create DB Subnet Group
-echo ""
-echo "[3/6] Creating DB Subnet Group..."
+echo
+echo "[4/7] Create / get DB subnet group '$DB_SUBNET_GROUP_NAME' ..."
 aws rds create-db-subnet-group \
-    --db-subnet-group-name bookmyevent-db-subnet \
-    --db-subnet-group-description "Subnet group for BookMyEvent RDS" \
-    --subnet-ids $SUBNETS \
-    --region "$REGION" 2>/dev/null || echo "  Subnet group already exists"
-echo "  ✓ Subnet group ready"
+  --region "$REGION" \
+  --db-subnet-group-name "$DB_SUBNET_GROUP_NAME" \
+  --db-subnet-group-description "BookMyEvent RDS subnet group" \
+  --subnet-ids $SUBNETS 2>/dev/null || echo "  Subnet group already exists"
 
-# Create RDS Instance
-echo ""
-echo "[4/6] Creating RDS PostgreSQL Instance..."
-echo "  This takes 5-10 minutes..."
+echo
+echo "[5/7] Create / update Secrets Manager secret '$SECRET_NAME' ..."
+DB_PASSWORD=$(openssl rand -base64 24 | tr -d '\n')
 
-aws rds create-db-instance \
+SECRET_PAYLOAD=$(jq -n \
+  --arg user "$MASTER_USERNAME" \
+  --arg pwd "$DB_PASSWORD" \
+  '{username:$user, password:$pwd}')
+
+if aws secretsmanager describe-secret \
+    --region "$REGION" \
+    --secret-id "$SECRET_NAME" >/dev/null 2>&1; then
+  aws secretsmanager put-secret-value \
+    --region "$REGION" \
+    --secret-id "$SECRET_NAME" \
+    --secret-string "$SECRET_PAYLOAD" >/dev/null
+  echo "  Updated existing secret."
+else
+  aws secretsmanager create-secret \
+    --region "$REGION" \
+    --name "$SECRET_NAME" \
+    --description "Master credentials for $DB_INSTANCE_IDENTIFIER" \
+    --secret-string "$SECRET_PAYLOAD" >/dev/null
+  echo "  Created new secret."
+fi
+
+echo
+echo "[6/7] Create RDS PostgreSQL instance '$DB_INSTANCE_IDENTIFIER' ..."
+if aws rds describe-db-instances \
+    --region "$REGION" \
+    --db-instance-identifier "$DB_INSTANCE_IDENTIFIER" >/dev/null 2>&1; then
+  echo "  Instance already exists, skipping create."
+else
+  aws rds create-db-instance \
+    --region "$REGION" \
     --db-instance-identifier "$DB_INSTANCE_IDENTIFIER" \
     --db-instance-class db.t3.micro \
     --engine postgres \
     --engine-version 16.3 \
-    --master-username postgres \
+    --master-username "$MASTER_USERNAME" \
     --master-user-password "$DB_PASSWORD" \
-    --allocated-storage 20 \
+    --allocated-storage "$ALLOCATED_STORAGE_GB" \
+    --storage-type gp2 \
     --vpc-security-group-ids "$SG_ID" \
-    --db-subnet-group-name bookmyevent-db-subnet \
+    --db-subnet-group-name "$DB_SUBNET_GROUP_NAME" \
     --publicly-accessible \
-    --no-multi-az \
-    --region "$REGION"
+    --no-multi-az
 
-# Check if creation was successful
-if [ $? -eq 0 ]; then
-    echo "  ✓ RDS instance creation initiated"
-else
-    echo "  ✗ Failed to create RDS instance"
-    exit 1
+  echo "  Waiting for RDS to become available (this can take several minutes)..."
+  aws rds wait db-instance-available \
+    --region "$REGION" \
+    --db-instance-identifier "$DB_INSTANCE_IDENTIFIER"
 fi
 
-# Wait for RDS to be available
-echo ""
-echo "[5/6] Waiting for RDS to be available..."
-ATTEMPT=0
-MAX_ATTEMPTS=40
+echo
+echo "[7/7] Fetch final endpoint info ..."
+DB_JSON=$(aws rds describe-db-instances \
+  --region "$REGION" \
+  --db-instance-identifier "$DB_INSTANCE_IDENTIFIER" \
+  --output json)
 
-while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-    sleep 30
-    ATTEMPT=$((ATTEMPT + 1))
-    STATUS=$(aws rds describe-db-instances \
-        --db-instance-identifier "$DB_INSTANCE_IDENTIFIER" \
-        --query "DBInstances[0].DBInstanceStatus" \
-        --output text \
-        --region "$REGION" 2>/dev/null || echo "")
-    echo "  Status: $STATUS (attempt $ATTEMPT/$MAX_ATTEMPTS)"
-    
-    if [ "$STATUS" == "available" ]; then
-        break
-    fi
-done
+DB_ENDPOINT=$(echo "$DB_JSON" | jq -r '.DBInstances[0].Endpoint.Address')
+DB_PORT=$(echo "$DB_JSON" | jq -r '.DBInstances[0].Endpoint.Port')
 
-if [ "$STATUS" == "available" ]; then
-    RDS_ENDPOINT=$(aws rds describe-db-instances \
-        --db-instance-identifier "$DB_INSTANCE_IDENTIFIER" \
-        --query "DBInstances[0].Endpoint.Address" \
-        --output text \
-        --region "$REGION")
-    
-    echo ""
-    echo "[6/6] RDS Instance Ready!"
-    echo "  Endpoint: $RDS_ENDPOINT"
-    
-    # Create databases
-    echo ""
-    echo "Creating databases..."
-    kubectl exec -n bookmyevent deployment/postgres -- sh -c \
-        "PGPASSWORD='$DB_PASSWORD' psql -h $RDS_ENDPOINT -U postgres -c 'CREATE DATABASE users_db;'" 2>/dev/null || true
-    kubectl exec -n bookmyevent deployment/postgres -- sh -c \
-        "PGPASSWORD='$DB_PASSWORD' psql -h $RDS_ENDPOINT -U postgres -c 'CREATE DATABASE events_db;'" 2>/dev/null || true
-    kubectl exec -n bookmyevent deployment/postgres -- sh -c \
-        "PGPASSWORD='$DB_PASSWORD' psql -h $RDS_ENDPOINT -U postgres -c 'CREATE DATABASE bookings_db;'" 2>/dev/null || true
-    echo "  ✓ Databases created: users_db, events_db, bookings_db"
-    
-    echo ""
-    echo "========================================"
-    echo "RDS Setup Complete!"
-    echo "========================================"
-    echo "RDS Endpoint: $RDS_ENDPOINT"
-    echo "Password: $DB_PASSWORD"
-    echo ""
-    echo "Next step: ./scripts/eks/migrate-to-rds.sh"
-else
-    echo "ERROR: RDS instance did not become available in time"
-    exit 1
-fi
+cat <<EOF
+
+========================================
+RDS Setup Complete
+========================================
+Cluster     : $CLUSTER_NAME
+VPC         : $VPC_ID
+Subnets     : $SUBNETS
+SG          : $SG_ID
+
+Endpoint    : $DB_ENDPOINT
+Port        : $DB_PORT
+Username    : $MASTER_USERNAME
+Password    : (stored in Secrets Manager secret: $SECRET_NAME)
+
+To retrieve the password later:
+
+  aws secretsmanager get-secret-value \\
+    --region "$REGION" \\
+    --secret-id "$SECRET_NAME" \\
+    --query 'SecretString' --output text | jq -r '.password'
+
+EOF

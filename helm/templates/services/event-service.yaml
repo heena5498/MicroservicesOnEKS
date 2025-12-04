@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: event-service
-          image: {{ .Values.global.imageRegistry }}/bookmyevent/event-service:{{ .Values.imageTags.eventService }}
+          image: {{ .Values.global.imageRegistry }}/event-service:{{ .Values.imageTags.eventService }}
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
           ports:
             - containerPort: {{ .Values.services.eventService.targetPort }}

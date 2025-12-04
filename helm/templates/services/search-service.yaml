@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: search-service
-          image: {{ .Values.global.imageRegistry }}/bookmyevent/search-service:{{ .Values.imageTags.searchService }}
+          image: {{ .Values.global.imageRegistry }}/search-service:{{ .Values.imageTags.searchService }}
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
           ports:
             - containerPort: {{ .Values.services.searchService.targetPort }}

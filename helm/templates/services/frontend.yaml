@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: {{ .Values.global.imageRegistry }}/bookmyevent/frontend:{{ .Values.imageTags.frontend }}
+          image: {{ .Values.global.imageRegistry }}/frontend:{{ .Values.imageTags.frontend }}
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
           ports:
             - containerPort: {{ .Values.services.frontend.targetPort }}
