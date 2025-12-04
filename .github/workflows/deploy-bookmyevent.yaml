@@ -199,15 +199,31 @@ jobs:
         run: |
           IMAGE_TAG=${GITHUB_SHA::7}
           
-          # Helm will create the namespace automatically with --create-namespace flag
-          # No need to manually create it here
-          
           # Save current revision for rollback
           CURRENT_REVISION=$(helm list -n $K8S_NAMESPACE -o json | jq -r '.[] | select(.name=="bookmyevent") | .revision' 2>/dev/null || echo "0")
           echo "current_revision=$CURRENT_REVISION" >> $GITHUB_OUTPUT
           echo "Current Helm revision: $CURRENT_REVISION"
           
-          # Create RDS secrets from GitHub secrets (no hardcoded values!)
+          # Deploy with Helm (postgres disabled for RDS)
+          # Helm will create the namespace automatically with --create-namespace flag
+          echo "Deploying with Helm (RDS mode - postgres disabled)..."
+          helm upgrade --install bookmyevent ./helm \
+            --namespace $K8S_NAMESPACE \
+            --create-namespace \
+            --set global.imageRegistry="${ECR_REGISTRY}" \
+            --set imageTags.userService="${IMAGE_TAG}" \
+            --set imageTags.eventService="${IMAGE_TAG}" \
+            --set imageTags.searchService="${IMAGE_TAG}" \
+            --set imageTags.bookingService="${IMAGE_TAG}" \
+            --set imageTags.frontend="${IMAGE_TAG}" \
+            --set imageTags.initContainer="${IMAGE_TAG}" \
+            --set database.postgres.enabled=false \
+            --set secrets.create=false \
+            --timeout 15m \
+            --atomic \
+            --wait
+          
+          # Create RDS secrets from GitHub secrets AFTER namespace is created by Helm
           echo "Creating RDS secrets from GitHub Secrets..."
           cat <<EOF | kubectl apply -f -
           apiVersion: v1
@@ -225,24 +241,6 @@ jobs:
             JWT_SECRET: "${{ secrets.JWT_SECRET }}"
             INTERNAL_API_KEY: "${{ secrets.INTERNAL_API_KEY }}"
           EOF
-          
-          # Deploy with Helm (postgres disabled for RDS)
-          echo "Deploying with Helm (RDS mode - postgres disabled)..."
-          helm upgrade --install bookmyevent ./helm \
-            --namespace $K8S_NAMESPACE \
-            --create-namespace \
-            --set global.imageRegistry="${ECR_REGISTRY}" \
-            --set imageTags.userService="${IMAGE_TAG}" \
-            --set imageTags.eventService="${IMAGE_TAG}" \
-            --set imageTags.searchService="${IMAGE_TAG}" \
-            --set imageTags.bookingService="${IMAGE_TAG}" \
-            --set imageTags.frontend="${IMAGE_TAG}" \
-            --set imageTags.initContainer="${IMAGE_TAG}" \
-            --set database.postgres.enabled=false \
-            --set secrets.create=false \
-            --timeout 15m \
-            --atomic \
-            --wait
           
           NEW_REVISION=$(helm list -n $K8S_NAMESPACE -o json | jq -r '.[] | select(.name=="bookmyevent") | .revision')
           echo "new_revision=$NEW_REVISION" >> $GITHUB_OUTPUT
