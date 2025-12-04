@@ -123,12 +123,12 @@ const Events = () => {
                             placeholder="Search events, venues, or artists..."
                             value={searchParams.q}
                             onChange={(e) => setSearchParams({ ...searchParams, q: e.target.value })}
-                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#e21833]"
                         />
                     </div>
                     <button
                         type="submit"
-                        className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+                        className="bg-[#e21833] text-white px-8 py-3 rounded-lg hover:bg-black transition-colors"
                     >
                         Search
                     </button>
@@ -150,7 +150,7 @@ const Events = () => {
                         <h3 className="text-lg font-semibold">Filters</h3>
                         <button
                             onClick={clearFilters}
-                            className="text-blue-600 hover:text-blue-700 text-sm"
+                            className="text-[#e21833] hover:text-black text-sm"
                         >
                             Clear All
                         </button>
@@ -165,7 +165,7 @@ const Events = () => {
                             <select
                                 value={searchParams.city}
                                 onChange={(e) => handleFilterChange('city', e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#e21833]"
                             >
                                 <option value="">All Cities</option>
                                 {filters.cities.map(city => (
@@ -182,7 +182,7 @@ const Events = () => {
                             <select
                                 value={searchParams.type}
                                 onChange={(e) => handleFilterChange('type', e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#e21833]"
                             >
                                 <option value="">All Types</option>
                                 {filters.event_types.map(type => (
@@ -198,7 +198,7 @@ const Events = () => {
             {(searchParams.city || searchParams.type || searchParams.min_price || searchParams.max_price) && (
                 <div className="flex flex-wrap gap-2">
                     {searchParams.city && (
-                        <span className="inline-flex items-center bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
+                        <span className="inline-flex items-center bg-[#ffd200] text-black px-3 py-1 rounded-full text-sm">
                             City: {searchParams.city}
                             <X
                                 className="h-4 w-4 ml-2 cursor-pointer"
@@ -207,7 +207,7 @@ const Events = () => {
                         </span>
                     )}
                     {searchParams.type && (
-                        <span className="inline-flex items-center bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm">
+                        <span className="inline-flex items-center bg-[#ffd200] text-black px-3 py-1 rounded-full text-sm">
                             Type: {searchParams.type}
                             <X
                                 className="h-4 w-4 ml-2 cursor-pointer"
@@ -292,14 +292,14 @@ const Events = () => {
                                 </div>
 
                                 <div className="flex justify-between items-center mb-4">
-                                    <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                                    <span className="bg-[#ffd200] text-black px-2 py-1 rounded-full text-xs font-medium">
                                         {event.event_type}
                                     </span>
                                 </div>
 
                                 <Link
                                     to={`/events/${event.event_id}`}
-                                    className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center justify-center font-semibold"
+                                    className="w-full bg-[#e21833] text-white py-3 px-4 rounded-lg hover:bg-black transition-colors inline-flex items-center justify-center font-semibold"
                                 >
                                     View Details & Book
                                 </Link>
@@ -318,7 +318,7 @@ const Events = () => {
                     </p>
                     <button
                         onClick={clearFilters}
-                        className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                        className="bg-[#e21833] text-white px-6 py-2 rounded-lg hover:bg-black transition-colors"
                     >
                         Clear Filters
                     </button>
