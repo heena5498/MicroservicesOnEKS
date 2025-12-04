@@ -24,6 +24,8 @@ spec:
           ports:
             - containerPort: {{ .Values.services.userService.targetPort }}
           env:
+            - name: USER_SERVICE_PORT
+              value: "{{ .Values.services.userService.targetPort }}"
             - name: USER_SERVICE_DB_URL
               valueFrom:
                 secretKeyRef:

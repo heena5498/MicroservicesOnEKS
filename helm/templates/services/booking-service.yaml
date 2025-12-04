@@ -24,6 +24,8 @@ spec:
           ports:
             - containerPort: {{ .Values.services.bookingService.targetPort }}
           env:
+            - name: BOOKING_SERVICE_PORT
+              value: "{{ .Values.services.bookingService.targetPort }}"
             - name: BOOKING_SERVICE_DB_URL
               valueFrom:
                 secretKeyRef:

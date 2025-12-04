@@ -24,6 +24,8 @@ spec:
           ports:
             - containerPort: {{ .Values.services.eventService.targetPort }}
           env:
+            - name: EVENT_SERVICE_PORT
+              value: "{{ .Values.services.eventService.targetPort }}"
             - name: EVENT_SERVICE_DB_URL
               valueFrom:
                 secretKeyRef:

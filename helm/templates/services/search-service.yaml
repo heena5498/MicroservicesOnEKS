@@ -24,6 +24,8 @@ spec:
           ports:
             - containerPort: {{ .Values.services.searchService.targetPort }}
           env:
+            - name: SEARCH_SERVICE_PORT
+              value: "{{ .Values.services.searchService.targetPort }}"
             - name: INTERNAL_API_KEY
               valueFrom:
                 secretKeyRef:
