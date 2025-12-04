@@ -198,14 +198,15 @@ autoscaling:
 
 # Ingress
 ingress:
-  enabled: false
+  enabled: false  # Set to true if you want to use Ingress instead of LoadBalancer
   className: alb
   annotations:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
-  host: bookmyevent.example.com
+  host: bookmyevent.example.com  # Replace with your actual domain (e.g., events.yourdomain.com)
   tls:
-    enabled: false
+    enabled: false  # Set to true if you have an SSL certificate
+    certificateArn: ""  # Add your ACM certificate ARN here if using SSL
     secretName: bookmyevent-tls
 
 # Jobs

@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 // API Gateway Base URL - All requests go through nginx gateway
-const API_GATEWAY_URL = import.meta.env.VITE_API_URL || 'http://localhost';
+// Use empty string to make requests relative to current domain (works for both dev and production)
+const API_GATEWAY_URL = import.meta.env.VITE_API_URL || '';
 
 // Gateway routes for different services
 const API_ROUTES = {

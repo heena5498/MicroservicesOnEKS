@@ -76,18 +76,21 @@ echo ""
 echo "[4/6] Getting Load Balancer information..."
 LB_LIST=$(aws elbv2 describe-load-balancers --region "$REGION")
 
-# Try to find frontend and API load balancers
-FRONTEND_DNS=$(kubectl get svc frontend -n bookmyevent -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "")
-API_DNS=$(kubectl get svc nginx-gateway -n bookmyevent -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "")
+# Get nginx-gateway LoadBalancer (handles both frontend and API traffic)
+NGINX_GATEWAY_DNS=$(kubectl get svc nginx-gateway -n bookmyevent -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "")
 
-if [ -z "$FRONTEND_DNS" ] || [ -z "$API_DNS" ]; then
-    echo "  ERROR: Could not find LoadBalancer DNS names"
-    echo "  Make sure services are deployed and have LoadBalancers"
+if [ -z "$NGINX_GATEWAY_DNS" ]; then
+    echo "  ERROR: Could not find nginx-gateway LoadBalancer DNS name"
+    echo "  Make sure nginx-gateway service is deployed with type LoadBalancer"
     exit 1
 fi
 
+# Use nginx-gateway for both frontend and API traffic (single entry point)
+FRONTEND_DNS="$NGINX_GATEWAY_DNS"
+API_DNS="$NGINX_GATEWAY_DNS"
+
 # Get hosted zone ID for the load balancer
-LB_HOSTED_ZONE_ID=$(echo "$LB_LIST" | jq -r ".LoadBalancers[] | select(.DNSName==\"$FRONTEND_DNS\") | .CanonicalHostedZoneId")
+LB_HOSTED_ZONE_ID=$(echo "$LB_LIST" | jq -r ".LoadBalancers[] | select(.DNSName==\"$NGINX_GATEWAY_DNS\") | .CanonicalHostedZoneId")
 
 echo "  Frontend LB: $FRONTEND_DNS"
 echo "  API LB: $API_DNS"
