@@ -235,6 +235,10 @@ jobs:
 
           # Create RDS secrets BEFORE Helm deployment so pods can find them
           echo "Creating RDS secrets from GitHub Secrets..."
+          
+          # URL-encode RDS password for connection strings
+          RDS_PASSWORD_ENCODED=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${{ secrets.RDS_PASSWORD }}', safe=''))")
+          
           cat <<EOF | kubectl apply -f -
           apiVersion: v1
           kind: Secret
@@ -245,9 +249,9 @@ jobs:
           stringData:
             POSTGRES_USER: "postgres"
             POSTGRES_PASSWORD: "${{ secrets.RDS_PASSWORD }}"
-            USER_SERVICE_DB_URL: "postgresql://postgres:${{ secrets.RDS_PASSWORD }}@${{ secrets.RDS_ENDPOINT }}:5432/users_db?sslmode=require"
-            EVENT_SERVICE_DB_URL: "postgresql://postgres:${{ secrets.RDS_PASSWORD }}@${{ secrets.RDS_ENDPOINT }}:5432/events_db?sslmode=require"
-            BOOKING_SERVICE_DB_URL: "postgresql://postgres:${{ secrets.RDS_PASSWORD }}@${{ secrets.RDS_ENDPOINT }}:5432/bookings_db?sslmode=require"
+            USER_SERVICE_DB_URL: "postgresql://postgres:${RDS_PASSWORD_ENCODED}@${{ secrets.RDS_ENDPOINT }}:5432/users_db?sslmode=require"
+            EVENT_SERVICE_DB_URL: "postgresql://postgres:${RDS_PASSWORD_ENCODED}@${{ secrets.RDS_ENDPOINT }}:5432/events_db?sslmode=require"
+            BOOKING_SERVICE_DB_URL: "postgresql://postgres:${RDS_PASSWORD_ENCODED}@${{ secrets.RDS_ENDPOINT }}:5432/bookings_db?sslmode=require"
             JWT_SECRET: "${{ secrets.JWT_SECRET }}"
             INTERNAL_API_KEY: "${{ secrets.INTERNAL_API_KEY }}"
           EOF
