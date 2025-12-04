@@ -172,7 +172,7 @@ secrets:
 config:
   logLevel: info
   elasticsearchUrl: "http://elasticsearch:9200"
-  redisUrl: "redis:6379"
+  redisUrl: "redis://redis:6379"
 
 # Health checks
 healthCheck:

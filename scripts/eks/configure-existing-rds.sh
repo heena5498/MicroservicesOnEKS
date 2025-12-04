@@ -97,10 +97,13 @@ echo "  Password: ********** (retrieved)"
 echo ""
 echo "[3/5] Creating Kubernetes secrets..."
 
-# Create connection strings for each service
-USER_DB_URL="postgresql://${MASTER_USERNAME}:${MASTER_PASSWORD}@${DB_ENDPOINT}:${DB_PORT}/users_db?sslmode=require"
-EVENT_DB_URL="postgresql://${MASTER_USERNAME}:${MASTER_PASSWORD}@${DB_ENDPOINT}:${DB_PORT}/events_db?sslmode=require"
-BOOKING_DB_URL="postgresql://${MASTER_USERNAME}:${MASTER_PASSWORD}@${DB_ENDPOINT}:${DB_PORT}/bookings_db?sslmode=require"
+# URL-encode the password for use in connection strings
+URL_ENCODED_PASSWORD=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$MASTER_PASSWORD', safe=''))")
+
+# Create connection strings for each service with URL-encoded password
+USER_DB_URL="postgresql://${MASTER_USERNAME}:${URL_ENCODED_PASSWORD}@${DB_ENDPOINT}:${DB_PORT}/users_db?sslmode=require"
+EVENT_DB_URL="postgresql://${MASTER_USERNAME}:${URL_ENCODED_PASSWORD}@${DB_ENDPOINT}:${DB_PORT}/events_db?sslmode=require"
+BOOKING_DB_URL="postgresql://${MASTER_USERNAME}:${URL_ENCODED_PASSWORD}@${DB_ENDPOINT}:${DB_PORT}/bookings_db?sslmode=require"
 
 # Check if secret exists
 if kubectl get secret bookmyevent-secrets -n "$K8S_NAMESPACE" >/dev/null 2>&1; then
