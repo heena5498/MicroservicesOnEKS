@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { searchService, formatError } from '../services/api';
-import { Search, Filter, MapPin, Calendar, DollarSign, Users, X } from 'lucide-react';
+import { Search, Filter, MapPin, Calendar, Users, X } from 'lucide-react';
 
 const Events = () => {
     const [events, setEvents] = useState([]);
@@ -109,7 +109,7 @@ const Events = () => {
                     Discover Events
                 </h1>
                 <p className="text-gray-600">
-                    Find and book tickets for amazing events near you
+                    Find amazing events on campus
                 </p>
             </div>
 
@@ -156,7 +156,7 @@ const Events = () => {
                         </button>
                     </div>
 
-                    <div className="grid md:grid-cols-4 gap-4">
+                    <div className="grid md:grid-cols-2 gap-4">
                         {/* City Filter */}
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -189,34 +189,6 @@ const Events = () => {
                                     <option key={type} value={type}>{type}</option>
                                 ))}
                             </select>
-                        </div>
-
-                        {/* Min Price Filter */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Min Price ($)
-                            </label>
-                            <input
-                                type="number"
-                                placeholder="0"
-                                value={searchParams.min_price}
-                                onChange={(e) => handleFilterChange('min_price', e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
-
-                        {/* Max Price Filter */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Max Price ($)
-                            </label>
-                            <input
-                                type="number"
-                                placeholder="1000"
-                                value={searchParams.max_price}
-                                onChange={(e) => handleFilterChange('max_price', e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
                         </div>
                     </div>
                 </div>
@@ -315,18 +287,11 @@ const Events = () => {
 
                                     <div className="flex items-center text-gray-600 text-sm">
                                         <Users className="h-4 w-4 mr-2" />
-                                        <span>{event.available_seats} seats available</span>
+                                        <span>{event.available_seats} spots available</span>
                                     </div>
                                 </div>
 
                                 <div className="flex justify-between items-center mb-4">
-                                    <div className="flex items-center">
-                                        <DollarSign className="h-5 w-5 text-green-600" />
-                                        <span className="text-2xl font-bold text-green-600">
-                                            {event.base_price}
-                                        </span>
-                                    </div>
-
                                     <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
                                         {event.event_type}
                                     </span>

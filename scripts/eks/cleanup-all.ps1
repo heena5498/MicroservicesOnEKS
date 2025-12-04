@@ -60,7 +60,7 @@ if ($DomainName) {
             $deleteJson = @{
                 Changes = @(
                     @{
-                        Action            = "DELETE"
+                        Action = "DELETE"
                         ResourceRecordSet = $record
                     }
                 )
@@ -74,12 +74,10 @@ if ($DomainName) {
         # Delete hosted zone
         aws route53 delete-hosted-zone --id $hostedZoneId 2>$null
         Write-Host "  Route53 hosted zone deleted" -ForegroundColor Green
-    }
-    else {
+    } else {
         Write-Host "  No hosted zone found for $DomainName" -ForegroundColor Yellow
     }
-}
-else {
+} else {
     Write-Host "`n[3/7] Skipping Route53 (no domain specified)..." -ForegroundColor Yellow
 }
 
@@ -93,8 +91,7 @@ if ($certs) {
             Write-Host "  Deleted certificate: $cert" -ForegroundColor Green
         }
     }
-}
-else {
+} else {
     Write-Host "  No certificates found" -ForegroundColor Yellow
 }
 
