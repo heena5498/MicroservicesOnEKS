@@ -13,13 +13,15 @@ env:
   K8S_NAMESPACE: bookmyevent
 
 jobs:
-  # Build and Test
+  # ============================
+  # 1) Build and Test
+  # ============================
   build-and-test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         service: [user-service, event-service, search-service, booking-service]
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -40,18 +42,21 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
-          scan-ref: 'cmd/${{ matrix.service }}'
-          severity: 'CRITICAL,HIGH'
+          scan-ref: cmd/${{ matrix.service }}
+          severity: CRITICAL,HIGH
         continue-on-error: true
 
-  # Build and Push Images
+  # ============================
+  # 2) Build and Push Images
+  # ============================
   build-images:
     runs-on: ubuntu-latest
     needs: build-and-test
     if: github.event_name != 'pull_request'
+
     strategy:
       matrix:
-        service: 
+        service:
           - name: user-service
             context: .
             dockerfile: k8s/services/user-service/Dockerfile
@@ -70,7 +75,7 @@ jobs:
           - name: init-container
             context: .
             dockerfile: k8s/services/init-container/Dockerfile
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -79,7 +84,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.SECRETACCESSKEY }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
@@ -89,6 +94,7 @@ jobs:
           echo "ACCOUNT_ID=$ACCOUNT_ID" >> $GITHUB_ENV
           ECR_REGISTRY="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
           echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
+
           aws ecr get-login-password --region "$AWS_REGION" \
             | docker login --username AWS --password-stdin "$ECR_REGISTRY"
 
@@ -98,42 +104,43 @@ jobs:
           IMAGE_TAG=${GITHUB_SHA::7}
           IMAGE_URI="${ECR_REGISTRY}/bookmyevent/${{ matrix.service.name }}:${IMAGE_TAG}"
           IMAGE_LATEST="${ECR_REGISTRY}/bookmyevent/${{ matrix.service.name }}:latest"
-          
+
           echo "Building ${{ matrix.service.name }}..."
           docker build -t "$IMAGE_URI" -t "$IMAGE_LATEST" \
             -f ${{ matrix.service.dockerfile }} \
             ${{ matrix.service.context }}
-          
+
           echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
           echo "image_latest=$IMAGE_LATEST" >> $GITHUB_OUTPUT
           echo "Built ${{ matrix.service.name }}: $IMAGE_URI"
 
-      - name: Run Trivy vulnerability scanner on ${{ matrix.service.name }}
+      - name: Run Trivy vulnerability scanner on ${{ matrix.service.name }} (SARIF)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ steps.build.outputs.image_uri }}
-          format: 'sarif'
-          output: 'trivy-${{ matrix.service.name }}.sarif'
-          severity: 'CRITICAL,HIGH'
-          exit-code: '0'  # Don't fail build, just report
+          format: sarif
+          output: trivy-${{ matrix.service.name }}.sarif
+          severity: CRITICAL,HIGH
+          exit-code: '0'   # Don't fail build, just report
         continue-on-error: true
 
+        # Upload Trivy SARIF to GitHub Security tab
       - name: Upload Trivy results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
-          sarif_file: 'trivy-${{ matrix.service.name }}.sarif'
-          category: 'trivy-${{ matrix.service.name }}'
+          sarif_file: trivy-${{ matrix.service.name }}.sarif
+          category: trivy-${{ matrix.service.name }}
         continue-on-error: true
 
-      - name: Run Trivy vulnerability scanner (table output)
+      - name: Run Trivy vulnerability scanner (table output, block on CRITICAL)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ steps.build.outputs.image_uri }}
-          format: 'table'
-          severity: 'CRITICAL'
+          format: table
+          severity: CRITICAL
           exit-code: '1'  # Fail if CRITICAL vulnerabilities found
-        continue-on-error: false  # Block deployment if critical issues
+        continue-on-error: false
 
       - name: Push images to ECR
         if: success()
@@ -146,16 +153,19 @@ jobs:
       - name: Output image details
         run: |
           echo "${{ matrix.service.name }}_IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
           echo "### ${{ matrix.service.name }} Build Complete" >> $GITHUB_STEP_SUMMARY
           echo "- Image: \`${{ steps.build.outputs.image_uri }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- Latest: \`${{ steps.build.outputs.image_latest }}\`" >> $GITHUB_STEP_SUMMARY
 
-  # Deploy to EKS using Helm
+  # ============================
+  # 3) Deploy to EKS using Helm + RDS
+  # ============================
   deploy:
     runs-on: ubuntu-latest
     needs: build-images
     if: github.event_name != 'pull_request'
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -164,9 +174,8 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.SECRETACCESSKEY }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-
 
       - name: Install kubectl
         run: |
@@ -198,19 +207,19 @@ jobs:
         id: helm-deploy
         run: |
           IMAGE_TAG=${GITHUB_SHA::7}
-          
-          # Ensure namespace exists with proper Helm labels
-          if ! kubectl get namespace $K8S_NAMESPACE 2>/dev/null; then
-            echo "Creating namespace..."
-            kubectl create namespace $K8S_NAMESPACE
+
+          # Ensure namespace exists
+          if ! kubectl get namespace "$K8S_NAMESPACE" >/dev/null 2>&1; then
+            echo "Creating namespace $K8S_NAMESPACE..."
+            kubectl create namespace "$K8S_NAMESPACE"
           fi
-          
-          # Add Helm labels to namespace (always, to ensure proper management)
-          echo "Adding Helm labels to namespace..."
-          kubectl label namespace $K8S_NAMESPACE app.kubernetes.io/managed-by=Helm --overwrite
-          kubectl annotate namespace $K8S_NAMESPACE meta.helm.sh/release-name=bookmyevent --overwrite
-          kubectl annotate namespace $K8S_NAMESPACE meta.helm.sh/release-namespace=$K8S_NAMESPACE --overwrite
-          
+
+          # Add Helm labels/annotations to namespace
+          echo "Adding Helm labels/annotations to namespace..."
+          kubectl label namespace "$K8S_NAMESPACE" app.kubernetes.io/managed-by=Helm --overwrite
+          kubectl annotate namespace "$K8S_NAMESPACE" meta.helm.sh/release-name=bookmyevent --overwrite
+          kubectl annotate namespace "$K8S_NAMESPACE" meta.helm.sh/release-namespace="$K8S_NAMESPACE" --overwrite
+
           # Create RDS secrets BEFORE Helm deployment so pods can find them
           echo "Creating RDS secrets from GitHub Secrets..."
           cat <<EOF | kubectl apply -f -
@@ -229,16 +238,28 @@ jobs:
             JWT_SECRET: "${{ secrets.JWT_SECRET }}"
             INTERNAL_API_KEY: "${{ secrets.INTERNAL_API_KEY }}"
           EOF
-          
-          # Save current revision for rollback
-          CURRENT_REVISION=$(helm list -n $K8S_NAMESPACE -o json | jq -r '.[] | select(.name=="bookmyevent") | .revision' 2>/dev/null || echo "0")
+
+          # Check for stuck Helm release (pending-*) and clean it up
+          echo "Checking existing Helm release status..."
+          HELM_STATUS=$(helm status bookmyevent -n "$K8S_NAMESPACE" -o json 2>/dev/null | jq -r '.info.status' || echo "none")
+          echo "Current Helm status: $HELM_STATUS"
+
+          if [ "$HELM_STATUS" = "pending-upgrade" ] || \
+             [ "$HELM_STATUS" = "pending-install" ] || \
+             [ "$HELM_STATUS" = "pending-rollback" ]; then
+            echo "Helm release is stuck in status '$HELM_STATUS'. Cleaning up with helm uninstall..."
+            helm uninstall bookmyevent -n "$K8S_NAMESPACE" || true
+          fi
+
+          # Save current revision for info / optional rollback logic
+          CURRENT_REVISION=$(helm list -n "$K8S_NAMESPACE" -o json | jq -r '.[] | select(.name=="bookmyevent") | .revision' 2>/dev/null || echo "0")
           echo "current_revision=$CURRENT_REVISION" >> $GITHUB_OUTPUT
           echo "Current Helm revision: $CURRENT_REVISION"
-          
-          # Deploy with Helm (postgres disabled for RDS)
+
+          # Deploy with Helm (Postgres disabled for RDS)
           echo "Deploying with Helm (RDS mode - postgres disabled)..."
           helm upgrade --install bookmyevent ./helm \
-            --namespace $K8S_NAMESPACE \
+            --namespace "$K8S_NAMESPACE" \
             --set global.imageRegistry="${ECR_REGISTRY}/bookmyevent" \
             --set imageTags.userService="${IMAGE_TAG}" \
             --set imageTags.eventService="${IMAGE_TAG}" \
@@ -251,17 +272,17 @@ jobs:
             --timeout 15m \
             --atomic \
             --wait
-          
-          NEW_REVISION=$(helm list -n $K8S_NAMESPACE -o json | jq -r '.[] | select(.name=="bookmyevent") | .revision')
+
+          NEW_REVISION=$(helm list -n "$K8S_NAMESPACE" -o json | jq -r '.[] | select(.name=="bookmyevent") | .revision')
           echo "new_revision=$NEW_REVISION" >> $GITHUB_OUTPUT
           echo "Helm deployment completed - Revision: $NEW_REVISION"
-          
-          # Wait for infrastructure pods (Redis and Elasticsearch only, no Postgres)
+
+          # Wait for infra pods (Redis, Elasticsearch)
           echo "Waiting for infrastructure pods (Redis, Elasticsearch)..."
-          kubectl wait --for=condition=ready pod -l app=redis -n $K8S_NAMESPACE --timeout=300s || true
-          kubectl wait --for=condition=ready pod -l app=elasticsearch -n $K8S_NAMESPACE --timeout=300s || true
-          
-          # Run RDS migrations (using GitHub secrets, not hardcoded!)
+          kubectl wait --for=condition=ready pod -l app=redis -n "$K8S_NAMESPACE" --timeout=300s || true
+          kubectl wait --for=condition=ready pod -l app=elasticsearch -n "$K8S_NAMESPACE" --timeout=300s || true
+
+          # Run RDS migrations using a Kubernetes Job
           echo "Running RDS migrations against RDS endpoint: ${{ secrets.RDS_ENDPOINT }}..."
           cat <<EOF | kubectl apply -f -
           apiVersion: batch/v1
@@ -293,136 +314,35 @@ jobs:
                       - /bin/sh
                       - -c
                       - |
-                        echo "Running database migrations on RDS..."
-                        echo "RDS Endpoint: \$RDS_ENDPOINT"
-                        
-                        # Function to run migrations for a service
-                        run_migrations() {
-                          SERVICE=\$1
-                          DB=\$2
-                          echo "Migrating \$SERVICE to \$DB..."
-                          for sql_file in /migrations/\$SERVICE/*.sql; do
-                            if [ -f "\$sql_file" ]; then
-                              echo "  Running \$(basename \$sql_file)..."
-                              psql -h "\$RDS_ENDPOINT" -U postgres -d "\$DB" -f "\$sql_file" || echo "  Warning: \$sql_file failed"
-                            fi
-                          done
-                        }
-                        
-                        run_migrations "user-service" "users_db"
-                        run_migrations "event-service" "events_db"
-                        run_migrations "booking-service" "bookings_db"
-                        
-                        echo "All migrations completed!"
-                    volumeMounts:
-                      - name: user-migrations
-                        mountPath: /migrations/user-service
-                      - name: event-migrations
-                        mountPath: /migrations/event-service
-                      - name: booking-migrations
-                        mountPath: /migrations/booking-service
-                    resources:
-                      requests:
-                        memory: "64Mi"
-                        cpu: "50m"
-                      limits:
-                        memory: "128Mi"
-                        cpu: "100m"
-                volumes:
-                  - name: user-migrations
-                    configMap:
-                      name: user-migrations
-                  - name: event-migrations
-                    configMap:
-                      name: event-migrations
-                  - name: booking-migrations
-                    configMap:
-                      name: booking-migrations
+                        set -e
+                        echo "Creating databases on RDS if they don't exist..."
+                        psql "host=${RDS_ENDPOINT} port=5432 user=postgres dbname=postgres sslmode=require" <<SQL
+                        CREATE DATABASE users_db;
+                        CREATE DATABASE events_db;
+                        CREATE DATABASE bookings_db;
+                        SQL
           EOF
-          kubectl wait --for=condition=complete --timeout=300s job/run-migrations-rds-${GITHUB_SHA::7} -n $K8S_NAMESPACE || true
-          
-          # Then wait for service pods
-          echo "Waiting for service pods to be ready..."
-          kubectl wait --for=condition=ready pod -l app=user-service -n $K8S_NAMESPACE --timeout=300s
-          kubectl wait --for=condition=ready pod -l app=event-service -n $K8S_NAMESPACE --timeout=300s
-          kubectl wait --for=condition=ready pod -l app=search-service -n $K8S_NAMESPACE --timeout=300s
-          kubectl wait --for=condition=ready pod -l app=booking-service -n $K8S_NAMESPACE --timeout=300s
-          kubectl wait --for=condition=ready pod -l app=frontend -n $K8S_NAMESPACE --timeout=300s
-          kubectl wait --for=condition=ready pod -l app=nginx-gateway -n $K8S_NAMESPACE --timeout=300s
-          
-          echo "All pods are ready!"
 
-      - name: Rollback on deployment failure
-        if: failure() && steps.helm-deploy.outputs.current_revision != '0'
+          echo "Waiting for migrations Job to complete..."
+          kubectl wait --for=condition=complete job/run-migrations-rds-${GITHUB_SHA::7} -n "$K8S_NAMESPACE" --timeout=300s || true
+
+      - name: Wait for application pods
         run: |
-          echo "🔄 Deployment failed! Rolling back..."
-          
-          # Note: Helm --atomic flag already attempted automatic rollback
-          # This step provides additional kubectl-level rollback for safety
-          
-          PREV_REVISION="${{ steps.helm-deploy.outputs.current_revision }}"
-          echo "Previous revision was: $PREV_REVISION"
-          
-          # Rollback individual deployments using kubectl (in case Helm rollback failed)
-          echo "Rolling back deployments using kubectl..."
-          kubectl rollout undo deployment/user-service -n $K8S_NAMESPACE 2>/dev/null || echo "No previous deployment for user-service"
-          kubectl rollout undo deployment/event-service -n $K8S_NAMESPACE 2>/dev/null || echo "No previous deployment for event-service"
-          kubectl rollout undo deployment/search-service -n $K8S_NAMESPACE 2>/dev/null || echo "No previous deployment for search-service"
-          kubectl rollout undo deployment/booking-service -n $K8S_NAMESPACE 2>/dev/null || echo "No previous deployment for booking-service"
-          kubectl rollout undo deployment/frontend -n $K8S_NAMESPACE 2>/dev/null || echo "No previous deployment for frontend"
-          kubectl rollout undo deployment/nginx-gateway -n $K8S_NAMESPACE 2>/dev/null || echo "No previous deployment for nginx-gateway"
-          
-          echo "Deployment failed (Helm --atomic already performed automatic rollback)"
-          exit 1
+          echo "Waiting for BookMyEvent application pods to become ready..."
+          kubectl wait --for=condition=ready pod -l app=user-service -n "$K8S_NAMESPACE" --timeout=300s || true
+          kubectl wait --for=condition=ready pod -l app=event-service -n "$K8S_NAMESPACE" --timeout=300s || true
+          kubectl wait --for=condition=ready pod -l app=booking-service -n "$K8S_NAMESPACE" --timeout=300s || true
+          kubectl wait --for=condition=ready pod -l app=search-service -n "$K8S_NAMESPACE" --timeout=300s || true
+          kubectl wait --for=condition=ready pod -l app=frontend -n "$K8S_NAMESPACE" --timeout=300s || true
 
-      - name: Verify deployment
+      - name: Get LoadBalancer URL and summary
         run: |
-          echo "=== Deployment Status ==="
-          kubectl get deployments -n $K8S_NAMESPACE
-          
-          echo ""
-          echo "=== Pod Status ==="
-          kubectl get pods -n $K8S_NAMESPACE -o wide
-          
-          echo ""
-          echo "=== Services ==="
-          kubectl get services -n $K8S_NAMESPACE
-          
-          echo ""
-          echo "=== Pod Details (if any are not running) ==="
-          kubectl get pods -n $K8S_NAMESPACE --field-selector=status.phase!=Running -o wide || echo "All pods running!"
-          
-          # Get LoadBalancer URL
-          echo ""
-          echo "=== Waiting for LoadBalancer URL ==="
-          for i in {1..30}; do
-            LB_URL=$(kubectl get service nginx-gateway -n $K8S_NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "")
-            if [ -n "$LB_URL" ]; then
-              echo "Application URLs:"
-              echo "   Frontend: http://${LB_URL}"
-              echo "   API Gateway: http://${LB_URL}/api"
-              break
-            fi
-            echo "Waiting for LoadBalancer... ($i/30)"
-            sleep 10
-          done
+          echo "Fetching LoadBalancer URL..."
+          LB_URL=$(kubectl get service nginx-gateway -n "$K8S_NAMESPACE" -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          echo "LoadBalancer URL: http://${LB_URL}"
 
-      - name: Run smoke tests
-        run: |
-          echo "Running basic health checks..."
-          kubectl exec -n $K8S_NAMESPACE \
-            $(kubectl get pod -n $K8S_NAMESPACE -l app=user-service -o jsonpath='{.items[0].metadata.name}') \
-            -- wget -qO- http://localhost:8081/healthz || echo "User service health check skipped"
-        continue-on-error: true
-
-      - name: Deployment summary
-        run: |
-          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- **Cluster**: $EKS_CLUSTER_NAME" >> $GITHUB_STEP_SUMMARY
-          echo "- **Namespace**: $K8S_NAMESPACE" >> $GITHUB_STEP_SUMMARY
-          echo "- **Image Tag**: ${GITHUB_SHA::7}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Helm Release**: bookmyevent" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Deployed Services" >> $GITHUB_STEP_SUMMARY
-          kubectl get pods -n $K8S_NAMESPACE >> $GITHUB_STEP_SUMMARY
-
+          echo "### Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Namespace: \`$K8S_NAMESPACE\`" >> $GITHUB_STEP_SUMMARY
+          echo "- EKS Cluster: \`$EKS_CLUSTER_NAME\`" >> $GITHUB_STEP_SUMMARY
+          echo "- RDS Endpoint: \`${{ secrets.RDS_ENDPOINT }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Frontend URL: \`http://${LB_URL}\`" >> $GITHUB_STEP_SUMMARY

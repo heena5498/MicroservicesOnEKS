@@ -19,7 +19,11 @@ autoscaling:
 
 database:
   postgres:
+    enabled: false
     storageSize: 50Gi
+
+secrets:
+  create: false 
 
 elasticsearch:
   storageSize: 50Gi
