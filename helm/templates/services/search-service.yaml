@@ -41,6 +41,11 @@ spec:
                 configMapKeyRef:
                   name: bookmyevent-config
                   key: ELASTICSEARCH_URL
+            - name: REDIS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: bookmyevent-config
+                  key: REDIS_URL
             - name: EVENT_SERVICE_URL
               valueFrom:
                 configMapKeyRef:
