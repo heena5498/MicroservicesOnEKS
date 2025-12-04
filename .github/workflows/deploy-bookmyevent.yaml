@@ -200,12 +200,16 @@ jobs:
           IMAGE_TAG=${GITHUB_SHA::7}
           
           # Ensure namespace exists with proper Helm labels
-          if kubectl get namespace $K8S_NAMESPACE 2>/dev/null; then
-            echo "Namespace exists, adding Helm labels..."
-            kubectl label namespace $K8S_NAMESPACE app.kubernetes.io/managed-by=Helm --overwrite
-            kubectl annotate namespace $K8S_NAMESPACE meta.helm.sh/release-name=bookmyevent --overwrite
-            kubectl annotate namespace $K8S_NAMESPACE meta.helm.sh/release-namespace=$K8S_NAMESPACE --overwrite
+          if ! kubectl get namespace $K8S_NAMESPACE 2>/dev/null; then
+            echo "Creating namespace..."
+            kubectl create namespace $K8S_NAMESPACE
           fi
+          
+          # Add Helm labels to namespace (always, to ensure proper management)
+          echo "Adding Helm labels to namespace..."
+          kubectl label namespace $K8S_NAMESPACE app.kubernetes.io/managed-by=Helm --overwrite
+          kubectl annotate namespace $K8S_NAMESPACE meta.helm.sh/release-name=bookmyevent --overwrite
+          kubectl annotate namespace $K8S_NAMESPACE meta.helm.sh/release-namespace=$K8S_NAMESPACE --overwrite
           
           # Save current revision for rollback
           CURRENT_REVISION=$(helm list -n $K8S_NAMESPACE -o json | jq -r '.[] | select(.name=="bookmyevent") | .revision' 2>/dev/null || echo "0")
@@ -216,7 +220,6 @@ jobs:
           echo "Deploying with Helm (RDS mode - postgres disabled)..."
           helm upgrade --install bookmyevent ./helm \
             --namespace $K8S_NAMESPACE \
-            --create-namespace \
             --set global.imageRegistry="${ECR_REGISTRY}" \
             --set imageTags.userService="${IMAGE_TAG}" \
             --set imageTags.eventService="${IMAGE_TAG}" \
