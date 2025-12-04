@@ -26,6 +26,11 @@ spec:
           env:
             - name: SEARCH_SERVICE_PORT
               value: "{{ .Values.services.searchService.targetPort }}"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: bookmyevent-secrets
+                  key: JWT_SECRET
             - name: INTERNAL_API_KEY
               valueFrom:
                 secretKeyRef:
