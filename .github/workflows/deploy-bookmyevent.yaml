@@ -239,7 +239,7 @@ jobs:
           echo "Deploying with Helm (RDS mode - postgres disabled)..."
           helm upgrade --install bookmyevent ./helm \
             --namespace $K8S_NAMESPACE \
-            --set global.imageRegistry="${ECR_REGISTRY}" \
+            --set global.imageRegistry="${ECR_REGISTRY}/bookmyevent" \
             --set imageTags.userService="${IMAGE_TAG}" \
             --set imageTags.eventService="${IMAGE_TAG}" \
             --set imageTags.searchService="${IMAGE_TAG}" \
