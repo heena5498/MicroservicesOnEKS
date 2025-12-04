@@ -118,19 +118,48 @@ echo "[5/8] Creating EKS Cluster (this takes 15-20 minutes)..."
 if eksctl get cluster --name "$CLUSTER_NAME" --region "$AWS_REGION" 2>/dev/null; then
     echo "  Cluster already exists, updating kubeconfig..."
     aws eks update-kubeconfig --region "$AWS_REGION" --name "$CLUSTER_NAME"
+    
+    # Check if nodegroup exists, create if missing
+    echo "  Checking for nodegroups..."
+    if eksctl get nodegroup --cluster="$CLUSTER_NAME" --region="$AWS_REGION" --name="bookmyevent-nodes" 2>/dev/null; then
+        echo "  Nodegroup already exists"
+    else
+        echo "  No nodegroup found. Creating nodegroup (this takes 5-10 minutes)..."
+        eksctl create nodegroup \
+            --cluster="$CLUSTER_NAME" \
+            --region="$AWS_REGION" \
+            --name="bookmyevent-nodes" \
+            --node-type=t3.medium \
+            --nodes=3 \
+            --nodes-min=3 \
+            --nodes-max=6 \
+            --managed
+        echo "  ✓ Nodegroup created"
+    fi
 else
+    echo "  Creating cluster with nodegroup..."
     eksctl create cluster \
         --name "$CLUSTER_NAME" \
         --region "$AWS_REGION" \
+        --version 1.30 \
         --nodegroup-name "bookmyevent-nodes" \
         --node-type t3.medium \
-        --nodes 2 \
-        --nodes-min 1 \
-        --nodes-max 4 \
+        --nodes 3 \
+        --nodes-min 3 \
+        --nodes-max 6 \
         --managed \
         --with-oidc \
         --full-ecr-access
 fi
+
+# Install/Update AWS VPC CNI addon
+echo "  Installing/Updating AWS VPC CNI addon..."
+kubectl apply -f https://raw.githubusercontent.com/aws/amazon-vpc-cni-k8s/v1.18.0/config/master/aws-k8s-cni.yaml
+echo "  ✓ AWS VPC CNI addon installed/updated"
+
+# Wait for CNI pods to be ready
+echo "  Waiting for CNI pods to be ready..."
+kubectl wait --for=condition=ready pod -l k8s-app=aws-node -n kube-system --timeout=120s || true
 
 # Install EBS CSI Driver
 echo "  Installing EBS CSI Driver..."
@@ -254,7 +283,7 @@ echo "Useful Commands:"
 echo "  kubectl get pods -n bookmyevent"
 echo "  kubectl logs deployment/user-service -n bookmyevent"
 echo ""
-echo "To cleanup: ./scripts/eks/5-cleanup.sh"
+echo "To cleanup: ./scripts/eks/5-cleanup-all.sh"
 echo "============================================================"
 
 

@@ -230,6 +230,6 @@ Useful Commands:
   kubectl get pods -n bookmyevent
   kubectl logs deployment/user-service -n bookmyevent
 
-To cleanup: .\scripts\eks\cleanup-all.ps1
+To cleanup: .\scripts\eks\5-cleanup-all.ps1
 ============================================================
 "@ -ForegroundColor Cyan

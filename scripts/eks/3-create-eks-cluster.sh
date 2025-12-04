@@ -61,6 +61,7 @@ else
         eksctl create cluster \
             --name "$CLUSTER_NAME" \
             --region "$AWS_REGION" \
+            --version 1.30 \
             --nodegroup-name "bookmyevent-nodes" \
             --node-type "$NODE_TYPE" \
             --nodes "$NODE_COUNT" \
@@ -76,6 +77,7 @@ else
         eksctl create cluster \
             --name "$CLUSTER_NAME" \
             --region "$AWS_REGION" \
+            --version 1.30 \
             --nodegroup-name "bookmyevent-nodes" \
             --node-type "$NODE_TYPE" \
             --nodes "$NODE_COUNT" \
@@ -86,6 +88,16 @@ else
             --full-ecr-access
     fi
 fi
+
+# Install/Update AWS VPC CNI addon
+echo ""
+echo "Installing/Updating AWS VPC CNI addon..."
+kubectl apply -f https://raw.githubusercontent.com/aws/amazon-vpc-cni-k8s/v1.18.0/config/master/aws-k8s-cni.yaml
+echo "✓ AWS VPC CNI addon installed/updated"
+
+# Wait for CNI pods to be ready
+echo "Waiting for CNI pods to be ready..."
+kubectl wait --for=condition=ready pod -l k8s-app=aws-node -n kube-system --timeout=120s || true
 
 echo ""
 echo "======================================"
