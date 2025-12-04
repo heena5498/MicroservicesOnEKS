@@ -3,7 +3,7 @@ package user
 import (
 	"net/http"
 
-	"github.com/fyzanshaik/bookmyevent-ily/internal/utils"
+	"github.com/heena5498/eks-microservices/internal/utils"
 )
 
 func HandleHealthz(w http.ResponseWriter, r *http.Request) {

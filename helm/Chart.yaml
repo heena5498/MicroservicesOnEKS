@@ -1,0 +1,13 @@
+apiVersion: v2
+name: bookmyevent
+description: A Helm chart for BookMyEvent microservices application on EKS
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - bookmyevent
+  - microservices
+  - eks
+  - kubernetes
+maintainers:
+  - name: ENPM818R Group 5

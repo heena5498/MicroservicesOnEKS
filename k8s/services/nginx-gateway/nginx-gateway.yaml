@@ -1,0 +1,191 @@
+---
+# Nginx ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: bookmyevent
+data:
+  nginx.conf: |
+    events {
+        worker_connections 1024;
+    }
+
+    http {
+        upstream user-service {
+            server user-service:8001;
+        }
+
+        upstream event-service {
+            server event-service:8002;
+        }
+
+        upstream search-service {
+            server search-service:8003;
+        }
+
+        upstream booking-service {
+            server booking-service:8004;
+        }
+
+        server {
+            listen 80;
+            server_name _;
+
+            # Handle preflight requests
+            location /api/user/options {
+                if ($request_method = OPTIONS) {
+                    add_header Access-Control-Allow-Origin '*';
+                    add_header Access-Control-Allow-Methods 'GET, POST, PUT, DELETE, OPTIONS';
+                    add_header Access-Control-Allow-Headers 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization';
+                    add_header Access-Control-Max-Age 1728000;
+                    add_header Content-Type 'text/plain; charset=utf-8';
+                    add_header Content-Length 0;
+                    return 204;
+                }
+            }
+
+            # Gateway API routes
+            location /api/user/ {
+                proxy_hide_header Access-Control-Allow-Origin;
+                proxy_hide_header Access-Control-Allow-Methods;
+                proxy_hide_header Access-Control-Allow-Headers;
+                add_header Access-Control-Allow-Origin '*' always;
+                add_header Access-Control-Allow-Methods 'GET, POST, PUT, DELETE, OPTIONS' always;
+                add_header Access-Control-Allow-Headers 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization' always;
+                proxy_pass http://user-service/api/v1/;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+
+            location /api/event/ {
+                proxy_hide_header Access-Control-Allow-Origin;
+                proxy_hide_header Access-Control-Allow-Methods;
+                proxy_hide_header Access-Control-Allow-Headers;
+                add_header Access-Control-Allow-Origin '*' always;
+                add_header Access-Control-Allow-Methods 'GET, POST, PUT, DELETE, OPTIONS' always;
+                add_header Access-Control-Allow-Headers 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization' always;
+                proxy_pass http://event-service/api/v1/;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+
+            location /api/search/ {
+                proxy_hide_header Access-Control-Allow-Origin;
+                proxy_hide_header Access-Control-Allow-Methods;
+                proxy_hide_header Access-Control-Allow-Headers;
+                add_header Access-Control-Allow-Origin '*' always;
+                add_header Access-Control-Allow-Methods 'GET, POST, PUT, DELETE, OPTIONS' always;
+                add_header Access-Control-Allow-Headers 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization' always;
+                proxy_pass http://search-service/api/v1/;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+
+            location /api/booking/ {
+                proxy_hide_header Access-Control-Allow-Origin;
+                proxy_hide_header Access-Control-Allow-Methods;
+                proxy_hide_header Access-Control-Allow-Headers;
+                add_header Access-Control-Allow-Origin '*' always;
+                add_header Access-Control-Allow-Methods 'GET, POST, PUT, DELETE, OPTIONS' always;
+                add_header Access-Control-Allow-Headers 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization' always;
+                proxy_pass http://booking-service/api/v1/;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+
+            # Health check endpoint
+            location /health {
+                access_log off;
+                return 200 "healthy\n";
+                add_header Content-Type text/plain;
+            }
+
+            # Default route - API documentation
+            location / {
+                return 200 '{"message": "BookMyEvent API Gateway", "gateway_access": {"user": "/api/user/", "event": "/api/event/", "search": "/api/search/", "booking": "/api/booking/"}, "health": "/health"}';
+                add_header Content-Type application/json;
+            }
+        }
+    }
+---
+# Nginx Gateway Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-gateway
+  namespace: bookmyevent
+  labels:
+    app: nginx-gateway
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx-gateway
+  template:
+    metadata:
+      labels:
+        app: nginx-gateway
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 30
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: nginx-config
+---
+# Nginx Gateway Service (LoadBalancer for external access)
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-gateway
+  namespace: bookmyevent
+  annotations:
+    # EKS annotations for AWS Load Balancer
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+spec:
+  selector:
+    app: nginx-gateway
+  ports:
+    - port: 80
+      targetPort: 80
+  type: LoadBalancer
+
+
+
+

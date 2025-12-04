@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/fyzanshaik/bookmyevent-ily/internal/auth"
-	"github.com/fyzanshaik/bookmyevent-ily/internal/constants"
-	"github.com/fyzanshaik/bookmyevent-ily/internal/repository/users"
-	"github.com/fyzanshaik/bookmyevent-ily/internal/utils"
+	"github.com/heena5498/eks-microservices/internal/auth"
+	"github.com/heena5498/eks-microservices/internal/constants"
+	"github.com/heena5498/eks-microservices/internal/repository/users"
+	"github.com/heena5498/eks-microservices/internal/utils"
 )
 
 func (cfg *APIConfig) AddUser(w http.ResponseWriter, r *http.Request) {

@@ -150,5 +150,3 @@ if ($status -eq "ISSUED") {
 } else {
     Write-Host "Certificate validation timed out. Please check manually." -ForegroundColor Red
 }
-
-

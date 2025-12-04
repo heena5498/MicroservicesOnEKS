@@ -1,0 +1,42 @@
+{{- if .Values.redis.enabled }}
+---
+# Redis Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: redis
+spec:
+  replicas: {{ .Values.replicaCount.redis }}
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: {{ .Values.redis.image }}
+          ports:
+            - containerPort: 6379
+          resources:
+            {{- toYaml .Values.resources.redis | nindent 12 }}
+---
+# Redis Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: {{ .Values.global.namespace }}
+spec:
+  selector:
+    app: redis
+  ports:
+    - port: {{ .Values.services.redis.port }}
+      targetPort: {{ .Values.services.redis.targetPort }}
+  type: {{ .Values.services.redis.type }}
+{{- end }}

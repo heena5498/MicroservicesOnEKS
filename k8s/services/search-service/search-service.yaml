@@ -1,0 +1,83 @@
+---
+# Search Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: search-service
+  namespace: bookmyevent
+  labels:
+    app: search-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: search-service
+  template:
+    metadata:
+      labels:
+        app: search-service
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: search-service
+          image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/bookmyevent/search-service:latest
+          ports:
+            - containerPort: 8003
+          env:
+            - name: ELASTICSEARCH_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: bookmyevent-config
+                  key: ELASTICSEARCH_URL
+            - name: REDIS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: bookmyevent-config
+                  key: REDIS_URL
+            - name: ENVIRONMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: bookmyevent-config
+                  key: ENVIRONMENT
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "250m"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8003
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8003
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          volumeMounts:
+            - name: env-file
+              mountPath: /root/.env
+              subPath: .env
+      volumes:
+        - name: env-file
+          configMap:
+            name: env-file
+---
+# Search Service Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: search-service
+  namespace: bookmyevent
+spec:
+  selector:
+    app: search-service
+  ports:
+    - port: 8003
+      targetPort: 8003
+  type: ClusterIP
+

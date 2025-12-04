@@ -4,9 +4,9 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/fyzanshaik/bookmyevent-ily/internal/config"
-	"github.com/fyzanshaik/bookmyevent-ily/internal/logger"
-	"github.com/fyzanshaik/bookmyevent-ily/internal/repository/bookings"
+	"github.com/heena5498/eks-microservices/internal/config"
+	"github.com/heena5498/eks-microservices/internal/logger"
+	"github.com/heena5498/eks-microservices/internal/repository/bookings"
 	"github.com/google/uuid"
 )
 

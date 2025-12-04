@@ -1,0 +1,70 @@
+{{- if .Values.elasticsearch.enabled }}
+---
+# Elasticsearch Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elasticsearch
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: elasticsearch
+spec:
+  replicas: {{ .Values.replicaCount.elasticsearch }}
+  selector:
+    matchLabels:
+      app: elasticsearch
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+    spec:
+      containers:
+        - name: elasticsearch
+          image: {{ .Values.elasticsearch.image }}
+          ports:
+            - containerPort: 9200
+          env:
+            - name: discovery.type
+              value: "single-node"
+            - name: xpack.security.enabled
+              value: "false"
+            - name: ES_JAVA_OPTS
+              value: "-Xms512m -Xmx512m"
+          volumeMounts:
+            - name: es-storage
+              mountPath: /usr/share/elasticsearch/data
+          resources:
+            {{- toYaml .Values.resources.elasticsearch | nindent 12 }}
+      volumes:
+        - name: es-storage
+          persistentVolumeClaim:
+            claimName: elasticsearch-pvc
+---
+# Elasticsearch Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  namespace: {{ .Values.global.namespace }}
+spec:
+  selector:
+    app: elasticsearch
+  ports:
+    - port: {{ .Values.services.elasticsearch.port }}
+      targetPort: {{ .Values.services.elasticsearch.targetPort }}
+  type: {{ .Values.services.elasticsearch.type }}
+---
+# Elasticsearch PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: elasticsearch-pvc
+  namespace: {{ .Values.global.namespace }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: {{ .Values.elasticsearch.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.elasticsearch.storageSize }}
+{{- end }}

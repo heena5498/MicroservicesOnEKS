@@ -1,0 +1,164 @@
+---
+# Nginx Gateway ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: {{ .Values.global.namespace }}
+data:
+  nginx.conf: |
+    events {
+        worker_connections 1024;
+    }
+
+    http {
+        upstream user-service {
+            server user-service:{{ .Values.services.userService.port }};
+        }
+
+        upstream event-service {
+            server event-service:{{ .Values.services.eventService.port }};
+        }
+
+        upstream search-service {
+            server search-service:{{ .Values.services.searchService.port }};
+        }
+
+        upstream booking-service {
+            server booking-service:{{ .Values.services.bookingService.port }};
+        }
+
+        server {
+            listen 80;
+            server_name _;
+
+            # Gateway API routes
+            location /api/user/ {
+                proxy_hide_header Access-Control-Allow-Origin;
+                add_header Access-Control-Allow-Origin '*' always;
+                add_header Access-Control-Allow-Methods 'GET, POST, PUT, DELETE, OPTIONS' always;
+                add_header Access-Control-Allow-Headers 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization' always;
+                proxy_pass http://user-service/api/v1/;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+
+            location /api/event/ {
+                proxy_hide_header Access-Control-Allow-Origin;
+                add_header Access-Control-Allow-Origin '*' always;
+                add_header Access-Control-Allow-Methods 'GET, POST, PUT, DELETE, OPTIONS' always;
+                add_header Access-Control-Allow-Headers 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization' always;
+                proxy_pass http://event-service/api/v1/;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+
+            location /api/search/ {
+                proxy_hide_header Access-Control-Allow-Origin;
+                add_header Access-Control-Allow-Origin '*' always;
+                add_header Access-Control-Allow-Methods 'GET, POST, PUT, DELETE, OPTIONS' always;
+                add_header Access-Control-Allow-Headers 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization' always;
+                proxy_pass http://search-service/api/v1/;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+
+            location /api/booking/ {
+                proxy_hide_header Access-Control-Allow-Origin;
+                add_header Access-Control-Allow-Origin '*' always;
+                add_header Access-Control-Allow-Methods 'GET, POST, PUT, DELETE, OPTIONS' always;
+                add_header Access-Control-Allow-Headers 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization' always;
+                proxy_pass http://booking-service/api/v1/;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+
+            # Health endpoint
+            location /health {
+                access_log off;
+                add_header Content-Type application/json;
+                return 200 '{"message": "BookMyEvent API Gateway", "status": "healthy"}';
+            }
+
+            # Serve frontend
+            location / {
+                proxy_pass http://frontend:{{ .Values.services.frontend.port }}/;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+        }
+    }
+---
+# Nginx Gateway Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-gateway
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: nginx-gateway
+spec:
+  replicas: {{ .Values.replicaCount.nginxGateway }}
+  selector:
+    matchLabels:
+      app: nginx-gateway
+  template:
+    metadata:
+      labels:
+        app: nginx-gateway
+    spec:
+      containers:
+        - name: nginx
+          image: {{ .Values.imageTags.nginxGateway }}
+          ports:
+            - containerPort: {{ .Values.services.nginxGateway.targetPort }}
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+          resources:
+            {{- toYaml .Values.resources.nginxGateway | nindent 12 }}
+          {{- if .Values.healthCheck.enabled }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.services.nginxGateway.targetPort }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.services.nginxGateway.targetPort }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          {{- end }}
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: nginx-config
+---
+# Nginx Gateway Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-gateway
+  namespace: {{ .Values.global.namespace }}
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+spec:
+  selector:
+    app: nginx-gateway
+  ports:
+    - port: {{ .Values.services.nginxGateway.port }}
+      targetPort: {{ .Values.services.nginxGateway.targetPort }}
+  type: {{ .Values.services.nginxGateway.type }}

@@ -1,0 +1,86 @@
+---
+# Search Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: search-service
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: search-service
+spec:
+  replicas: {{ .Values.replicaCount.searchService }}
+  selector:
+    matchLabels:
+      app: search-service
+  template:
+    metadata:
+      labels:
+        app: search-service
+    spec:
+      containers:
+        - name: search-service
+          image: {{ .Values.global.imageRegistry }}/bookmyevent/search-service:{{ .Values.imageTags.searchService }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.services.searchService.targetPort }}
+          env:
+            - name: SEARCH_SERVICE_PORT
+              value: "{{ .Values.services.searchService.targetPort }}"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: bookmyevent-secrets
+                  key: JWT_SECRET
+            - name: INTERNAL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: bookmyevent-secrets
+                  key: INTERNAL_API_KEY
+            - name: ELASTICSEARCH_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: bookmyevent-config
+                  key: ELASTICSEARCH_URL
+            - name: REDIS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: bookmyevent-config
+                  key: REDIS_URL
+            - name: EVENT_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: bookmyevent-config
+                  key: EVENT_SERVICE_URL
+            - name: ENVIRONMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: bookmyevent-config
+                  key: ENVIRONMENT
+          resources:
+            {{- toYaml .Values.resources.searchService | nindent 12 }}
+          {{- if .Values.healthCheck.enabled }}
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.services.searchService.targetPort }}
+            {{- toYaml .Values.healthCheck.readinessProbe | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.services.searchService.targetPort }}
+            {{- toYaml .Values.healthCheck.livenessProbe | nindent 12 }}
+          {{- end }}
+---
+# Search Service Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: search-service
+  namespace: {{ .Values.global.namespace }}
+spec:
+  selector:
+    app: search-service
+  ports:
+    - port: {{ .Values.services.searchService.port }}
+      targetPort: {{ .Values.services.searchService.targetPort }}
+  type: {{ .Values.services.searchService.type }}

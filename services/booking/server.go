@@ -7,12 +7,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/fyzanshaik/bookmyevent-ily/internal/auth"
-	"github.com/fyzanshaik/bookmyevent-ily/internal/config"
-	"github.com/fyzanshaik/bookmyevent-ily/internal/database"
-	"github.com/fyzanshaik/bookmyevent-ily/internal/logger"
-	"github.com/fyzanshaik/bookmyevent-ily/internal/middleware"
-	"github.com/fyzanshaik/bookmyevent-ily/internal/repository/bookings"
+	"github.com/heena5498/eks-microservices/internal/auth"
+	"github.com/heena5498/eks-microservices/internal/config"
+	"github.com/heena5498/eks-microservices/internal/database"
+	"github.com/heena5498/eks-microservices/internal/logger"
+	"github.com/heena5498/eks-microservices/internal/middleware"
+	"github.com/heena5498/eks-microservices/internal/repository/bookings"
 )
 
 func SetupRoutes(config *APIConfig) *http.ServeMux {

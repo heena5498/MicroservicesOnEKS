@@ -1,4 +1,4 @@
-module github.com/fyzanshaik/bookmyevent-ily
+module github.com/heena5498/eks-microservices
 
 go 1.24.0
 
