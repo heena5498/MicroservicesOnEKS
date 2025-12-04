@@ -99,6 +99,12 @@ echo "✓ AWS VPC CNI addon installed/updated"
 echo "Waiting for CNI pods to be ready..."
 kubectl wait --for=condition=ready pod -l k8s-app=aws-node -n kube-system --timeout=120s || true
 
+# Install EBS CSI Driver addon
+echo ""
+echo "Installing EBS CSI Driver addon..."
+eksctl create addon --name aws-ebs-csi-driver --cluster "$CLUSTER_NAME" --region "$AWS_REGION" --force 2>/dev/null || true
+echo "✓ EBS CSI Driver addon installed"
+
 echo ""
 echo "======================================"
 echo "EKS Cluster Ready!"

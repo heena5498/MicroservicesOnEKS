@@ -32,7 +32,8 @@ func loadEnv() {
 		}
 		parent := filepath.Dir(wd)
 		if parent == wd {
-			log.Fatal(".env file not found")
+			log.Println(".env file not found - using environment variables")
+			return
 		}
 		wd = parent
 	}
