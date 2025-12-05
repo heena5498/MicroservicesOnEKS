@@ -28,6 +28,14 @@ data:
             server booking-service:8004;
         }
 
+        upstream prometheus {
+            server monitoring-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090;
+        }
+
+        upstream grafana {
+            server monitoring-grafana.monitoring.svc.cluster.local:80;
+        }
+
         server {
             listen 80;
             server_name _;
@@ -102,6 +110,36 @@ data:
                 proxy_set_header X-Forwarded-Proto $scheme;
             }
 
+            # Prometheus metrics endpoint
+            location /prometheus/ {
+                proxy_pass http://prometheus/;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                proxy_set_header X-Forwarded-Host $host;
+                proxy_set_header X-Forwarded-Prefix /prometheus;
+                # WebSocket support for Prometheus UI
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection "upgrade";
+            }
+
+            # Grafana dashboard
+            location /grafana/ {
+                proxy_pass http://grafana/;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                proxy_set_header X-Forwarded-Host $host;
+                proxy_set_header X-Forwarded-Prefix /grafana;
+                # WebSocket support for Grafana
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection "upgrade";
+            }
+
             # Health check endpoint
             location /health {
                 access_log off;
@@ -111,7 +149,7 @@ data:
 
             # Default route - API documentation
             location / {
-                return 200 '{"message": "BookMyEvent API Gateway", "gateway_access": {"user": "/api/user/", "event": "/api/event/", "search": "/api/search/", "booking": "/api/booking/"}, "health": "/health"}';
+                return 200 '{"message": "BookMyEvent API Gateway", "gateway_access": {"user": "/api/user/", "event": "/api/event/", "search": "/api/search/", "booking": "/api/booking/"}, "monitoring": {"prometheus": "/prometheus/", "grafana": "/grafana/"}, "health": "/health"}';
                 add_header Content-Type application/json;
             }
         }
