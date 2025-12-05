@@ -23,12 +23,14 @@ import sys
 import os
 from urllib.parse import urlencode
 
-# Configuration
+# Configuration - Read from environment or fall back to localhost
+API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost')
+
 BASE_URLS = {
-    'user': 'http://localhost:8001',
-    'event': 'http://localhost:8002', 
-    'search': 'http://localhost:8003',
-    'booking': 'http://localhost:8004'
+    'user': f"{API_BASE_URL}/api/user" if '/api/' not in API_BASE_URL else API_BASE_URL.replace('/api/', '/api/user/'),
+    'event': f"{API_BASE_URL}/api/event" if '/api/' not in API_BASE_URL else API_BASE_URL.replace('/api/', '/api/event/'),
+    'search': f"{API_BASE_URL}/api/search" if '/api/' not in API_BASE_URL else API_BASE_URL.replace('/api/', '/api/search/'),
+    'booking': f"{API_BASE_URL}/api/booking" if '/api/' not in API_BASE_URL else API_BASE_URL.replace('/api/', '/api/booking/')
 }
 
 INTERNAL_API_KEY = 'internal-service-communication-key-change-in-production'

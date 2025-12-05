@@ -4,7 +4,12 @@
 set -e
 
 # --- Configuration ---
-BASE_URL="http://localhost:8001"
+# Read from environment or fall back to localhost for local testing
+BASE_URL="${API_BASE_URL:-http://localhost:8001}"
+# For nginx gateway, append /api/user since it routes to services
+if [[ "$BASE_URL" != *":8001"* ]] && [[ "$BASE_URL" != *"localhost"* ]]; then
+  BASE_URL="${BASE_URL}/api/user"
+fi
 INTERNAL_API_KEY="internal-service-communication-key-change-in-production"
 
 # --- Helper Functions ---
