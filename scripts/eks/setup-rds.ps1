@@ -98,5 +98,3 @@ if ($status -eq "available") {
     Write-Host "ERROR: RDS instance did not become available in time" -ForegroundColor Red
     exit 1
 }
-
-

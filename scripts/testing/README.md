@@ -1,111 +1,117 @@
-# Search Service Testing Scripts
+# Testing Scripts
 
-## 🚀 Quick Testing
+This directory contains all testing and validation scripts for the BookMyEvent application.
 
-After populating the search service with data, use these scripts to test all endpoints:
+## Documentation
 
-### Option 1: Bash Script (Simple)
+- `testing-quickstart.md` - Quick testing reference and commands
+- `search_service_testing_guide.md` - Search service testing documentation
+
+## Test Categories
+
+### CI/CD Pipeline Tests
+
+- `test-cicd-pipeline.sh` - Automated CI/CD pipeline validation
+
+### Service-Specific Tests
+
+**Event Service:**
+- `event-service-test.sh` - Event service API tests
+- `event-service-test-config.sh` - Configuration for event service tests
+- `test_event_service.sh` - Comprehensive event service testing
+
+**Search Service:**
+- `test-search-endpoints.sh` - Search API endpoint tests
+- `test-search-endpoints.py` - Python-based search tests
+- `test-event-search-integration.sh` - Event-search integration tests
+- `search-service-data-generator.sh` - Test data generation for search
+- `search-service-data-generator.py` - Python data generator
+- `comprehensive_search_api_test.py` - Full search API test suite
+- `quick_search_test.sh` - Quick search functionality test
+- `step_by_step_search_test.py` - Step-by-step search validation
+
+**Booking Service:**
+- `booking-service-test.sh` - Booking service tests
+- `test_booking_flow.py` - End-to-end booking flow
+- `test_booking_flow_complete.py` - Complete booking scenarios
+- `test_concurrent_booking.py` - Concurrent booking tests
+- `test_extreme_concurrency.py` - High-concurrency stress tests
+- `test_waitlist.py` - Waitlist functionality tests
+
+**User Service:**
+- `user-service-seed.py` - User data seeding
+
+### Integration Tests
+
+- `test-endpoints.sh` - All endpoints validation
+- `test-env.config` - Test environment configuration
+
+### Load Testing
+
+- `stress-test.sh` - Basic load testing
+- `stress-test-concurrent.sh` - Concurrent user simulation
+
+## Quick Start
+
+### Run CI/CD Validation
+
 ```bash
-# Test all endpoints with colored output
+./scripts/testing/test-cicd-pipeline.sh
+```
+
+### Run Service Tests
+
+```bash
+# Test event service
+./scripts/testing/event-service-test.sh
+
+# Test search service
 ./scripts/testing/test-search-endpoints.sh
+
+# Test booking service
+./scripts/testing/booking-service-test.sh
 ```
 
-### Option 2: Python Script (Comprehensive)
+### Run Load Tests
+
 ```bash
-# Basic endpoint testing
-./scripts/testing/test-search-endpoints.py
+# Basic stress test
+./scripts/testing/stress-test.sh
 
-# Include performance testing
-./scripts/testing/test-search-endpoints.py --performance
-
-# Custom URL and more performance iterations
-./scripts/testing/test-search-endpoints.py -u http://localhost:8003 --performance --iterations 20
+# Concurrent stress test
+./scripts/testing/stress-test-concurrent.sh
 ```
 
-## 📊 What Gets Tested
+### Run Python Tests
 
-### Health Endpoints
-- `GET /healthz` - Basic health check
-- `GET /health/ready` - Readiness with dependencies
+```bash
+# Booking flow tests
+python3 scripts/testing/test_booking_flow.py
 
-### Search Endpoints
-- **Basic Search**: `GET /api/v1/search?limit=5`
-- **Pagination**: `GET /api/v1/search?page=2&limit=3`
-- **Text Search**: `GET /api/v1/search?q=concert`
-- **City Filter**: `GET /api/v1/search?city=New York`
-- **Type Filter**: `GET /api/v1/search?type=sports`
-- **Price Filter**: `GET /api/v1/search?min_price=50&max_price=200`
-- **Combined Filters**: `GET /api/v1/search?q=concert&city=New York&min_price=100`
+# Search tests
+python3 scripts/testing/comprehensive_search_api_test.py
 
-### Special Endpoints
-- **Suggestions**: `GET /api/v1/search/suggestions?q=con`
-- **Filters**: `GET /api/v1/search/filters`
-- **Trending**: `GET /api/v1/search/trending`
-
-## 🔧 Troubleshooting
-
-If tests fail:
-
-1. **Check if search service is running**:
-   ```bash
-   curl http://localhost:8003/healthz
-   ```
-
-2. **Restart search service with fixed code**:
-   ```bash
-   pkill -f search-service
-   make build SERVICE=search-service
-   make run SERVICE=search-service
-   ```
-
-3. **Check Elasticsearch health**:
-   ```bash
-   make elasticsearch-health
-   ```
-
-4. **Verify data exists**:
-   ```bash
-   curl http://localhost:9200/events/_count
-   ```
-
-## 📈 Expected Results
-
-- ✅ **All endpoints return HTTP 200**
-- ✅ **JSON responses are valid**
-- ✅ **Search results contain expected fields**
-- ✅ **Response times < 200ms**
-- ✅ **Facets show proper aggregations**
-- ✅ **Suggestions work for autocomplete**
-
-## 🎯 Performance Expectations
-
-With 10,000 events:
-- **Search response time**: 50-150ms
-- **Concurrent capacity**: 100+ requests/second
-- **Index size**: ~5-10MB
-- **Memory usage**: ~100-200MB for Elasticsearch
-
-## 🔗 Manual Testing URLs
-
-After running the scripts, you can manually test these URLs:
-
-```
-http://localhost:8003/api/v1/search
-http://localhost:8003/api/v1/search?q=concert
-http://localhost:8003/api/v1/search?city=New%20York
-http://localhost:8003/api/v1/search?type=sports&min_price=50
-http://localhost:8003/api/v1/search/suggestions?q=con
-http://localhost:8003/api/v1/search/filters
-http://localhost:8003/api/v1/search/trending
+# Concurrency tests
+python3 scripts/testing/test_concurrent_booking.py
 ```
 
-## 🎉 Success Criteria
+## Test Environment
 
-The search service is working correctly if:
-- [x] Data generation completed (10,000 events)
-- [x] All endpoint tests pass
-- [x] Search returns relevant results
-- [x] Filters work correctly
-- [x] Suggestions provide autocomplete
-- [x] Response times are acceptable
-- [x] No panic errors in logs
+Configure test environment variables in `test-env.config`:
+
+```bash
+source scripts/testing/test-env.config
+```
+
+## Documentation
+
+Detailed testing guides:
+- `testing-quickstart.md` - Quick testing reference (this directory)
+- `search_service_testing_guide.md` - Search service testing (this directory)
+- `../../build/ci-cd-testing-guide.md` - CI/CD pipeline testing
+
+## CI Integration
+
+These tests are automatically run by GitHub Actions:
+- PR validation: `.github/workflows/pr-validation.yml`
+- Post-deployment: `.github/workflows/cd-deploy-to-eks.yml`

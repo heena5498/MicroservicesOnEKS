@@ -1,0 +1,224 @@
+# Default values for bookmyevent
+# This is a YAML-formatted file.
+
+# Global settings
+global:
+  namespace: bookmyevent
+  imageRegistry: "" # Will be set by CI/CD
+  imagePullPolicy: IfNotPresent
+  environment: production
+
+# Image tags - can be overridden by CI/CD
+imageTags:
+  userService: latest
+  eventService: latest
+  searchService: latest
+  bookingService: latest
+  frontend: latest
+  nginxGateway: nginx:1.24-alpine
+  initContainer: latest
+
+# Replication
+replicaCount:
+  userService: 2
+  eventService: 2
+  searchService: 2
+  bookingService: 2
+  frontend: 2
+  nginxGateway: 2
+  postgres: 1
+  redis: 1
+  elasticsearch: 1
+
+# Resource limits
+resources:
+  userService:
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+    requests:
+      cpu: "200m"
+      memory: "256Mi"
+  eventService:
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+    requests:
+      cpu: "200m"
+      memory: "256Mi"
+  searchService:
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+    requests:
+      cpu: "200m"
+      memory: "256Mi"
+  bookingService:
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+    requests:
+      cpu: "200m"
+      memory: "256Mi"
+  frontend:
+    limits:
+      cpu: "200m"
+      memory: "256Mi"
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+  nginxGateway:
+    limits:
+      cpu: "300m"
+      memory: "256Mi"
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+  postgres:
+    limits:
+      cpu: "1000m"
+      memory: "2Gi"
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+  redis:
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+    requests:
+      cpu: "200m"
+      memory: "256Mi"
+  elasticsearch:
+    limits:
+      cpu: "1000m"
+      memory: "2Gi"
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+
+# Service ports
+services:
+  userService:
+    port: 8081
+    targetPort: 8081
+    type: ClusterIP
+  eventService:
+    port: 8082
+    targetPort: 8082
+    type: ClusterIP
+  searchService:
+    port: 8083
+    targetPort: 8083
+    type: ClusterIP
+  bookingService:
+    port: 8084
+    targetPort: 8084
+    type: ClusterIP
+  frontend:
+    port: 80
+    targetPort: 80
+    type: ClusterIP
+  nginxGateway:
+    port: 80
+    targetPort: 80
+    type: ClusterIP  # Changed from LoadBalancer - using ALB Ingress instead
+  postgres:
+    port: 5432
+    targetPort: 5432
+    type: ClusterIP
+  redis:
+    port: 6379
+    targetPort: 6379
+    type: ClusterIP
+  elasticsearch:
+    port: 9200
+    targetPort: 9200
+    type: ClusterIP
+
+# Database configuration
+database:
+  postgres:
+    enabled: true
+    image: postgres:15-alpine
+    user: postgres
+    databases:
+      - users_db
+      - events_db
+      - bookings_db
+    storageClass: gp2
+    storageSize: 10Gi
+
+# Cache configuration
+redis:
+  enabled: true
+  image: redis:7-alpine
+
+# Search configuration
+elasticsearch:
+  enabled: true
+  image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+  storageClass: gp2
+  storageSize: 10Gi
+
+# Secrets (will be provided via CI/CD or AWS Secrets Manager)
+secrets:
+  create: true
+  # These will be injected by CI/CD pipeline
+  postgresPassword: "" # CHANGE_THIS_PASSWORD
+  jwtSecret: "" # CHANGE_THIS_TO_A_SECURE_RANDOM_STRING
+  internalApiKey: "" # CHANGE_THIS_TO_A_SECURE_RANDOM_STRING
+
+# ConfigMap settings
+config:
+  logLevel: info
+  elasticsearchUrl: "http://elasticsearch:9200"
+  redisUrl: "redis://redis:6379"
+
+# Health checks
+healthCheck:
+  enabled: true
+  livenessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readinessProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+# Autoscaling (HPA)
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# Ingress
+ingress:
+  enabled: true  # Using ALB Ingress instead of NLB LoadBalancer
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: "15"
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: "5"
+    alb.ingress.kubernetes.io/healthy-threshold-count: "2"
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: "2"
+  host: ""  # Leave empty for ALB DNS name, or set your custom domain
+  tls:
+    enabled: false  # Set to true if you have an SSL certificate
+    certificateArn: ""  # Add your ACM certificate ARN here if using SSL
+    secretName: bookmyevent-tls
+
+# Jobs
+jobs:
+  initDatabase:
+    enabled: true
+    backoffLimit: 3
+  seedDatabase:
+    enabled: true
+    backoffLimit: 1

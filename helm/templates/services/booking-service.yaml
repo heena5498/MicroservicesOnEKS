@@ -1,0 +1,91 @@
+---
+# Booking Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: booking-service
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: booking-service
+spec:
+  replicas: {{ .Values.replicaCount.bookingService }}
+  selector:
+    matchLabels:
+      app: booking-service
+  template:
+    metadata:
+      labels:
+        app: booking-service
+    spec:
+      containers:
+        - name: booking-service
+          image: {{ .Values.global.imageRegistry }}/booking-service:{{ .Values.imageTags.bookingService }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.services.bookingService.targetPort }}
+          env:
+            - name: BOOKING_SERVICE_PORT
+              value: "{{ .Values.services.bookingService.targetPort }}"
+            - name: BOOKING_SERVICE_DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: bookmyevent-secrets
+                  key: BOOKING_SERVICE_DB_URL
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: bookmyevent-secrets
+                  key: JWT_SECRET
+            - name: INTERNAL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: bookmyevent-secrets
+                  key: INTERNAL_API_KEY
+            - name: REDIS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: bookmyevent-config
+                  key: REDIS_URL
+            - name: USER_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: bookmyevent-config
+                  key: USER_SERVICE_URL
+            - name: EVENT_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: bookmyevent-config
+                  key: EVENT_SERVICE_URL
+            - name: ENVIRONMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: bookmyevent-config
+                  key: ENVIRONMENT
+          resources:
+            {{- toYaml .Values.resources.bookingService | nindent 12 }}
+          {{- if .Values.healthCheck.enabled }}
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.services.bookingService.targetPort }}
+            {{- toYaml .Values.healthCheck.readinessProbe | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.services.bookingService.targetPort }}
+            {{- toYaml .Values.healthCheck.livenessProbe | nindent 12 }}
+          {{- end }}
+---
+# Booking Service Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: booking-service
+  namespace: {{ .Values.global.namespace }}
+spec:
+  selector:
+    app: booking-service
+  ports:
+    - port: {{ .Values.services.bookingService.port }}
+      targetPort: {{ .Values.services.bookingService.targetPort }}
+  type: {{ .Values.services.bookingService.type }}

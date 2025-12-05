@@ -159,15 +159,30 @@ foreach ($service in $serviceFiles) {
     kubectl wait --for=condition=available --timeout=300s deployment/$service -n bookmyevent
 }
 
-# Deploy nginx gateway
-Write-Host "  Deploying API gateway..." -ForegroundColor White
-kubectl apply -f k8s/services/nginx-gateway.yaml
+# Deploy nginx gateway and ALB Ingress
+Write-Host "  Deploying API gateway with ALB Ingress..." -ForegroundColor White
+kubectl apply -f k8s/services/nginx-gateway/nginx-gateway.yaml
 kubectl wait --for=condition=available --timeout=300s deployment/nginx-gateway -n bookmyevent
 
-# Get API Gateway URL for frontend build
-Start-Sleep -Seconds 30
-$API_URL = kubectl get svc nginx-gateway -n bookmyevent -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
-Write-Host "  API Gateway URL: http://$API_URL" -ForegroundColor Cyan
+# Wait for ALB to be provisioned
+Write-Host "  Waiting for ALB to be provisioned (this may take 2-3 minutes)..." -ForegroundColor White
+Start-Sleep -Seconds 60
+$retryCount = 0
+$maxRetries = 10
+do {
+    $API_URL = kubectl get ingress bookmyevent-ingress -n bookmyevent -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>$null
+    if (-not $API_URL) {
+        Write-Host "  Waiting for ALB DNS..." -ForegroundColor Yellow
+        Start-Sleep -Seconds 30
+        $retryCount++
+    }
+} while (-not $API_URL -and $retryCount -lt $maxRetries)
+
+if (-not $API_URL) {
+    Write-Host "  Warning: Could not get ALB URL. Check ingress status manually." -ForegroundColor Red
+    $API_URL = "pending"
+}
+Write-Host "  API Gateway URL (ALB): http://$API_URL" -ForegroundColor Cyan
 
 # Step 7: Build and deploy frontend with correct API URL
 Write-Host "`n[7/9] Building Frontend with API URL..." -ForegroundColor Yellow
@@ -196,9 +211,10 @@ Write-Host "  Test data seeded" -ForegroundColor Green
 # Step 9: Verify deployment
 Write-Host "`n[9/9] Verifying deployment..." -ForegroundColor Yellow
 kubectl get pods -n bookmyevent
+kubectl get ingress -n bookmyevent
 
-# Get URLs
-$FRONTEND_URL = kubectl get svc frontend -n bookmyevent -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+# Get ALB URL (single load balancer for all traffic)
+$ALB_URL = kubectl get ingress bookmyevent-ingress -n bookmyevent -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
 
 Write-Host @"
 
@@ -206,9 +222,12 @@ Write-Host @"
   DEPLOYMENT COMPLETE!
 ============================================================
 
-Your Application URLs:
-  Frontend:    http://$FRONTEND_URL
-  API Gateway: http://$API_URL
+Your Application URL (ALB):
+  Application: http://$ALB_URL
+
+  The ALB routes all traffic through nginx-gateway:
+    - Frontend: http://$ALB_URL/
+    - API Gateway: http://$ALB_URL/api/
 
 Test Credentials:
   User:  atlanuser1@mail.com / 11111111
@@ -221,6 +240,7 @@ Security Features Deployed:
   - NetworkPolicy applied
   - Resource limits on all pods
   - Liveness/Readiness probes
+  - AWS Application Load Balancer (ALB)
 
 Next Steps (Optional):
   1. Setup RDS: .\scripts\eks\setup-rds.ps1
@@ -228,8 +248,9 @@ Next Steps (Optional):
 
 Useful Commands:
   kubectl get pods -n bookmyevent
+  kubectl get ingress -n bookmyevent
   kubectl logs deployment/user-service -n bookmyevent
 
-To cleanup: .\scripts\eks\cleanup-all.ps1
+To cleanup: .\scripts\eks\5-cleanup-all.ps1
 ============================================================
 "@ -ForegroundColor Cyan

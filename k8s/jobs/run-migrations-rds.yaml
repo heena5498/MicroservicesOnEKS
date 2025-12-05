@@ -66,5 +66,3 @@ spec:
         - name: booking-migrations
           configMap:
             name: booking-migrations
-
-

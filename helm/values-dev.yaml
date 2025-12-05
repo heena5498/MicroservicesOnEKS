@@ -1,0 +1,50 @@
+# Development environment values
+global:
+  environment: development
+
+replicaCount:
+  userService: 1
+  eventService: 1
+  searchService: 1
+  bookingService: 1
+  frontend: 1
+  nginxGateway: 1
+  postgres: 1
+  redis: 1
+  elasticsearch: 1
+
+resources:
+  userService:
+    limits:
+      cpu: "200m"
+      memory: "256Mi"
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+  eventService:
+    limits:
+      cpu: "200m"
+      memory: "256Mi"
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+  searchService:
+    limits:
+      cpu: "200m"
+      memory: "256Mi"
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+  bookingService:
+    limits:
+      cpu: "200m"
+      memory: "256Mi"
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+
+autoscaling:
+  enabled: false
+
+config:
+  logLevel: debug

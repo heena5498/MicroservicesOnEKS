@@ -3,8 +3,8 @@ package search
 import (
 	"time"
 
-	"github.com/fyzanshaik/bookmyevent-ily/internal/config"
-	"github.com/fyzanshaik/bookmyevent-ily/internal/logger"
+	"github.com/heena5498/eks-microservices/internal/config"
+	"github.com/heena5498/eks-microservices/internal/logger"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 )

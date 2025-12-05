@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fyzanshaik/bookmyevent-ily/internal/auth"
-	"github.com/fyzanshaik/bookmyevent-ily/internal/repository/bookings"
-	"github.com/fyzanshaik/bookmyevent-ily/internal/utils"
+	"github.com/heena5498/eks-microservices/internal/auth"
+	"github.com/heena5498/eks-microservices/internal/repository/bookings"
+	"github.com/heena5498/eks-microservices/internal/utils"
 	"github.com/google/uuid"
 )
 

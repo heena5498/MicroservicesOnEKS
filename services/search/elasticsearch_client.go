@@ -10,8 +10,8 @@ import (
 
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
-	"github.com/fyzanshaik/bookmyevent-ily/internal/logger"
-	"github.com/fyzanshaik/bookmyevent-ily/internal/utils"
+	"github.com/heena5498/eks-microservices/internal/logger"
+	"github.com/heena5498/eks-microservices/internal/utils"
 	"github.com/google/uuid"
 )
 
