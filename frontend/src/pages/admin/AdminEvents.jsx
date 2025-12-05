@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { eventService, formatError } from '../../services/api';
-import { Calendar, Plus, Edit, Trash2, Eye, Users, DollarSign } from 'lucide-react';
+import { Calendar, Plus, Edit, Trash2, Eye, Users } from 'lucide-react';
 
 const AdminEvents = () => {
     const [events, setEvents] = useState([]);
@@ -17,7 +17,7 @@ const AdminEvents = () => {
         start_datetime: '',
         end_datetime: '',
         total_capacity: '',
-        base_price: '',
+        base_price: '0',
         max_tickets_per_booking: '8'
     });
 
@@ -325,7 +325,7 @@ const AdminEvents = () => {
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Base Price ($) *
+                                    Base Price ($)
                                 </label>
                                 <input
                                     type="number"
@@ -334,7 +334,7 @@ const AdminEvents = () => {
                                     onChange={handleChange}
                                     step="0.01"
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                    required
+                                    disabled
                                     min="0"
                                 />
                             </div>
@@ -410,10 +410,6 @@ const AdminEvents = () => {
                                                 <div className="flex items-center">
                                                     <Users className="h-4 w-4 mr-1" />
                                                     <span>{event.available_seats} / {event.total_capacity} available</span>
-                                                </div>
-                                                <div className="flex items-center">
-                                                    <DollarSign className="h-4 w-4 mr-1" />
-                                                    <span>${event.base_price}</span>
                                                 </div>
                                                 <p><strong>Max per booking:</strong> {event.max_tickets_per_booking}</p>
                                             </div>

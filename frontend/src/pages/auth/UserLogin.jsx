@@ -66,7 +66,7 @@ export const UserLogin = () => {
         <div className="max-w-md mx-auto mt-8">
             <div className="bg-white rounded-lg shadow-md p-6">
                 <div className="text-center mb-6">
-                    <LogIn className="h-12 w-12 text-blue-600 mx-auto mb-4" />
+                    <LogIn className="h-12 w-12 text-[#e21833] mx-auto mb-4" />
                     <h2 className="text-2xl font-bold text-gray-900">User Login</h2>
                     <p className="text-gray-600">Sign in to your account</p>
                 </div>
@@ -89,7 +89,7 @@ export const UserLogin = () => {
                                 name="email"
                                 value={formData.email}
                                 onChange={handleChange}
-                                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#e21833]"
                                 placeholder="Enter your email"
                                 required
                             />
@@ -107,7 +107,7 @@ export const UserLogin = () => {
                                 name="password"
                                 value={formData.password}
                                 onChange={handleChange}
-                                className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#e21833]"
                                 placeholder="Enter your password"
                                 required
                             />
@@ -124,7 +124,7 @@ export const UserLogin = () => {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                        className="w-full bg-[#e21833] text-white py-2 px-4 rounded-md hover:bg-black focus:outline-none focus:ring-2 focus:ring-[#e21833] disabled:opacity-50"
                     >
                         {loading ? 'Signing in...' : 'Sign In'}
                     </button>
@@ -133,14 +133,14 @@ export const UserLogin = () => {
                 <div className="mt-6 text-center">
                     <p className="text-sm text-gray-600">
                         Don't have an account?{' '}
-                        <Link to="/register" className="text-blue-600 hover:text-blue-500">
+                        <Link to="/register" className="text-[#e21833] hover:text-black">
                             Sign up here
                         </Link>
                     </p>
                 </div>
 
                 <div className="mt-4 text-center">
-                    <Link to="/admin/login" className="text-sm text-gray-500 hover:text-blue-600">
+                    <Link to="/admin/login" className="text-sm text-gray-500 hover:text-purple-500">
                         Admin Login
                     </Link>
                 </div>

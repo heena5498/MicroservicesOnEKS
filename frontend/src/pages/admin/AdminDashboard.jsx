@@ -248,9 +248,6 @@ const AdminDashboard = () => {
                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(event.status)}`}>
                                         {event.status}
                                     </span>
-                                    <span className="text-lg font-bold text-green-600">
-                                        ${event.base_price}
-                                    </span>
                                 </div>
                             </div>
                         ))}

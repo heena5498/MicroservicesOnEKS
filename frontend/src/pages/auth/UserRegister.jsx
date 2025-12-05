@@ -75,9 +75,9 @@ const UserRegister = () => {
         <div className="max-w-md mx-auto mt-8">
             <div className="bg-white rounded-lg shadow-md p-6">
                 <div className="text-center mb-6">
-                    <UserPlus className="h-12 w-12 text-blue-600 mx-auto mb-4" />
+                    <UserPlus className="h-12 w-12 text-[#e21833] mx-auto mb-4" />
                     <h2 className="text-2xl font-bold text-gray-900">Create Account</h2>
-                    <p className="text-gray-600">Join BookMyEvent today</p>
+                    <p className="text-gray-600">Join CampusEventManager today</p>
                 </div>
 
                 {error && (
@@ -98,7 +98,7 @@ const UserRegister = () => {
                                 name="name"
                                 value={formData.name}
                                 onChange={handleChange}
-                                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#e21833]"
                                 placeholder="Enter your full name"
                                 required
                             />
@@ -116,7 +116,7 @@ const UserRegister = () => {
                                 name="email"
                                 value={formData.email}
                                 onChange={handleChange}
-                                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#e21833]"
                                 placeholder="Enter your email"
                                 required
                             />
@@ -134,7 +134,7 @@ const UserRegister = () => {
                                 name="phone_number"
                                 value={formData.phone_number}
                                 onChange={handleChange}
-                                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#e21833]"
                                 placeholder="+1234567890"
                             />
                         </div>
@@ -151,7 +151,7 @@ const UserRegister = () => {
                                 name="password"
                                 value={formData.password}
                                 onChange={handleChange}
-                                className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#e21833]"
                                 placeholder="Enter your password"
                                 required
                             />
@@ -176,7 +176,7 @@ const UserRegister = () => {
                                 name="confirmPassword"
                                 value={formData.confirmPassword}
                                 onChange={handleChange}
-                                className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#e21833]"
                                 placeholder="Confirm your password"
                                 required
                             />
@@ -193,7 +193,7 @@ const UserRegister = () => {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                        className="w-full bg-[#e21833] text-white py-2 px-4 rounded-md hover:bg-black focus:outline-none focus:ring-2 focus:ring-[#e21833] disabled:opacity-50"
                     >
                         {loading ? 'Creating Account...' : 'Create Account'}
                     </button>
@@ -202,7 +202,7 @@ const UserRegister = () => {
                 <div className="mt-6 text-center">
                     <p className="text-sm text-gray-600">
                         Already have an account?{' '}
-                        <Link to="/login" className="text-blue-600 hover:text-blue-500">
+                        <Link to="/login" className="text-[#e21833] hover:text-black">
                             Sign in here
                         </Link>
                     </p>

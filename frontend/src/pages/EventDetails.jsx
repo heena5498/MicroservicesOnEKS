@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { eventService, bookingService, formatError } from '../services/api';
 import {
-    MapPin, Calendar, Users, DollarSign, Clock,
+    MapPin, Calendar, Users, Clock,
     Ticket, AlertCircle, CheckCircle, ArrowLeft
 } from 'lucide-react';
 
@@ -153,7 +153,7 @@ const EventDetails = () => {
     if (loading) {
         return (
             <div className="flex justify-center items-center min-h-[400px]">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#e21833]"></div>
             </div>
         );
     }
@@ -164,7 +164,7 @@ const EventDetails = () => {
                 <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Event Not Found</h2>
                 <p className="text-gray-600 mb-6">{error || 'The event you are looking for does not exist.'}</p>
-                <Link to="/events" className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                <Link to="/events" className="bg-[#e21833] text-white px-6 py-2 rounded-lg hover:bg-black transition-colors">
                     Browse Events
                 </Link>
             </div>
@@ -179,7 +179,7 @@ const EventDetails = () => {
         <div className="max-w-4xl mx-auto space-y-8">
             <button
                 onClick={() => navigate(-1)}
-                className="inline-flex items-center text-gray-600 hover:text-blue-600 transition-colors"
+                className="inline-flex items-center text-gray-600 hover:text-[#e21833] transition-colors"
             >
                 <ArrowLeft className="h-5 w-5 mr-2" />
                 Back to Events
@@ -224,7 +224,7 @@ const EventDetails = () => {
 
                         <div className="space-y-3">
                             <div className="flex items-center text-gray-700">
-                                <MapPin className="h-5 w-5 mr-3 text-blue-600" />
+                                <MapPin className="h-5 w-5 mr-3 text-[#e21833]" />
                                 <div>
                                     <p className="font-semibold">{event.venue_name}</p>
                                     <p className="text-sm text-gray-600">
@@ -234,7 +234,7 @@ const EventDetails = () => {
                             </div>
 
                             <div className="flex items-center text-gray-700">
-                                <Calendar className="h-5 w-5 mr-3 text-blue-600" />
+                                <Calendar className="h-5 w-5 mr-3 text-[#e21833]" />
                                 <div>
                                     <p className="font-semibold">{formatDate(event.start_datetime)}</p>
                                     <p className="text-sm text-gray-600">
@@ -244,10 +244,10 @@ const EventDetails = () => {
                             </div>
 
                             <div className="flex items-center text-gray-700">
-                                <Users className="h-5 w-5 mr-3 text-blue-600" />
+                                <Users className="h-5 w-5 mr-3 text-[#e21833]" />
                                 <div>
                                     <p className="font-semibold">
-                                        {availability?.available_seats || event.available_seats} seats available
+                                        {availability?.available_seats || event.available_seats} spots available
                                     </p>
                                     <p className="text-sm text-gray-600">
                                         Total capacity: {event.total_capacity}
@@ -256,17 +256,7 @@ const EventDetails = () => {
                             </div>
 
                             <div className="flex items-center text-gray-700">
-                                <DollarSign className="h-5 w-5 mr-3 text-blue-600" />
-                                <div>
-                                    <p className="font-semibold text-2xl text-green-600">
-                                        ${availability?.base_price || event.base_price}
-                                    </p>
-                                    <p className="text-sm text-gray-600">Starting price per ticket</p>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center text-gray-700">
-                                <Ticket className="h-5 w-5 mr-3 text-blue-600" />
+                                <Ticket className="h-5 w-5 mr-3 text-[#e21833]" />
                                 <div>
                                     <p className="font-semibold">
                                         Max {availability?.max_per_booking || event.max_tickets_per_booking} tickets per booking
@@ -277,7 +267,7 @@ const EventDetails = () => {
                         </div>
 
                         <div className="pt-4">
-                            <span className="inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                            <span className="inline-block bg-[#ffd200] text-black px-3 py-1 rounded-full text-sm font-medium">
                                 {event.event_type}
                             </span>
                             <span className="inline-block bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium ml-2">
@@ -298,7 +288,7 @@ const EventDetails = () => {
                             <select
                                 value={quantity}
                                 onChange={(e) => setQuantity(parseInt(e.target.value))}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#e21833]"
                             >
                                 {[...Array(Math.min(10, availability?.max_per_booking || 10))].map((_, i) => (
                                     <option key={i + 1} value={i + 1}>
@@ -324,7 +314,7 @@ const EventDetails = () => {
                                 ) : (
                                     <div className="flex items-center text-red-600">
                                         <AlertCircle className="h-4 w-4 mr-2" />
-                                        Not enough seats available
+                                        Not enough spots available
                                     </div>
                                 )
                             ) : (
@@ -333,18 +323,6 @@ const EventDetails = () => {
                                     Fully booked
                                 </div>
                             )}
-                        </div>
-
-                        {/* Total Price */}
-                        <div className="mb-6 p-3 bg-white rounded border">
-                            <div className="flex justify-between items-center">
-                                <span className="text-gray-600">
-                                    {quantity} × ${availability?.base_price || event.base_price}
-                                </span>
-                                <span className="text-xl font-bold text-green-600">
-                                    ${totalPrice.toFixed(2)}
-                                </span>
-                            </div>
                         </div>
 
                         {/* Book Button */}
@@ -360,7 +338,7 @@ const EventDetails = () => {
                                 <button
                                     onClick={handleBookNow}
                                     disabled={availabilityLoading}
-                                    className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors font-semibold disabled:opacity-50"
+                                    className="w-full bg-[#e21833] text-white py-3 px-4 rounded-lg hover:bg-black transition-colors font-semibold disabled:opacity-50"
                                 >
                                     {isAuthenticated ? 'Book Now' : 'Login to Book'}
                                 </button>
@@ -375,7 +353,7 @@ const EventDetails = () => {
                                     {isAuthenticated && (
                                         <Link
                                             to={`/waitlist/${eventId}`}
-                                            className="w-full bg-yellow-600 text-white py-2 px-4 rounded-lg hover:bg-yellow-700 transition-colors font-semibold text-center block"
+                                            className="w-full bg-[#ad7231] text-white py-2 px-4 rounded-lg hover:bg-black transition-colors font-semibold text-center block"
                                         >
                                             Join Waitlist
                                         </Link>
@@ -384,7 +362,7 @@ const EventDetails = () => {
                                         <Link
                                             to="/login"
                                             state={{ from: { pathname: `/waitlist/${eventId}` } }}
-                                            className="w-full bg-yellow-600 text-white py-2 px-4 rounded-lg hover:bg-yellow-700 transition-colors font-semibold text-center block"
+                                            className="w-full bg-[#ad7231] text-white py-2 px-4 rounded-lg hover:bg-black transition-colors font-semibold text-center block"
                                         >
                                             Login to Join Waitlist
                                         </Link>
@@ -402,11 +380,11 @@ const EventDetails = () => {
 
                         {!isAuthenticated && (
                             <p className="text-sm text-gray-600 mt-3 text-center">
-                                <Link to="/login" className="text-blue-600 hover:text-blue-700">
+                                <Link to="/login" className="text-[#e21833] hover:text-black">
                                     Login
                                 </Link>{' '}
                                 or{' '}
-                                <Link to="/register" className="text-blue-600 hover:text-blue-700">
+                                <Link to="/register" className="text-[#e21833] hover:text-black">
                                     Register
                                 </Link>{' '}
                                 to book tickets
@@ -436,7 +414,6 @@ const EventDetails = () => {
                         <ul className="text-gray-600 space-y-1 text-sm">
                             <li>• Maximum {availability?.max_per_booking || event.max_tickets_per_booking} tickets per booking</li>
                             <li>• 5-minute reservation window</li>
-                            <li>• Secure payment processing</li>
                             <li>• Instant ticket delivery</li>
                         </ul>
                     </div>

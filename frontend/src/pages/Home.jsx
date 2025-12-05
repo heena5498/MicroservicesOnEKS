@@ -27,7 +27,7 @@ const Home = () => {
     return (
         <div className="space-y-16">
             {/* Hero Section */}
-            <section className="text-center py-16 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg">
+            <section className="text-center py-16 bg-[#e21833] text-white rounded-lg">
                 <div className="max-w-4xl mx-auto px-6">
                     <University className="h-16 w-16 mx-auto mb-6" />
                     <h1 className="text-5xl font-bold mb-6">
@@ -39,7 +39,7 @@ const Home = () => {
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
                         <Link
                             to="/events"
-                            className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors inline-flex items-center justify-center"
+                            className="bg-white text-[#e21833] px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors inline-flex items-center justify-center"
                         >
                             <Search className="h-5 w-5 mr-2" />
                             Explore Events
@@ -47,7 +47,7 @@ const Home = () => {
                         {!isAuthenticated && !isAdminAuthenticated && (
                             <Link
                                 to="/register"
-                                className="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition-colors inline-flex items-center justify-center"
+                                className="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:border-gray-100 hover:bg-gray-100 hover:text-[#e21833] transition-colors inline-flex items-center justify-center"
                             >
                                 <Users className="h-5 w-5 mr-2" />
                                 Get Started
@@ -70,7 +70,7 @@ const Home = () => {
                     </div>
                     <Link
                         to="/events"
-                        className="text-blue-600 hover:text-blue-700 font-semibold inline-flex items-center"
+                        className="text-[#e21833] hover:text-black font-semibold inline-flex items-center"
                     >
                         View All <ArrowRight className="h-4 w-4 ml-1" />
                     </Link>
@@ -115,7 +115,7 @@ const Home = () => {
 
                                     <Link
                                         to={`/events/${event.event_id}`}
-                                        className="mt-4 w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors inline-flex items-center justify-center"
+                                        className="mt-4 w-full bg-[#e21833] text-white py-2 px-4 rounded-md hover:bg-black transition-colors inline-flex items-center justify-center"
                                     >
                                         View Details
                                     </Link>
@@ -131,7 +131,7 @@ const Home = () => {
                         </p>
                         <Link
                             to="/events"
-                            className="mt-4 inline-flex items-center text-blue-600 hover:text-blue-700"
+                            className="mt-4 inline-flex items-center text-[#e21833] hover:text-black"
                         >
                             Browse all events <ArrowRight className="h-4 w-4 ml-1" />
                         </Link>
@@ -154,14 +154,14 @@ const Home = () => {
                             <>
                                 <Link
                                     to="/register"
-                                    className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors inline-flex items-center justify-center"
+                                    className="bg-[#e21833] text-white px-8 py-3 rounded-lg font-semibold hover:bg-black transition-colors inline-flex items-center justify-center"
                                 >
                                     <Users className="h-5 w-5 mr-2" />
                                     Sign Up Now
                                 </Link>
                                 <Link
                                     to="/admin/register"
-                                    className="border-2 border-purple-600 text-purple-600 px-8 py-3 rounded-lg font-semibold hover:bg-purple-600 hover:text-white transition-colors inline-flex items-center justify-center"
+                                    className="bg-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors inline-flex items-center justify-center"
                                 >
                                     <Shield className="h-5 w-5 mr-2" />
                                     Admin Registration
@@ -170,7 +170,7 @@ const Home = () => {
                         ) : (
                             <Link
                                 to="/events"
-                                className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors inline-flex items-center justify-center"
+                                className="bg-[#e21833] text-white px-8 py-3 rounded-lg font-semibold hover:bg-black transition-colors inline-flex items-center justify-center"
                             >
                                 <Search className="h-5 w-5 mr-2" />
                                 Discover Events

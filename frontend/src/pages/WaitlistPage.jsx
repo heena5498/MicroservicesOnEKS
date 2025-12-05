@@ -137,7 +137,7 @@ const WaitlistPage = () => {
             {/* Back Button */}
             <button
                 onClick={() => navigate(`/events/${eventId}`)}
-                className="inline-flex items-center text-gray-600 hover:text-blue-600 transition-colors"
+                className="inline-flex items-center text-gray-600 hover:text-[#e21833] transition-colors"
             >
                 <ArrowLeft className="h-5 w-5 mr-2" />
                 Back to Event
@@ -149,7 +149,7 @@ const WaitlistPage = () => {
                 
                 <div className="space-y-3 mb-4">
                     <div className="flex items-center text-gray-700">
-                        <Ticket className="h-5 w-5 mr-3 text-blue-600" />
+                        <Ticket className="h-5 w-5 mr-3 text-[#e21833]" />
                         <div>
                             <p className="font-semibold">{formatDate(event.start_datetime)}</p>
                             <p className="text-sm text-gray-600">
@@ -159,7 +159,7 @@ const WaitlistPage = () => {
                     </div>
                     
                     <div className="flex items-center text-gray-700">
-                        <Users className="h-5 w-5 mr-3 text-blue-600" />
+                        <Users className="h-5 w-5 mr-3 text-[#e21833]" />
                         <div>
                             <p className="font-semibold text-red-600">Sold Out</p>
                             <p className="text-sm text-gray-600">
@@ -308,7 +308,7 @@ const WaitlistPage = () => {
                         <select
                             value={quantity}
                             onChange={(e) => setQuantity(parseInt(e.target.value))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#e21833]"
                         >
                             {[...Array(Math.min(10, event.max_tickets_per_booking))].map((_, i) => (
                                 <option key={i + 1} value={i + 1}>
@@ -336,7 +336,7 @@ const WaitlistPage = () => {
                     <button
                         onClick={handleJoinWaitlist}
                         disabled={joining}
-                        className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors font-semibold disabled:opacity-50"
+                        className="w-full bg-[#e21833] text-white py-3 px-4 rounded-lg hover:bg-black transition-colors font-semibold disabled:opacity-50"
                     >
                         {joining ? 'Joining...' : `Join Waitlist for ${quantity} ticket${quantity > 1 ? 's' : ''}`}
                     </button>
