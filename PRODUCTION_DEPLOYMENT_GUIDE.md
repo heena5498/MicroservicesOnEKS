@@ -287,6 +287,70 @@ kubectl rollout restart deployment/frontend -n bookmyevent
 
 ---
 
+### Step 4: Enable CloudWatch Logs
+
+Create an IRSA-backed Fluent Bit DaemonSet to push pod and node logs to CloudWatch.
+
+**4.1 Create IAM policy for log shipping**
+```powershell
+@"
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:DescribeLogGroups",
+        "logs:DescribeLogStreams",
+        "logs:PutLogEvents",
+        "logs:PutRetentionPolicy"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+"@ | Out-File -FilePath cloudwatch-logs-policy.json -Encoding utf8
+
+aws iam create-policy --policy-name bookmyevent-cloudwatch-logs --policy-document file://cloudwatch-logs-policy.json --region us-east-1
+```
+
+**4.2 Create IAM service account (IRSA) for Fluent Bit**
+```powershell
+$ACCOUNT_ID = aws sts get-caller-identity --query Account --output text
+
+eksctl create iamserviceaccount `
+  --name aws-for-fluent-bit `
+  --namespace kube-system `
+  --cluster bookmyevent-cluster `
+  --attach-policy-arn arn:aws:iam::$ACCOUNT_ID:policy/bookmyevent-cloudwatch-logs `
+  --approve `
+  --override-existing-serviceaccounts `
+  --region us-east-1
+```
+
+**4.3 Deploy Fluent Bit with CloudWatch output**
+- Update `k8s/logging/cloudwatch-fluent-bit-values.yaml` if you need a different AWS region or log group name (defaults to `us-east-1` and `/eks/bookmyevent/cluster` with 14-day retention).
+```powershell
+helm repo add eks https://aws.github.io/eks-charts
+helm repo update
+
+helm upgrade --install aws-for-fluent-bit eks/aws-for-fluent-bit `
+  --namespace kube-system `
+  --create-namespace `
+  --values k8s/logging/cloudwatch-fluent-bit-values.yaml
+```
+
+**4.4 Validate logs**
+```powershell
+kubectl get pods -n kube-system -l k8s-app=aws-for-fluent-bit
+kubectl logs -n kube-system -l k8s-app=aws-for-fluent-bit --tail=20
+aws logs describe-log-groups --log-group-name-prefix "/eks/bookmyevent" --region us-east-1
+```
+
+---
+
 ## ✅ Verify Deployment
 
 ### Test Endpoints
