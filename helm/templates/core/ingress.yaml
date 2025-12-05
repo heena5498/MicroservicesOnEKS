@@ -21,6 +21,7 @@ spec:
       secretName: {{ .Values.ingress.tls.secretName }}
   {{- end }}
   rules:
+    {{- if .Values.ingress.host }}
     - host: {{ .Values.ingress.host }}
       http:
         paths:
@@ -31,4 +32,15 @@ spec:
                 name: nginx-gateway
                 port:
                   number: {{ .Values.services.nginxGateway.port }}
+    {{- else }}
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: nginx-gateway
+                port:
+                  number: {{ .Values.services.nginxGateway.port }}
+    {{- end }}
 {{- end }}

@@ -121,7 +121,7 @@ services:
   nginxGateway:
     port: 80
     targetPort: 80
-    type: LoadBalancer
+    type: ClusterIP  # Changed from LoadBalancer - using ALB Ingress instead
   postgres:
     port: 5432
     targetPort: 5432
@@ -198,12 +198,17 @@ autoscaling:
 
 # Ingress
 ingress:
-  enabled: false  # Set to true if you want to use Ingress instead of LoadBalancer
+  enabled: true  # Using ALB Ingress instead of NLB LoadBalancer
   className: alb
   annotations:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
-  host: bookmyevent.example.com  # Replace with your actual domain (e.g., events.yourdomain.com)
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: "15"
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: "5"
+    alb.ingress.kubernetes.io/healthy-threshold-count: "2"
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: "2"
+  host: ""  # Leave empty for ALB DNS name, or set your custom domain
   tls:
     enabled: false  # Set to true if you have an SSL certificate
     certificateArn: ""  # Add your ACM certificate ARN here if using SSL

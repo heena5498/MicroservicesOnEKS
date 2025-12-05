@@ -168,23 +168,46 @@ spec:
           configMap:
             name: nginx-config
 ---
-# Nginx Gateway Service (LoadBalancer for external access)
+# Nginx Gateway Service (ClusterIP - exposed via ALB Ingress)
 apiVersion: v1
 kind: Service
 metadata:
   name: nginx-gateway
   namespace: bookmyevent
-  annotations:
-    # EKS annotations for AWS Load Balancer
-    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
-    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
 spec:
   selector:
     app: nginx-gateway
   ports:
     - port: 80
       targetPort: 80
-  type: LoadBalancer
+  type: ClusterIP
+---
+# ALB Ingress for external access
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bookmyevent-ingress
+  namespace: bookmyevent
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: "15"
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: "5"
+    alb.ingress.kubernetes.io/healthy-threshold-count: "2"
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: "2"
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: nginx-gateway
+                port:
+                  number: 80
 
 
 
