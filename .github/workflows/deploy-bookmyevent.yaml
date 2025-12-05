@@ -352,19 +352,19 @@ jobs:
           kubectl wait --for=condition=ready pod -l app=search-service -n "$K8S_NAMESPACE" --timeout=300s || true
           kubectl wait --for=condition=ready pod -l app=frontend -n "$K8S_NAMESPACE" --timeout=300s || true
 
-      - name: Get LoadBalancer URL and summary
+      - name: Get ALB URL and summary
         id: lb-url
         run: |
-          echo "Fetching LoadBalancer URL..."
-          LB_URL=$(kubectl get service nginx-gateway -n "$K8S_NAMESPACE" -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-          echo "LoadBalancer URL: http://${LB_URL}"
+          echo "Fetching ALB Ingress URL..."
+          LB_URL=$(kubectl get ingress bookmyevent-ingress -n "$K8S_NAMESPACE" -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          echo "ALB URL: http://${LB_URL}"
           echo "lb_url=$LB_URL" >> $GITHUB_OUTPUT
 
           echo "### Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "- Namespace: \`$K8S_NAMESPACE\`" >> $GITHUB_STEP_SUMMARY
           echo "- EKS Cluster: \`$EKS_CLUSTER_NAME\`" >> $GITHUB_STEP_SUMMARY
           echo "- RDS Endpoint: \`${{ secrets.RDS_ENDPOINT }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Frontend URL: \`http://${LB_URL}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Frontend URL (ALB): \`http://${LB_URL}\`" >> $GITHUB_STEP_SUMMARY
 
   # ============================
   # 4) Integration Tests
@@ -400,12 +400,12 @@ jobs:
             --name "$EKS_CLUSTER_NAME" \
             --region "$AWS_REGION"
 
-      - name: Get LoadBalancer URL
+      - name: Get ALB URL
         id: get-lb
         run: |
-          LB_URL=$(kubectl get service nginx-gateway -n "$K8S_NAMESPACE" -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          LB_URL=$(kubectl get ingress bookmyevent-ingress -n "$K8S_NAMESPACE" -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
           echo "API_BASE_URL=http://${LB_URL}" >> $GITHUB_ENV
-          echo "LoadBalancer URL: http://${LB_URL}"
+          echo "ALB URL: http://${LB_URL}"
           
           # Create test environment config
           cat > scripts/testing/test-env.config <<EOF
