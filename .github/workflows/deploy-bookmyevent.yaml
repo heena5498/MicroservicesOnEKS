@@ -333,11 +333,12 @@ jobs:
                       - |
                         set -e
                         echo "Creating databases on RDS if they don't exist..."
-                        psql "host=${RDS_ENDPOINT} port=5432 user=postgres dbname=postgres sslmode=require" <<SQL
-                        CREATE DATABASE users_db;
-                        CREATE DATABASE events_db;
-                        CREATE DATABASE bookings_db;
+                        psql "host=${RDS_ENDPOINT} port=5432 user=postgres dbname=postgres sslmode=require" <<'SQL'
+                        SELECT 'CREATE DATABASE users_db' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'users_db')\gexec
+                        SELECT 'CREATE DATABASE events_db' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'events_db')\gexec
+                        SELECT 'CREATE DATABASE bookings_db' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'bookings_db')\gexec
                         SQL
+                        echo "Database creation completed successfully"
           EOF
 
           echo "Waiting for migrations Job to complete..."
