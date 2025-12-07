@@ -85,4 +85,32 @@ spec:
     - port: 8002
       targetPort: 8002
   type: ClusterIP
-
+---
+# Event Service Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: event-service-network-policy
+  namespace: bookmyevent
+spec:
+  podSelector:
+    matchLabels:
+      app: event-service
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: nginx-gateway
+      ports:
+        - protocol: TCP
+          port: 8002
+  egress:
+    - to:
+        - ipBlock:
+            cidr: RDS_IP_ADDRESS/32
+      ports:
+        - protocol: TCP
+          port: 5432

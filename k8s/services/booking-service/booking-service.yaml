@@ -90,4 +90,32 @@ spec:
     - port: 8004
       targetPort: 8004
   type: ClusterIP
-
+---
+# Booking Service Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: booking-service-network-policy
+  namespace: bookmyevent
+spec:
+  podSelector:
+    matchLabels:
+      app: booking-service
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: nginx-gateway
+      ports:
+        - protocol: TCP
+          port: 8004
+  egress:
+    - to:
+        - ipBlock:
+            cidr: RDS_IP_ADDRESS/32
+      ports:
+        - protocol: TCP
+          port: 5432

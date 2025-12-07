@@ -111,4 +111,23 @@ spec:
     - port: 5432
       targetPort: 5432
   type: ClusterIP
-
+---
+# PostgreSQL Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-network-policy
+  namespace: bookmyevent
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: RDS_IP_ADDRESS/32
+      ports:
+        - protocol: TCP
+          port: 5432
