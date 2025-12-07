@@ -10,7 +10,7 @@ This directory contains integration tests and validation scripts for the BookMyE
 - Tests complete user authentication flow through production ALB
 - Validates all API endpoints (register, login, profile, refresh, logout)
 - Checks error handling (401, 409 status codes)
-- **Status:** All 11 tests passing ✅
+- **Status:** All 11 tests passing
 - **Usage:** `./test-endpoints.sh`
 
 ### Additional Test Scripts

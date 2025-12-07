@@ -440,8 +440,8 @@ jobs:
 
       - name: Run booking service tests
         run: |
-          chmod +x tests-scripts/test_booking_flow.py
-          python tests-scripts/test_booking_flow.py
+          chmod +x scripts/testing/test_booking_flow.py
+          python scripts/testing/test_booking_flow.py
         env:
           API_BASE_URL: ${{ env.API_BASE_URL }}
         continue-on-error: true

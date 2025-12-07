@@ -37,6 +37,132 @@ This application serves as a comprehensive implementation of modern cloud-native
 
 ---
 
+## 📂 Project Structure
+
+```
+eks-microservices/
+├── .github/                       # GitHub Actions CI/CD workflows
+│   └── workflows/                 # Automated build, deploy, monitoring pipelines
+│
+├── cmd/                           # Service entry points (main.go files)
+│   ├── user-service/main.go       # User authentication service
+│   ├── event-service/main.go      # Event management service
+│   ├── search-service/main.go     # Elasticsearch search service
+│   └── booking-service/main.go    # Booking & reservation service
+│
+├── docs/                          # Documentation (ENPM818R submission artifacts)
+│   ├── architecture.md            # System design & microservices architecture
+│   ├── build/                     # CI/CD pipeline documentation
+│   │   ├── ci-cd-guide.md         # GitHub Actions pipeline guide
+│   │   ├── ci-cd-quickstart.md    # 3-step pipeline setup
+│   │   └── ci-cd-testing-guide.md # Pipeline testing & validation
+│   ├── deployment/                # EKS deployment guides
+│   │   └── eks-deployment-guide.md # Complete AWS EKS deployment
+│   └── secrets/                   # Secrets management guides
+│       ├── secrets-manager-guide.md
+│       ├── secrets-quickstart.md
+│       └── README.md
+│
+├── frontend/                      # React application (Vite + React 18)
+│   ├── src/                       # React components, pages, contexts
+│   │   ├── components/            # Reusable UI components
+│   │   ├── pages/                 # Page-level components
+│   │   ├── contexts/              # React context providers
+│   │   └── services/              # API client functions
+│   ├── public/                    # Static assets
+│   ├── package.json               # NPM dependencies
+│   └── vite.config.js             # Vite bundler configuration
+│
+├── helm/                          # Helm charts for Kubernetes deployment
+│   ├── Chart.yaml                 # Helm chart metadata
+│   ├── values.yaml                # Default configuration values
+│   └── templates/                 # Kubernetes manifest templates
+│       ├── core/                  # Core infrastructure (migrations job)
+│       ├── deployments/           # Service deployments
+│       ├── services/              # Service definitions
+│       ├── ingress/               # Ingress & nginx gateway
+│       └── infrastructure/        # Redis, Elasticsearch, PostgreSQL
+│
+├── init-container/                # Database initialization container
+│   ├── main.go                    # Database creation logic
+│   └── go.mod                     # Go module for init container
+│
+├── internal/                      # Shared Go packages (internal use only)
+│   ├── auth/                      # JWT authentication & authorization
+│   │   ├── jwt.go                 # Token generation & validation
+│   │   └── admin.go               # Admin authentication
+│   ├── config/                    # Configuration management
+│   ├── database/                  # PostgreSQL client & connection pooling
+│   ├── middleware/                # HTTP middleware (CORS, logging, auth)
+│   ├── repository/                # Generated sqlc database code
+│   ├── cache/                     # Redis cache client
+│   ├── logger/                    # Structured logging
+│   └── utils/                     # Helper functions
+│
+├── k8s/                           # Kubernetes manifests (raw YAML)
+│   ├── 00-namespace.yml           # Namespace definition
+│   ├── 01-configmap.yml           # Configuration maps
+│   ├── 02-secrets.yml             # Application secrets
+│   ├── infrastructure/            # PostgreSQL, Redis, Elasticsearch
+│   ├── services/                  # Microservice deployments & services
+│   ├── jobs/                      # Migration & initialization jobs
+│   └── monitoring/                # Prometheus & Grafana stack
+│
+├── migrations/                    # Database migrations (goose)
+│   ├── user-service/              # User DB schema migrations
+│   ├── event-service/             # Event DB schema migrations
+│   └── booking-service/           # Booking DB schema migrations
+│
+├── scripts/                       # Automation & helper scripts
+│   ├── apply-monitoring.sh        # Install Prometheus & Grafana
+│   ├── eks/                       # EKS deployment automation
+│   │   ├── deploy-helm.sh         # Helm deployment script
+│   │   ├── setup-rds.sh           # RDS setup script
+│   │   └── cleanup-all.ps1        # Resource cleanup
+│   └── testing/                   # Integration tests
+│       ├── test-endpoints.sh      # Main test suite (11 tests)
+│       ├── test_booking_flow.py   # Booking flow tests
+│       └── comprehensive_search_api_test.py
+│
+├── services/                      # Business logic (HTTP handlers & routes)
+│   ├── user/                      # User service handlers
+│   │   ├── handlers.go            # Auth, registration, profile
+│   │   ├── server.go              # Route definitions
+│   │   └── models.go              # Request/response models
+│   ├── event/                     # Event service handlers
+│   ├── search/                    # Search service logic
+│   └── booking/                   # Booking service logic
+│
+├── sqlc/                          # SQL queries for type-safe code generation
+│   ├── user-service/              # User queries (sqlc.yaml + *.sql)
+│   ├── event-service/             # Event queries
+│   └── booking-service/           # Booking queries
+│
+├── docker-compose.yml             # Local development orchestration
+├── Makefile                       # Build automation & common commands
+├── go.mod & go.sum                # Go module dependencies
+├── DEPLOYMENT_GUIDE.md            # Production deployment guide
+└── README.md                      # This file (project overview)
+```
+
+### Key Directories
+
+- **`.github/workflows/`**: GitHub Actions CI/CD pipelines for automated build, test, and deployment
+- **`helm/`**: Helm charts for deploying the entire application stack to Kubernetes
+- **`k8s/`**: Raw Kubernetes manifests (used by Helm or for manual deployment)
+- **`cmd/`**: Main entry points for each microservice (executable programs)
+- **`internal/`**: Shared Go packages used across services (not importable outside this repo)
+- **`services/`**: HTTP handlers and business logic for each microservice
+- **`migrations/`**: Database schema migrations managed by goose
+- **`sqlc/`**: SQL queries that generate type-safe Go code via sqlc
+- **`scripts/eks/`**: EKS deployment automation scripts
+- **`scripts/testing/`**: Test scripts and utilities
+- **`docs/`**: Comprehensive documentation including deployment guides and architecture
+- **`frontend/`**: React single-page application with Vite bundler
+- **`tests-scripts/`**: Integration tests and API validation scripts
+
+---
+
 ## 🏗️ High-Level Architecture
 
 <!-- **Note:** Insert high-level architecture diagram here showing:
@@ -154,6 +280,8 @@ This application serves as a comprehensive implementation of modern cloud-native
    - Grafana: Visualization dashboards
    - Alertmanager: Alert routing and notifications
 
+> 📖 **For detailed architecture information**, see [Architecture Overview](docs/architecture.md)
+
 ---
 
 ## ✨ Key Features
@@ -209,6 +337,8 @@ This application serves as a comprehensive implementation of modern cloud-native
    # Or manually trigger deployment via GitHub Actions UI
    # Actions → Deploy BookMyEvent → Run workflow
    ```
+
+> 📖 **For complete deployment instructions**, see [EKS Deployment Guide](docs/deployment/eks-deployment-guide.md) and [Production Deployment Guide](DEPLOYMENT_GUIDE.md)
 
 >  **Security Best Practices**:
 > - Never commit AWS credentials or secrets to Git
@@ -269,6 +399,8 @@ echo "API Gateway: http://$INGRESS_URL"
 - **Health Check**: `http://<INGRESS_URL>/health`
 
 **Custom Domain:** The application is deployed at `https://campuseventmanager.work.gd` with HTTPS/TLS enabled via AWS Certificate Manager.
+
+> 📖 **For automated testing and validation**, see [CI/CD Testing Guide](docs/build/ci-cd-testing-guide.md)
 
 ## 🌐 Client Access & API Gateway
 
@@ -350,7 +482,7 @@ fetch(`${API_BASE}/api/booking/reserve`, {
 - **Data Encryption**: EBS volumes encrypted at rest
 - **Vulnerability Management**: Automated scanning and patching
 
-See [Security & Compliance](docs/deployment/eks-project-md.md#security--compliance) for detailed security documentation.
+> 📖 **For secrets management details**, see [Secrets Manager Guide](docs/secrets/secrets-manager-guide.md) and [Secrets Quick Start](docs/secrets/secrets-quickstart.md)
 
 ---
 
@@ -368,6 +500,8 @@ See [Security & Compliance](docs/deployment/eks-project-md.md#security--complian
 **Events:** 25 sample events including concerts, workshops, sports events
 
 > **Production Note**: These test credentials are for development/demo only. In production deployments, use secure password policies and remove test accounts.
+
+> 📖 **For integration testing**, see [Testing Guide](tests-scripts/README.md) and [Testing Quick Start](tests-scripts/testing-quickstart.md)
 
 ---
 
@@ -444,79 +578,7 @@ docker-compose -f build/docker-compose.yml build
 - **Version Control**: Git with protected main branch
 - **Deployment**: Helm 3 charts
 
-## System Architecture
-
-### High-Level Architecture
-
-```mermaid
-graph TB
-    subgraph "AWS Cloud"
-        subgraph "EKS Cluster - Multi-AZ"
-            subgraph "Ingress Layer"
-                ALB[AWS Application Load Balancer]
-                NGINX[NGINX Ingress Controller]
-            end
-            
-            subgraph "Application Services"
-                US[User Service<br/>:8001]
-                ES[Event Service<br/>:8002]
-                SS[Search Service<br/>:8003]
-                BS[Booking Service<br/>:8004]
-                FE[Frontend<br/>:3000]
-            end
-            
-            subgraph "Data Layer"
-                PG1[(PostgreSQL<br/>users_db)]
-                PG2[(PostgreSQL<br/>events_db)]
-                PG3[(PostgreSQL<br/>bookings_db)]
-                REDIS[(Redis<br/>Cache)]
-                ELASTIC[(Elasticsearch<br/>Index)]
-            end
-        end
-        
-        subgraph "AWS Services"
-            ECR[Amazon ECR<br/>Container Registry]
-            SM[Secrets Manager]
-            EBS[EBS Volumes<br/>CSI Driver]
-        end
-    end
-    
-    subgraph "External"
-        CLIENT[Web Clients]
-        GHA[GitHub Actions<br/>CI/CD]
-    end
-    
-    CLIENT -->|HTTPS| ALB
-    ALB --> NGINX
-    NGINX --> US & ES & SS & BS & FE
-    
-    US --> PG1
-    ES --> PG2
-    BS --> PG3
-    BS --> REDIS
-    SS --> ELASTIC
-    ES -.->|Index Events| SS
-    
-    GHA -->|Build & Push| ECR
-    GHA -->|Deploy| NGINX
-    SM -.->|Secrets| US & ES & BS & SS
-    EBS -.->|Storage| PG1 & PG2 & PG3
-    
-    style ALB fill:#FF9900,stroke:#232F3E,color:#fff
-    style ECR fill:#FF9900,stroke:#232F3E,color:#fff
-    style SM fill:#FF9900,stroke:#232F3E,color:#fff
-    style EBS fill:#FF9900,stroke:#232F3E,color:#fff
-```
-
-### Service Communication Patterns
-
-- **External Access**: All client requests → AWS ALB → NGINX Ingress → Services
-- **Internal Service-to-Service**: Direct ClusterIP communication (Event→Search)
-- **Data Access**: Each service has dedicated database for data isolation
-- **Caching**: Redis for temporary reservations and high-speed operations
-- **Search**: Elasticsearch for complex queries and full-text search
-
-## Key API Endpoints
+## 🔌 Key API Endpoints
 
 This is not an exhaustive list but highlights the core functionality of the platform.
 
@@ -546,6 +608,8 @@ This is not an exhaustive list but highlights the core functionality of the plat
 -   `POST /api/v1/bookings/confirm`: **(Phase 2)** Confirms a reservation and processes payment.
 -   `POST /api/v1/waitlist/join`: Adds a user to the waitlist for a sold-out event.
 -   `DELETE /api/v1/bookings/{id}`: Cancels a confirmed booking.
+
+> 📖 **For complete API documentation and service architecture**, see [Architecture Overview](docs/architecture.md)
 
 ## ⚙️ Architectural Flow & Service Roles
 
@@ -608,141 +672,11 @@ To prevent users from holding tickets indefinitely without paying, Evently uses 
 
 When an event sells out, users can join a waitlist. This waitlist is managed efficiently as a sorted set in **Redis**, with each user's entry timestamp acting as their score for prioritization. If a booking is cancelled, a background worker is triggered. Instead of returning the seats to the general pool, it retrieves the user at the top of the waitlist, removes them from the queue, and offers them an exclusive, short-term window (e.g., 10 minutes) to purchase the newly available tickets, ensuring a fair process for dedicated fans.
 
-## 📦 Infrastructure Containers
+## 📦 Infrastructure Components
 
 -   **PostgreSQL**: The primary relational database used for persistent storage of users, events, and bookings. Each service connects to its own isolated database (`users_db`, `events_db`, `bookings_db`) to maintain service independence.
 -   **Redis**: An in-memory data store used for high-speed operations. Its primary roles are caching frequently accessed data (like event availability) and temporarily storing booking reservations during the 5-minute payment window.
 -   **Elasticsearch**: A powerful search engine that indexes event data. It enables fast, complex queries (full-text, geospatial, faceted search) that would be inefficient to perform on a relational database.
-
-## 📂 Project Structure
-
-```
-eks-microservices/
-├── .github/                       # GitHub Actions CI/CD workflows
-│   └── workflows/                 # Automated build, deploy, monitoring pipelines
-│
-├── cmd/                           # Service entry points (main.go files)
-│   ├── user-service/main.go       # User authentication service
-│   ├── event-service/main.go      # Event management service
-│   ├── search-service/main.go     # Elasticsearch search service
-│   └── booking-service/main.go    # Booking & reservation service
-│
-├── docs/                          # Documentation (ENPM818R submission artifacts)
-│   ├── architecture.md            # System design & microservices architecture
-│   ├── build/                     # CI/CD pipeline documentation
-│   │   ├── ci-cd-guide.md         # GitHub Actions pipeline guide
-│   │   ├── ci-cd-quickstart.md    # 3-step pipeline setup
-│   │   └── ci-cd-testing-guide.md # Pipeline testing & validation
-│   ├── deployment/                # EKS deployment guides
-│   │   └── eks-deployment-guide.md # Complete AWS EKS deployment
-│   └── secrets/                   # Secrets management guides
-│       ├── secrets-manager-guide.md
-│       ├── secrets-quickstart.md
-│       └── README.md
-│
-├── frontend/                      # React application (Vite + React 18)
-│   ├── src/                       # React components, pages, contexts
-│   │   ├── components/            # Reusable UI components
-│   │   ├── pages/                 # Page-level components
-│   │   ├── contexts/              # React context providers
-│   │   └── services/              # API client functions
-│   ├── public/                    # Static assets
-│   ├── package.json               # NPM dependencies
-│   └── vite.config.js             # Vite bundler configuration
-│
-├── helm/                          # Helm charts for Kubernetes deployment
-│   ├── Chart.yaml                 # Helm chart metadata
-│   ├── values.yaml                # Default configuration values
-│   └── templates/                 # Kubernetes manifest templates
-│       ├── deployments/           # Service deployments
-│       ├── services/              # Service definitions
-│       ├── ingress/               # Ingress & nginx gateway
-│       └── infrastructure/        # Redis, Elasticsearch, PostgreSQL
-│
-├── init-container/                # Database initialization container
-│   ├── main.go                    # Database creation logic
-│   └── go.mod                     # Go module for init container
-│
-├── internal/                      # Shared Go packages (internal use only)
-│   ├── auth/                      # JWT authentication & authorization
-│   │   ├── jwt.go                 # Token generation & validation
-│   │   └── admin.go               # Admin authentication
-│   ├── config/                    # Configuration management
-│   ├── database/                  # PostgreSQL client & connection pooling
-│   ├── middleware/                # HTTP middleware (CORS, logging, auth)
-│   ├── repository/                # Generated sqlc database code
-│   ├── cache/                     # Redis cache client
-│   ├── logger/                    # Structured logging
-│   └── utils/                     # Helper functions
-│
-├── k8s/                           # Kubernetes manifests (raw YAML)
-│   ├── 00-namespace.yml           # Namespace definition
-│   ├── 01-configmap.yml           # Configuration maps
-│   ├── 02-secrets-rds.yml         # RDS database secrets
-│   ├── infrastructure/            # PostgreSQL, Redis, Elasticsearch
-│   ├── services/                  # Microservice deployments & services
-│   ├── jobs/                      # Migration & initialization jobs
-│   └── monitoring/                # Prometheus & Grafana stack
-│
-├── migrations/                    # Database migrations (goose)
-│   ├── user-service/              # User DB schema migrations
-│   ├── event-service/             # Event DB schema migrations
-│   └── booking-service/           # Booking DB schema migrations
-│
-├── scripts/                       # Automation & helper scripts
-│   ├── apply-monitoring.sh        # Install Prometheus & Grafana
-│   ├── eks/                       # EKS deployment automation
-│   │   ├── deploy-helm.sh         # Helm deployment script
-│   │   ├── setup-rds.sh           # RDS setup script
-│   │   └── cleanup-all.ps1        # Resource cleanup
-│   └── testing/                   # Integration tests
-│       ├── test-endpoints.sh      # Main test suite (11 tests)
-│       ├── test_booking_flow.py   # Booking flow tests
-│       └── comprehensive_search_api_test.py
-│
-├── services/                      # Business logic (HTTP handlers & routes)
-│   ├── user/                      # User service handlers
-│   │   ├── handlers.go            # Auth, registration, profile
-│   │   ├── server.go              # Route definitions
-│   │   └── models.go              # Request/response models
-│   ├── event/                     # Event service handlers
-│   ├── search/                    # Search service logic
-│   └── booking/                   # Booking service logic
-│
-├── sqlc/                          # SQL queries for type-safe code generation
-│   ├── user-service/              # User queries (sqlc.yaml + *.sql)
-│   ├── event-service/             # Event queries
-│   └── booking-service/           # Booking queries
-│
-├── tests-scripts/                 # Integration & API tests
-│   ├── test-endpoints.sh          # Main integration test suite
-│   ├── test_booking_flow.py       # Booking flow tests
-│   └── comprehensive_search_api_test.py  # Search API tests
-│
-├── docker-compose.yml             # Local development orchestration
-├── Makefile                       # Build automation & common commands
-├── go.mod & go.sum                # Go module dependencies
-├── DEPLOYMENT_GUIDE.md            # Production deployment guide
-├── README.md                      # This file (project overview)
-└── CHANGELOG.md                   # Version history & changes
-```
-
-### Key Directories
-
-- **`.github/workflows/`**: GitHub Actions CI/CD pipelines for automated build, test, and deployment
-- **`helm/`**: Helm charts for deploying the entire application stack to Kubernetes
-- **`k8s/`**: Raw Kubernetes manifests (used by Helm or for manual deployment)
-- **`cmd/`**: Main entry points for each microservice (executable programs)
-- **`internal/`**: Shared Go packages used across services (not importable outside this repo)
-- **`services/`**: HTTP handlers and business logic for each microservice
-- **`migrations/`**: Database schema migrations managed by goose
-- **`sqlc/`**: SQL queries that generate type-safe Go code via sqlc
-- **`scripts/eks/`**: EKS deployment automation scripts
-- **`scripts/testing/`**: Test scripts and utilities
-- **`docs/`**: Comprehensive documentation including deployment guides and architecture
-- **`frontend/`**: React single-page application with Vite bundler
-- **`tests-scripts/`**: Integration tests and API validation scripts
-- **`tests-scripts/`**: Integration tests and API validation scripts
 
 ##  Documentation Index
 
@@ -803,12 +737,6 @@ This project follows a 5-week development cycle aligned with ENPM818R course req
 -  Prometheus + Grafana dashboards
 -  Final documentation and testing
 
-### Team Contributions
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for team roles and contribution guidelines.
-
----
-
 ##  Monitoring & Observability
 
 ### Current Implementation
@@ -838,6 +766,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for team roles and contribution guideline
  **Distributed Tracing**
 - Request correlation across services
 - Performance bottleneck identification
+
+> 📖 **For monitoring setup instructions**, see [EKS Deployment Guide - Monitoring](docs/deployment/eks-deployment-guide.md#monitoring--observability)
 
 ---
 
@@ -877,7 +807,7 @@ The project includes two automated workflows:
 - Branch protection rules enforced
 - Mandatory code review for all PRs
 
-See [CI/CD Guide](docs/build/ci-cd-guide.md) for detailed pipeline documentation.
+> 📖 **For pipeline setup and usage**, see [CI/CD Guide](docs/build/ci-cd-guide.md) and [CI/CD Quick Start](docs/build/ci-cd-quickstart.md)
 
 ---
 
