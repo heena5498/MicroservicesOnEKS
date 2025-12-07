@@ -1,8 +1,7 @@
 # Generated using the command below:
 # kubectl get daemonset aws-node -n kube-system -o yaml > aws-node-daemonset.yaml
 #
-# The only edits to this file are updating NETWORK_POLICY_ENFORCING_MODE from "standard" to "strict" and updating the
-# --enable-network-policy arg from "false" to "true"
+# The only edit to this file is updating the --enable-network-policy arg from "false" to "true"
 
 apiVersion: apps/v1
 kind: DaemonSet
@@ -106,7 +105,7 @@ spec:
         - name: ENABLE_SUBNET_DISCOVERY
           value: "true"
         - name: NETWORK_POLICY_ENFORCING_MODE
-          value: strict
+          value: standard
         - name: VPC_CNI_VERSION
           value: v1.18.0
         - name: VPC_ID
