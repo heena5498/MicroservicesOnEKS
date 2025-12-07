@@ -85,7 +85,7 @@ main() {
     response=$(curl -s -w \"%{http_code}\" -o response.json -X POST "$BASE_URL/auth/register" \
         -H "Content-Type: application/json" \
         -d "{\"email\": \"$random_email\", \"password\": \"password123\", \"name\": \"Test User\"}")
-    check_status 500 "$response" "Duplicate User Registration"
+    check_status 409 "$response" "Duplicate User Registration"
     cat response.json
 
     # 4. User Login (Success)
