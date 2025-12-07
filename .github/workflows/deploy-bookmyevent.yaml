@@ -332,18 +332,18 @@ jobs:
                       - -c
                       - |
                         set -e
-                        echo "Testing connection to RDS endpoint: ${RDS_ENDPOINT}..."
-                        psql "host=${RDS_ENDPOINT} port=5432 user=postgres dbname=postgres sslmode=require" -c "SELECT version();"
+                        CONN="host=\${RDS_ENDPOINT} port=5432 user=postgres dbname=postgres sslmode=require"
+                        
+                        echo "Testing connection to RDS endpoint: \${RDS_ENDPOINT}..."
+                        psql "\$CONN" -c "SELECT version();"
                         
                         echo "Creating databases on RDS if they don't exist..."
-                        psql "host=${RDS_ENDPOINT} port=5432 user=postgres dbname=postgres sslmode=require" <<'SQL'
-                        SELECT 'CREATE DATABASE users_db' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'users_db')\gexec
-                        SELECT 'CREATE DATABASE events_db' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'events_db')\gexec
-                        SELECT 'CREATE DATABASE bookings_db' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'bookings_db')\gexec
-                        SQL
+                        psql "\$CONN" -tc "SELECT 1 FROM pg_database WHERE datname = 'users_db'" | grep -q 1 || psql "\$CONN" -c "CREATE DATABASE users_db"
+                        psql "\$CONN" -tc "SELECT 1 FROM pg_database WHERE datname = 'events_db'" | grep -q 1 || psql "\$CONN" -c "CREATE DATABASE events_db"
+                        psql "\$CONN" -tc "SELECT 1 FROM pg_database WHERE datname = 'bookings_db'" | grep -q 1 || psql "\$CONN" -c "CREATE DATABASE bookings_db"
                         
                         echo "Verifying databases were created..."
-                        psql "host=${RDS_ENDPOINT} port=5432 user=postgres dbname=postgres sslmode=require" -c "\l"
+                        psql "\$CONN" -c "\l"
                         echo "Database creation completed successfully"
           EOF
 
