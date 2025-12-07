@@ -418,10 +418,12 @@ jobs:
           EOF
 
       - name: Run API endpoint tests
+        env:
+          API_BASE_URL: ${{ env.API_BASE_URL }}
         run: |
-          chmod +x scripts/testing/test-endpoints.sh
-          export API_BASE_URL="${API_BASE_URL}"
-          ./scripts/testing/test-endpoints.sh
+          chmod +x tests-scripts/test-endpoints.sh
+          echo "Testing against: $API_BASE_URL"
+          ./tests-scripts/test-endpoints.sh
         continue-on-error: true
 
       - name: Run booking service tests
