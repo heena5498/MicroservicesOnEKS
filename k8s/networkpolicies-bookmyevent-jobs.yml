@@ -1,5 +1,6 @@
 ---
 # Init Container Job Network Policy
+# The pod calls the services directly (not through the NGINX gateway) to initialize data
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -42,6 +43,7 @@ spec:
           port: 8004
 ---
 # Database Migration Job Network Policy
+# The pod uses psql to connect to the postgres service in order to execute DDL SQL commands
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -63,6 +65,7 @@ spec:
           port: 5432
 ---
 # Database Migration (RDS) Job Network Policy
+# The pod uses psql to connect to the RDS database in order to execute DDL SQL commands
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -77,7 +80,7 @@ spec:
   egress:
     - to:
         - ipBlock:
-            cidr: RDS_IP_ADDRESS/32
+            cidr: ${RDS_VPC_CIDR}
       ports:
         - protocol: TCP
           port: 5432

@@ -35,7 +35,7 @@ spec:
   egress:
     - to:
         - ipBlock:
-            cidr: RDS_IP_ADDRESS/32
+            cidr: ${RDS_VPC_CIDR}
       ports:
         - protocol: TCP
           port: 5432
@@ -85,7 +85,7 @@ spec:
   egress:
     - to:
         - ipBlock:
-            cidr: RDS_IP_ADDRESS/32
+            cidr: ${RDS_VPC_CIDR}
       ports:
         - protocol: TCP
           port: 5432
@@ -114,7 +114,7 @@ spec:
   egress:
     - to:
         - ipBlock:
-            cidr: RDS_IP_ADDRESS/32
+            cidr: ${RDS_VPC_CIDR}
       ports:
         - protocol: TCP
           port: 5432
@@ -250,7 +250,7 @@ spec:
   egress:
     - to:
         - ipBlock:
-            cidr: RDS_IP_ADDRESS/32
+            cidr: ${RDS_VPC_CIDR}
       ports:
         - protocol: TCP
           port: 5432

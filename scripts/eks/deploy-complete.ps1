@@ -130,9 +130,14 @@ kubectl apply -f k8s/03-env-file-configmap.yaml
 
 # Network Policy for security
 Write-Host "  Applying Network Policy..." -ForegroundColor White
-kubectl apply -f k8s/networkpolicies-bookmyevent-namespace.yml
-kubectl apply -f k8s/networkpolicies-bookmyevent-jobs.yml
-kubectl apply -f k8s/networkpolicies-bookmyevent-deployments.yml
+$env:RDS_VPC_ID = (aws rds describe-db-instances --db-instance-identifier bookmyevent-rds --query "DBInstances[0].DBSubnetGroup.VpcId" --output text)
+$env:RDS_VPC_CIDR = (aws ec2 describe-vpcs --vpc-ids $env:RDS_VPC_ID --query "Vpcs[0].CidrBlock" --output text)
+$networkPolicyFiles = @("namespace", "jobs", "deployments")
+foreach ($file in $networkPolicyFiles) {
+    $content = Get-Content "k8s/networkpolicies-bookmyevent-$file.yml" -Raw
+    $content = $content -replace '\$\{RDS_VPC_CIDR\}', $env:RDS_VPC_CIDR
+    $content | kubectl apply -f -
+}
 
 # Infrastructure
 Write-Host "  Deploying infrastructure..." -ForegroundColor White

@@ -1,5 +1,7 @@
 ---
 # By default, deny all ingress and egress traffic
+# This policy stops pods in the bookmyevent namespace from communicating freely (the default behavior) unless explicitly
+# allowed by other network policies.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
