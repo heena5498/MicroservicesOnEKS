@@ -1,0 +1,79 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: run-database-migrations
+  namespace: bookmyevent
+spec:
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: db-migrations
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: migrations
+          image: gomicro/goose:latest
+          env:
+            - name: USER_DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: bookmyevent-secrets
+                  key: USER_SERVICE_DB_URL
+            - name: EVENT_DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: bookmyevent-secrets
+                  key: EVENT_SERVICE_DB_URL
+            - name: BOOKING_DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: bookmyevent-secrets
+                  key: BOOKING_SERVICE_DB_URL
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              echo "=================================================="
+              echo "Running Database Migrations for BookMyEvent"
+              echo "=================================================="
+              
+              # Install git and clone the repository to get migration files
+              apk add --no-cache git
+              
+              echo "Cloning repository..."
+              git clone https://github.com/heena5498/eks-microservices.git /tmp/migrations
+              cd /tmp/migrations
+              git checkout build
+              
+              echo ""
+              echo "Running User Service Migrations..."
+              echo "------------------------------------"
+              goose -dir migrations/user-service postgres "$USER_DB_URL" up
+              echo "✓ User service migrations complete"
+              
+              echo ""
+              echo "Running Event Service Migrations (includes admins table)..."
+              echo "------------------------------------------------------------"
+              goose -dir migrations/event-service postgres "$EVENT_DB_URL" up
+              echo "✓ Event service migrations complete"
+              
+              echo ""
+              echo "Running Booking Service Migrations..."
+              echo "--------------------------------------"
+              goose -dir migrations/booking-service postgres "$BOOKING_DB_URL" up
+              echo "✓ Booking service migrations complete"
+              
+              echo ""
+              echo "=================================================="
+              echo "✅ ALL MIGRATIONS COMPLETED SUCCESSFULLY!"
+              echo "=================================================="
+              echo ""
+              echo "Migration Summary:"
+              echo "  ✓ users_db - All user tables created"
+              echo "  ✓ events_db - All event tables created (including admins)"
+              echo "  ✓ bookings_db - All booking tables created"
+              echo ""
+              echo "You can now test admin registration!"

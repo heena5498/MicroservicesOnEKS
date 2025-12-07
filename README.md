@@ -52,10 +52,11 @@ eks-microservices/
 │
 ├── docs/                          # Documentation (ENPM818R submission artifacts)
 │   ├── architecture.md            # System design & microservices architecture
-│   ├── build/                     # CI/CD pipeline documentation
+│   ├── build/                     # CI/CD and build documentation
 │   │   ├── ci-cd-guide.md         # GitHub Actions pipeline guide
 │   │   ├── ci-cd-quickstart.md    # 3-step pipeline setup
-│   │   └── ci-cd-testing-guide.md # Pipeline testing & validation
+│   │   ├── ci-cd-testing-guide.md # Pipeline testing & validation
+│   │   └── docker-build-guide.md  # Docker build scripts documentation
 │   ├── deployment/                # EKS deployment guides
 │   │   └── eks-deployment-guide.md # Complete AWS EKS deployment
 │   └── secrets/                   # Secrets management guides
@@ -512,6 +513,7 @@ fetch(`${API_BASE}/api/booking/reserve`, {
 - Go 1.21+
 - Make
 - Node.js 18+ (for frontend development)
+- AWS CLI (for ECR push)
 
 ### Quick Local Setup
 
@@ -525,6 +527,62 @@ make docker-down
 
 # View available commands
 make help
+```
+
+### Building Docker Images Locally
+
+#### Build All Services
+
+```bash
+# Build all 6 services locally
+./scripts/build-local.sh all
+
+# Build all with custom tag
+./scripts/build-local.sh all v1.0.0
+```
+
+#### Build Individual Services
+
+```bash
+# Build specific service
+./scripts/build-local.sh user-service
+./scripts/build-local.sh booking-service
+./scripts/build-local.sh frontend
+
+# Build with custom tag
+./scripts/build-local.sh user-service v1.0.0
+```
+
+**Available services:**
+- `user-service`
+- `event-service`
+- `booking-service`
+- `search-service`
+- `frontend`
+- `init-container`
+
+#### Push Images to ECR
+
+```bash
+# Login to ECR first (required)
+aws ecr get-login-password --region us-east-1 | \
+  docker login --username AWS --password-stdin <AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com
+
+# Push all services to ECR
+./scripts/push-to-ecr.sh all
+
+# Push specific service
+./scripts/push-to-ecr.sh booking-service
+
+# Push with custom tag
+./scripts/push-to-ecr.sh booking-service v1.0.0
+```
+
+**Environment variables:**
+```bash
+# Customize ECR registry (default: uses AWS account ID)
+export ECR_REGISTRY="<AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/bookmyevent"
+export AWS_REGION="us-east-1"
 ```
 
 ### Common Development Commands
@@ -542,7 +600,7 @@ make seed-db
 # Run tests
 make test
 
-# Build all Docker images locally
+# Build all Docker images with docker-compose
 docker-compose -f build/docker-compose.yml build
 ```
 
@@ -571,12 +629,22 @@ docker-compose -f build/docker-compose.yml build
 - **Type-Safe Queries**: sqlc v1.26
 
 ### DevOps & Observability
-- **CI/CD**: GitHub Actions (deploy-bookmyevent.yaml, setup-monitoring.yml)
-- **Container Scanning**: Trivy (integrated in pipeline)
+- **CI/CD**: GitHub Actions (build-and-deploy.yml with 5-stage pipeline)
+- **Pipeline Stages**: Test → Build → Deploy → Integration Tests → Notify
+- **Container Scanning**: Trivy (integrated in pipeline with SARIF upload)
 - **Monitoring**: Prometheus + Grafana (deployed via workflow_dispatch)
 - **Logging**: CloudWatch Logs + kubectl logs
 - **Version Control**: Git with protected main branch
-- **Deployment**: Helm 3 charts
+- **Deployment**: Helm 3 charts with atomic upgrades
+
+### CI/CD Pipeline Features
+- **Automated Testing**: Go unit tests + integration tests
+- **Security Scanning**: Trivy vulnerability scans on source code and images
+- **Multi-Platform Builds**: Docker buildx with linux/amd64 platform
+- **Image Tagging**: latest, git SHA, branch name
+- **Deployment Automation**: Helm upgrade with RDS secret creation
+- **Health Checks**: Automated pod readiness validation
+- **Smoke Tests**: Post-deployment API endpoint verification
 
 ## 🔌 Key API Endpoints
 
@@ -679,6 +747,9 @@ When an event sells out, users can join a waitlist. This waitlist is managed eff
 -   **Elasticsearch**: A powerful search engine that indexes event data. It enables fast, complex queries (full-text, geospatial, faceted search) that would be inefficient to perform on a relational database.
 
 ##  Documentation Index
+
+###  Getting Started
+- **[Contributing Guide](CONTRIBUTING.md)** - Team roles, development workflow, and contribution guidelines
 
 ###  Deployment & Infrastructure
 - **[EKS Deployment Guide](docs/deployment/eks-deployment-guide.md)** - Complete AWS EKS deployment walkthrough
@@ -889,6 +960,24 @@ This project demonstrates mastery of the following cloud-native concepts:
 - **Course**: ENPM818R - Virtualization & Containerization
 - **Institution**: University of Maryland
 - **Semester**: Fall 2025
+
+---
+
+## 👥 Project Team
+
+This project was collaboratively developed by **ENPM818R Group 5**:
+
+| Team Member | Role | Key Contributions |
+|-------------|------|-------------------|
+| **Heena Khan** | Project Lead & CI/CD Engineer | End-to-end project coordination, CI/CD pipeline implementation, automated deployments |
+| **Anish Chamuah** | Infrastructure Engineer | AWS infrastructure design, EKS cluster deployment, VPC & networking, load balancers |
+| **Sundara Sasi Koushik Diwakaruni** | Backend Developer | Microservices development, business logic, database integration, internal APIs |
+| **March Gabiel Nazal Badilla** | Frontend Developer & Security | User interface development, frontend-backend integration, API security controls |
+| **Divya Kamila** | Monitoring & Observability Engineer | Prometheus/Grafana deployment, cluster monitoring, performance visualization |
+| **Long Phuoc Bao Lee** | CloudWatch & Logging Engineer | AWS CloudWatch setup, centralized logging, operational dashboards, alarms |
+| **Solomon Njie** | Security Engineer | Security hardening, IAM least privilege, SG/WAF policies, compliance |
+
+For contribution guidelines and team workflows, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
