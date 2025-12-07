@@ -114,8 +114,8 @@ curl https://campuseventmanager.work.gd/api/v1/users/health
 ### Run Full Integration Tests
 ```bash
 # From repository root
-chmod +x tests-scripts/test-endpoints.sh
-./tests-scripts/test-endpoints.sh
+chmod +x scripts/testing/test-endpoints.sh
+./scripts/testing/test-endpoints.sh
 
 # Expected: All 11 tests pass
 ✓ Health Check
@@ -241,7 +241,7 @@ Then edit workflow:
 ```yaml
 - name: Run Integration Tests
   if: "!contains(github.event.head_commit.message, '[skip tests]')"
-  run: ./tests-scripts/test-endpoints.sh
+  run: ./scripts/testing/test-endpoints.sh
 ```
 
 ### Change Image Tag Strategy

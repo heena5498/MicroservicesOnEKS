@@ -14,7 +14,7 @@ This guide covers testing and validation of the GitHub Actions CI/CD pipeline fo
 ## Test Suite: Integration Tests
 
 ### Location
-`tests-scripts/test-endpoints.sh`
+`scripts/testing/test-endpoints.sh`
 
 ### Purpose
 Validates complete user authentication flow through production ALB and nginx-gateway.
@@ -128,8 +128,8 @@ Tests run automatically after deployment:
 # In .github/workflows/deploy-bookmyevent.yaml
 - name: Run Integration Tests
   run: |
-    chmod +x tests-scripts/test-endpoints.sh
-    ./tests-scripts/test-endpoints.sh
+    chmod +x scripts/testing/test-endpoints.sh
+    ./scripts/testing/test-endpoints.sh
 ```
 
 ### Manual (Local)
@@ -188,7 +188,7 @@ Total: 11/11 tests passed
 ## Additional Test Scripts
 
 ### 1. Booking Flow Test
-**File:** `tests-scripts/test_booking_flow.py`
+**File:** `scripts/testing/test_booking_flow.py`
 
 **Purpose:** Test complete booking workflow
 
@@ -202,7 +202,7 @@ Total: 11/11 tests passed
 
 **Run:**
 ```bash
-python3 tests-scripts/test_booking_flow.py
+python3 scripts/testing/test_booking_flow.py
 ```
 
 **Known Issue:** Admin registration returns 500 (under investigation)
@@ -210,7 +210,7 @@ python3 tests-scripts/test_booking_flow.py
 ---
 
 ### 2. Search API Test
-**File:** `tests-scripts/comprehensive_search_api_test.py`
+**File:** `scripts/testing/comprehensive_search_api_test.py`
 
 **Purpose:** Comprehensive search functionality testing
 
@@ -226,7 +226,7 @@ python3 tests-scripts/test_booking_flow.py
 
 **Run:**
 ```bash
-python3 tests-scripts/comprehensive_search_api_test.py
+python3 scripts/testing/comprehensive_search_api_test.py
 ```
 
 **Note:** Uses conditional health check logic:

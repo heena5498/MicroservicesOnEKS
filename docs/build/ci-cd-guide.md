@@ -102,7 +102,7 @@ helm upgrade --install bookmyevent ./helm \
 ##### Stage 3: Integration Testing
 ```bash
 # Execute test suite
-./tests-scripts/test-endpoints.sh
+./scripts/testing/test-endpoints.sh
 
 # Tests performed:
 - Health check

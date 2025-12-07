@@ -159,7 +159,7 @@ eks-microservices/
 - **`scripts/testing/`**: Test scripts and utilities
 - **`docs/`**: Comprehensive documentation including deployment guides and architecture
 - **`frontend/`**: React single-page application with Vite bundler
-- **`tests-scripts/`**: Integration tests and API validation scripts
+- **`scripts/testing/`**: Integration tests and API validation scripts
 
 ---
 
@@ -501,7 +501,7 @@ fetch(`${API_BASE}/api/booking/reserve`, {
 
 > **Production Note**: These test credentials are for development/demo only. In production deployments, use secure password policies and remove test accounts.
 
-> 📖 **For integration testing**, see [Testing Guide](tests-scripts/README.md) and [Testing Quick Start](tests-scripts/testing-quickstart.md)
+> 📖 **For integration testing**, see [Testing Guide](scripts/testing/README.md) and [Testing Quick Start](scripts/testing/testing-quickstart.md)
 
 ---
 
@@ -694,8 +694,8 @@ When an event sells out, users can join a waitlist. This waitlist is managed eff
 - **[CI/CD Testing](docs/build/ci-cd-testing-guide.md)** - Pipeline validation
 
 ###  Testing
-- **[Testing Quick Start](tests-scripts/testing-quickstart.md)** - Test automation and validation
-- **[Testing Guide](tests-scripts/README.md)** - Integration test documentation
+- **[Testing Quick Start](scripts/testing/testing-quickstart.md)** - Test automation and validation
+- **[Testing Guide](scripts/testing/README.md)** - Integration test documentation
 
 ###  Architecture & Design
 - **[Architecture Overview](docs/architecture.md)** - System design and microservices architecture

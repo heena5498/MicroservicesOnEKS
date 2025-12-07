@@ -429,13 +429,46 @@ jobs:
           API_BASE_URL=http://${LB_URL}
           EOF
 
+      - name: Wait for services to stabilize
+        run: |
+          echo "Waiting for ALB health checks and services to stabilize..."
+          echo "Testing health endpoints..."
+          
+          # Wait up to 3 minutes for services to be healthy
+          TIMEOUT=180
+          ELAPSED=0
+          INTERVAL=10
+          
+          while [ $ELAPSED -lt $TIMEOUT ]; do
+            echo "Checking service health (${ELAPSED}s elapsed)..."
+            
+            # Check if ALB is routing traffic
+            if curl -sf "http://${API_BASE_URL}/api/user/healthz" > /dev/null 2>&1; then
+              echo "✅ User service is healthy"
+              sleep 5
+              break
+            fi
+            
+            echo "⏳ Services not ready yet, waiting ${INTERVAL}s..."
+            sleep $INTERVAL
+            ELAPSED=$((ELAPSED + INTERVAL))
+          done
+          
+          if [ $ELAPSED -ge $TIMEOUT ]; then
+            echo "⚠️  Warning: Services did not become healthy within timeout"
+          else
+            echo "✅ Services are ready for testing"
+          fi
+        env:
+          API_BASE_URL: ${{ env.API_BASE_URL }}
+
       - name: Run API endpoint tests
         env:
           API_BASE_URL: ${{ env.API_BASE_URL }}
         run: |
-          chmod +x tests-scripts/test-endpoints.sh
+          chmod +x scripts/testing/test-endpoints.sh
           echo "Testing against: $API_BASE_URL"
-          ./tests-scripts/test-endpoints.sh
+          ./scripts/testing/test-endpoints.sh
         continue-on-error: true
 
       - name: Run booking service tests
@@ -448,8 +481,8 @@ jobs:
 
       - name: Run search service tests
         run: |
-          chmod +x tests-scripts/comprehensive_search_api_test.py
-          python tests-scripts/comprehensive_search_api_test.py
+          chmod +x scripts/testing/comprehensive_search_api_test.py
+          python scripts/testing/comprehensive_search_api_test.py
         env:
           API_BASE_URL: ${{ env.API_BASE_URL }}
         continue-on-error: true

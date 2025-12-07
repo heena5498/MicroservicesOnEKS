@@ -3,16 +3,20 @@
 import requests
 import json
 import uuid
+import os
 from datetime import datetime, timedelta
 
+# Configuration - Read from environment or fall back to localhost
+API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost')
+
 BASE_URLS = {
-    'user': 'http://localhost:8001',
-    'event': 'http://localhost:8002', 
-    'booking': 'http://localhost:8004'
+    'user': f"{API_BASE_URL}/api/user",
+    'event': f"{API_BASE_URL}/api/event", 
+    'booking': f"{API_BASE_URL}/api/booking"
 }
 
 def create_user(email, password, first_name, last_name):
-    url = f"{BASE_URLS['user']}/api/v1/auth/register"
+    url = f"{BASE_URLS['user']}/auth/register"
     data = {
         "email": email,
         "password": password,
@@ -24,13 +28,13 @@ def create_user(email, password, first_name, last_name):
     return response.json() if response.status_code == 201 else None
 
 def login_user(email, password):
-    url = f"{BASE_URLS['user']}/api/v1/auth/login"
+    url = f"{BASE_URLS['user']}/auth/login"
     data = {"email": email, "password": password}
     response = requests.post(url, json=data)
     return response.json() if response.status_code == 200 else None
 
 def create_admin(email, password, name):
-    url = f"{BASE_URLS['event']}/api/v1/auth/admin/register"
+    url = f"{BASE_URLS['event']}/auth/admin/register"
     data = {
         "email": email,
         "password": password,
@@ -42,7 +46,7 @@ def create_admin(email, password, name):
     return response.json() if response.status_code == 201 else None
 
 def login_admin(email, password):
-    url = f"{BASE_URLS['event']}/api/v1/auth/admin/login"
+    url = f"{BASE_URLS['event']}/auth/admin/login"
     data = {"email": email, "password": password}
     response = requests.post(url, json=data)
     print(f"Admin login response status: {response.status_code}")
@@ -50,7 +54,7 @@ def login_admin(email, password):
     return response.json() if response.status_code == 200 else None
 
 def create_admin_event(token, name, total_seats=100, base_price=29.99):
-    url = f"{BASE_URLS['event']}/api/v1/admin/events"
+    url = f"{BASE_URLS['event']}/admin/events"
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
@@ -78,19 +82,19 @@ def create_admin_event(token, name, total_seats=100, base_price=29.99):
     return response.json() if response.status_code == 201 else None
 
 def get_events(token):
-    url = f"{BASE_URLS['event']}/api/v1/events"
+    url = f"{BASE_URLS['event']}/events"
     headers = {"Authorization": f"Bearer {token}"}
     response = requests.get(url, headers=headers)
     return response.json()
 
 def check_availability(event_id, quantity=2):
-    url = f"{BASE_URLS['booking']}/api/v1/bookings/check-availability"
+    url = f"{BASE_URLS['booking']}/bookings/check-availability"
     params = {"event_id": event_id, "quantity": quantity}
     response = requests.get(url, params=params)
     return response.json()
 
 def reserve_seats(token, event_id, quantity=2):
-    url = f"{BASE_URLS['booking']}/api/v1/bookings/reserve"
+    url = f"{BASE_URLS['booking']}/bookings/reserve"
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
@@ -104,7 +108,7 @@ def reserve_seats(token, event_id, quantity=2):
     return response.json(), response.status_code
 
 def confirm_booking(token, reservation_id):
-    url = f"{BASE_URLS['booking']}/api/v1/bookings/confirm"
+    url = f"{BASE_URLS['booking']}/bookings/confirm"
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
