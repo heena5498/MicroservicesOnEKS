@@ -131,6 +131,8 @@ kubectl apply -f k8s/03-env-file-configmap.yaml
 # Network Policy for security
 Write-Host "  Applying Network Policy..." -ForegroundColor White
 kubectl apply -f k8s/networkpolicy-default-deny-all.yml
+kubectl apply -f k8s/networkpolicy-allow-kube-system.yml
+kubectl apply -f k8s/networkpolicy-allow-monitoring.yml
 
 # Infrastructure
 Write-Host "  Deploying infrastructure..." -ForegroundColor White
