@@ -128,8 +128,7 @@ main() {
     print_header "9. Refresh Token (Success)"
     response=$(curl -s -w \"%{http_code}\" -o response.json -X POST "$BASE_URL/auth/refresh" \
         -H "Content-Type: application/json" \
-        -H "Authorization: Bearer $REFRESH_TOKEN" \
-        -d '{}')
+        -d "{\"refresh_token\": \"$REFRESH_TOKEN\"}")
     check_status 200 "$response" "Refresh Token"
     cat response.json
     
@@ -141,8 +140,7 @@ main() {
     print_header "10. Logout (Success)"
     response=$(curl -s -w \"%{http_code}\" -o response.json -X POST "$BASE_URL/auth/logout" \
         -H "Content-Type: application/json" \
-        -H "Authorization: Bearer $NEW_REFRESH_TOKEN" \
-        -d '{}')
+        -d "{\"refresh_token\": \"$NEW_REFRESH_TOKEN\"}")
     check_status 200 "$response" "Logout"
     cat response.json
 
@@ -150,8 +148,7 @@ main() {
     print_header "11. Refresh Token (Failure - Revoked Token)"
     response=$(curl -s -w \"%{http_code}\" -o response.json -X POST "$BASE_URL/auth/refresh" \
         -H "Content-Type: application/json" \
-        -H "Authorization: Bearer $NEW_REFRESH_TOKEN" \
-        -d '{}')
+        -d "{\"refresh_token\": \"$NEW_REFRESH_TOKEN\"}")
     check_status 401 "$response" "Refresh with Revoked Token"
     cat response.json
 
