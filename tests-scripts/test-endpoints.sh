@@ -43,16 +43,24 @@ main() {
     echo "  Starting Evently API Integration Test Suite"
     echo "=================================================="
 
-    # 1. Health Check
+    # 1. Health Check (skip - using nginx gateway health instead)
     print_header "1. Health Check"
-    response=$(curl -s -w \"%{http_code}\" -o response.json "$BASE_URL/healthz")
+    # Test nginx gateway health endpoint
+    if [[ "$BASE_URL" == *"/api/user"* ]]; then
+        # For nginx gateway, test the gateway health endpoint
+        GATEWAY_URL="${BASE_URL%/api/user}"
+        response=$(curl -s -w \"%{http_code}\" -o response.json "$GATEWAY_URL/health")
+    else
+        # For direct service access
+        response=$(curl -s -w \"%{http_code}\" -o response.json "$BASE_URL/healthz")
+    fi
     check_status 200 "$response" "Health Check"
     cat response.json
 
     # 2. User Registration (Success)
     print_header "2. User Registration (Success)"
     random_email="testuser_$(date +%s)_$RANDOM@example.com"
-    response=$(curl -s -w \"%{http_code}\" -o response.json -X POST "$BASE_URL/api/v1/auth/register" \
+    response=$(curl -s -w \"%{http_code}\" -o response.json -X POST "$BASE_URL/auth/register" \
         -H "Content-Type: application/json" \
         -d "{\"email\": \"$random_email\", \"password\": \"password123\", \"name\": \"Test User\"}")
     check_status 201 "$response" "User Registration"
@@ -70,7 +78,7 @@ main() {
 
     # 3. User Registration (Failure - Duplicate Email)
     print_header "3. User Registration (Failure - Duplicate Email)"
-    response=$(curl -s -w \"%{http_code}\" -o response.json -X POST "$BASE_URL/api/v1/auth/register" \
+    response=$(curl -s -w \"%{http_code}\" -o response.json -X POST "$BASE_URL/auth/register" \
         -H "Content-Type: application/json" \
         -d "{\"email\": \"$random_email\", \"password\": \"password123\", \"name\": \"Test User\"}")
     check_status 500 "$response" "Duplicate User Registration"
@@ -78,7 +86,7 @@ main() {
 
     # 4. User Login (Success)
     print_header "4. User Login (Success)"
-    response=$(curl -s -w \"%{http_code}\" -o response.json -X POST "$BASE_URL/api/v1/auth/login" \
+    response=$(curl -s -w \"%{http_code}\" -o response.json -X POST "$BASE_URL/auth/login" \
         -H "Content-Type: application/json" \
         -d "{\"email\": \"$random_email\", \"password\": \"password123\"}")
     check_status 200 "$response" "User Login"
@@ -86,7 +94,7 @@ main() {
 
     # 5. User Login (Failure - Wrong Password)
     print_header "5. User Login (Failure - Wrong Password)"
-    response=$(curl -s -w \"%{http_code}\" -o response.json -X POST "$BASE_URL/api/v1/auth/login" \
+    response=$(curl -s -w \"%{http_code}\" -o response.json -X POST "$BASE_URL/auth/login" \
         -H "Content-Type: application/json" \
         -d "{\"email\": \"$random_email\", \"password\": \"wrongpassword\"}")
     check_status 401 "$response" "Wrong Password Login"
@@ -94,27 +102,27 @@ main() {
 
     # 6. Get User Profile (Success)
     print_header "6. Get User Profile (Success)"
-    response=$(curl -s -w \"%{http_code}\" -o response.json -X GET "$BASE_URL/api/v1/users/profile" \
+    response=$(curl -s -w \"%{http_code}\" -o response.json -X GET "$BASE_URL/users/profile" \
         -H "Authorization: Bearer $ACCESS_TOKEN")
     check_status 200 "$response" "Get Profile"
     cat response.json
 
     # 7. Get User Profile (Failure - No Token)
     print_header "7. Get User Profile (Failure - No Token)"
-    response=$(curl -s -w \"%{http_code}\" -o response.json -X GET "$BASE_URL/api/v1/users/profile")
+    response=$(curl -s -w \"%{http_code}\" -o response.json -X GET "$BASE_URL/users/profile")
     check_status 401 "$response" "Get Profile without Token"
     cat response.json
 
     # 8. Get User Profile (Failure - Invalid Token)
     print_header "8. Get User Profile (Failure - Invalid Token)"
-    response=$(curl -s -w \"%{http_code}\" -o response.json -X GET "$BASE_URL/api/v1/users/profile" \
+    response=$(curl -s -w \"%{http_code}\" -o response.json -X GET "$BASE_URL/users/profile" \
         -H "Authorization: Bearer invalidtoken")
     check_status 401 "$response" "Get Profile with Invalid Token"
     cat response.json
 
     # 9. Refresh Token (Success)
     print_header "9. Refresh Token (Success)"
-    response=$(curl -s -w \"%{http_code}\" -o response.json -X POST "$BASE_URL/api/v1/auth/refresh" \
+    response=$(curl -s -w \"%{http_code}\" -o response.json -X POST "$BASE_URL/auth/refresh" \
         -H "Authorization: Bearer $REFRESH_TOKEN")
     check_status 200 "$response" "Refresh Token"
     cat response.json
@@ -125,14 +133,14 @@ main() {
 
     # 10. Logout (Success)
     print_header "10. Logout (Success)"
-    response=$(curl -s -w \"%{http_code}\" -o response.json -X POST "$BASE_URL/api/v1/auth/logout" \
+    response=$(curl -s -w \"%{http_code}\" -o response.json -X POST "$BASE_URL/auth/logout" \
         -H "Authorization: Bearer $NEW_REFRESH_TOKEN")
     check_status 200 "$response" "Logout"
     cat response.json
 
     # 11. Refresh Token (Failure - Revoked Token)
     print_header "11. Refresh Token (Failure - Revoked Token)"
-    response=$(curl -s -w \"%{http_code}\" -o response.json -X POST "$BASE_URL/api/v1/auth/refresh" \
+    response=$(curl -s -w \"%{http_code}\" -o response.json -X POST "$BASE_URL/auth/refresh" \
         -H "Authorization: Bearer $NEW_REFRESH_TOKEN")
     check_status 401 "$response" "Refresh with Revoked Token"
     cat response.json
