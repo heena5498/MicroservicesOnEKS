@@ -1,20 +1,160 @@
 
 # BookMyEvent - Cloud-Native Event Booking Platform on AWS EKS
 
-**ENPM818R Group Project:** Cloud-Native Application Deployment using AWS EKS, Kubernetes, and Load Balancing
+**ENPM818R Group 5 Project:** Cloud-Native Application Deployment using AWS EKS, Kubernetes, and Load Balancing
 
 BookMyEvent is a production-ready, cloud-native event booking platform deployed on **AWS Elastic Kubernetes Service (EKS)**. This project demonstrates enterprise-grade microservices architecture, container orchestration, CI/CD automation, and observability practices for managing campus events, workshops, and activities.
 
 ## 🎓 Project Overview
 
+**Course:** ENPM818R - Virtualization & Containerization  
+**Institution:** University of Maryland  
+**Semester:** Fall 2025  
+**Team Size:** 7  
+**Project Duration:** 5 weeks
+
+### Academic Context
+
 This application serves as a comprehensive implementation of modern cloud-native practices, showcasing:
 
-- **Containerized Microservices**: 6 Docker containers deployed on EKS
-- **Infrastructure as Code**: Automated EKS cluster provisioning via CloudFormation/eksctl
+- **Containerized Microservices**: 6 Docker containers deployed on AWS EKS
+- **Infrastructure as Code**: Automated EKS cluster provisioning via eksctl/CloudFormation
 - **Production Deployment**: Multi-AZ cluster with 3+ worker nodes and auto-scaling
 - **DevOps Automation**: Complete CI/CD pipeline with GitHub Actions
 - **Cloud-Native Observability**: Integrated monitoring, logging, and alerting
 - **Enterprise Security**: AWS Secrets Manager, IRSA, RBAC, and network policies
+
+### Project Requirements Met
+
+**Infrastructure:** AWS EKS cluster with 3+ worker nodes across multiple AZs  
+**Microservices:** 6 containerized services (4 backend APIs + frontend + gateway)  
+**Load Balancing:** AWS ALB with NGINX Ingress Controller  
+**Persistent Storage:** EBS CSI Driver with StatefulSets  
+**Secrets Management:** AWS Secrets Manager integration  
+**CI/CD Pipeline:** Automated GitHub Actions workflow  
+**Observability:** CloudWatch Logs + Prometheus/Grafana (in progress)  
+**Security:** RBAC, IRSA, NetworkPolicies, encrypted storage
+
+---
+
+## 🏗️ High-Level Architecture
+
+<!-- **Note:** Insert high-level architecture diagram here showing:
+- AWS Cloud boundary
+- VPC with public/private subnets across multiple AZs
+- EKS Control Plane
+- Worker Nodes (3+ nodes)
+- Application Load Balancer
+- Microservices (User, Event, Search, Booking, Frontend)
+- Data Layer (RDS PostgreSQL, Redis, Elasticsearch)
+- Monitoring Stack (Prometheus, Grafana)
+- External Services (ECR, Secrets Manager, CloudWatch)
+-->
+
+![High-Level Architecture Diagram](docs/architecture-diagram.png)
+
+**Architecture Overview:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                          AWS Cloud                               │
+│                                                                  │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │                    VPC (Multi-AZ)                          │ │
+│  │                                                            │ │
+│  │  ┌──────────────┐                ┌──────────────┐        │ │
+│  │  │ Public Subnet│                │Public Subnet │        │ │
+│  │  │   (AZ-1)     │                │   (AZ-2)     │        │ │
+│  │  │              │                │              │        │ │
+│  │  │     ALB      │◄──────────────►│     ALB      │        │ │
+│  │  └──────┬───────┘                └──────┬───────┘        │ │
+│  │         │                               │                 │ │
+│  │  ┌──────▼──────────────────────────────▼────────┐        │ │
+│  │  │          EKS Control Plane (Managed)         │        │ │
+│  │  └──────────────────────┬───────────────────────┘        │ │
+│  │                         │                                 │ │
+│  │  ┌──────────────────────▼──────────────────────┐        │ │
+│  │  │         Private Subnet (Worker Nodes)       │        │ │
+│  │  │                                              │        │ │
+│  │  │  ┌─────────────────────────────────────┐   │        │ │
+│  │  │  │    NGINX Ingress Controller         │   │        │ │
+│  │  │  └──────────────┬──────────────────────┘   │        │ │
+│  │  │                 │                            │        │ │
+│  │  │  ┌──────────────▼──────────────────────┐   │        │ │
+│  │  │  │     Application Services Layer      │   │        │ │
+│  │  │  │  ┌────┐ ┌────┐ ┌────┐ ┌────┐       │   │        │ │
+│  │  │  │  │User│ │Evnt│ │Srch│ │Book│       │   │        │ │
+│  │  │  │  │Svc │ │Svc │ │Svc │ │Svc │  FE   │   │        │ │
+│  │  │  │  └────┘ └────┘ └────┘ └────┘       │   │        │ │
+│  │  │  └──────────────┬──────────────────────┘   │        │ │
+│  │  │                 │                            │        │ │
+│  │  │  ┌──────────────▼──────────────────────┐   │        │ │
+│  │  │  │        Data Layer (StatefulSets)    │   │        │ │
+│  │  │  │  ┌──────┐ ┌─────┐ ┌────────────┐   │   │        │ │
+│  │  │  │  │Redis │ │ES   │ │   EBS      │   │   │        │ │
+│  │  │  │  │      │ │     │ │  Volumes   │   │   │        │ │
+│  │  │  │  └──────┘ └─────┘ └────────────┘   │   │        │ │
+│  │  │  └─────────────────────────────────────┘   │        │ │
+│  │  │                                              │        │ │
+│  │  └──────────────────────────────────────────────┘        │ │
+│  │                                                            │ │
+│  └────────────────────────────────────────────────────────────┘ │
+│                                                                  │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │              AWS Managed Services                          │ │
+│  │  ┌──────┐  ┌─────────┐  ┌──────────┐  ┌────────────┐    │ │
+│  │  │ ECR  │  │Secrets  │  │   RDS    │  │ CloudWatch │    │ │
+│  │  │Images│  │Manager  │  │PostgreSQL│  │   Logs     │    │ │
+│  │  └──────┘  └─────────┘  └──────────┘  └────────────┘    │ │
+│  └────────────────────────────────────────────────────────────┘ │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+                            ▲
+                            │
+                            │
+                    ┌───────┴────────┐
+                    │  GitHub Actions │
+                    │    CI/CD        │
+                    └─────────────────┘
+```
+
+**Key Components:**
+
+1. **AWS EKS Cluster**
+   - Control Plane: Managed by AWS
+   - Worker Nodes: 3x t3.medium across multiple Availability Zones
+   - Auto-scaling enabled for workload flexibility
+
+2. **Application Load Balancer (ALB)**
+   - Entry point for all external traffic
+   - HTTPS/TLS termination with ACM certificates
+   - Health check integration with Ingress Controller
+
+3. **NGINX Ingress Controller**
+   - Routes traffic to appropriate microservices
+   - Path-based routing: `/api/user/`, `/api/event/`, etc.
+   - Internal API gateway for service mesh
+
+4. **Microservices (ClusterIP)**
+   - User Service: Authentication & user management
+   - Event Service: Event CRUD and availability management
+   - Search Service: Elasticsearch-powered search
+   - Booking Service: Reservation and payment processing
+   - Frontend: React SPA served by nginx
+
+5. **Data Layer**
+   - RDS PostgreSQL: Persistent relational data (3 databases)
+   - Redis: In-memory caching and reservation queue
+   - Elasticsearch: Full-text search index
+   - EBS CSI Driver: Persistent volumes for StatefulSets
+
+6. **Monitoring & Observability**
+   - CloudWatch Logs: Application and system logs
+   - Prometheus: Metrics collection
+   - Grafana: Visualization dashboards
+   - Alertmanager: Alert routing and notifications
+
+---
 
 ## ✨ Key Features
 
@@ -62,8 +202,12 @@ This application serves as a comprehensive implementation of modern cloud-native
 
 3. **Deploy to AWS EKS** (Production):
    ```bash
-   # One-command deployment (~25 minutes)
-   ./scripts/eks/deploy-complete.sh
+   # Push to build branch to trigger GitHub Actions deployment
+   git checkout build
+   git push origin build
+   
+   # Or manually trigger deployment via GitHub Actions UI
+   # Actions → Deploy BookMyEvent → Run workflow
    ```
 
 >  **Security Best Practices**:
@@ -75,25 +219,33 @@ This application serves as a comprehensive implementation of modern cloud-native
 
 ## AWS EKS Deployment
 
-### One-Command Deployment
+### Automated GitHub Actions Deployment
 
-Deploy complete production environment to AWS EKS:
+Deploy complete production environment to AWS EKS using GitHub Actions CI/CD:
 
 ```bash
-./scripts/eks/deploy-complete.sh
+# Push to build branch to trigger automated deployment
+git checkout build
+git push origin build
 ```
 
-**This automated script:**
-1. Creates 6 ECR repositories for container images (~1 min)
-2. Builds and pushes Docker images with vulnerability scanning (~10-15 min)
-3. Provisions EKS cluster with 3 worker nodes across multiple AZs (~15-20 min)
-4. Installs EBS CSI driver for persistent storage
-5. Deploys infrastructure services (PostgreSQL, Redis, Elasticsearch)
-6. Runs database migrations
-7. Deploys all 6 microservices
-8. Configures AWS Load Balancer and Ingress
+**The GitHub Actions pipeline automatically:**
+1. Builds all 6 Docker images with multi-stage builds (~5-8 min)
+2. Scans images for vulnerabilities with Trivy
+3. Pushes images to Amazon ECR with semantic versioning
+4. Deploys Helm chart to EKS cluster (~3-5 min)
+5. Creates RDS databases (users_db, events_db, bookings_db) if they don't exist
+6. Runs database migrations via Kubernetes Job
+7. Deploys all microservices with ConfigMaps and Secrets
+8. Configures AWS ALB with nginx-gateway Ingress
+9. Runs integration tests to validate deployment
 
-**Total deployment time:** ~25-35 minutes
+**Total deployment time:** ~15-20 minutes
+
+**Manual Trigger:**
+You can also manually trigger deployment from GitHub:
+- Navigate to **Actions** → **Deploy BookMyEvent**
+- Click **Run workflow** → Select **build** branch → **Run**
 
 ### Access Your EKS Deployment
 
@@ -109,11 +261,14 @@ echo "API Gateway: http://$INGRESS_URL"
 ```
 
 **Endpoints:**
+- **Frontend**: `http://<INGRESS_URL>/` or `https://campuseventmanager.work.gd`
 - **User API**: `http://<INGRESS_URL>/api/user/`
 - **Event API**: `http://<INGRESS_URL>/api/event/`
 - **Search API**: `http://<INGRESS_URL>/api/search/`
 - **Booking API**: `http://<INGRESS_URL>/api/booking/`
 - **Health Check**: `http://<INGRESS_URL>/health`
+
+**Custom Domain:** The application is deployed at `https://campuseventmanager.work.gd` with HTTPS/TLS enabled via AWS Certificate Manager.
 
 ## 🌐 Client Access & API Gateway
 
@@ -262,30 +417,32 @@ docker-compose -f build/docker-compose.yml build
 ## 🛠️ Technology Stack
 
 ### Cloud Infrastructure
-- **Cloud Provider**: AWS (EKS, ECR, VPC, ALB, EBS)
-- **Container Orchestration**: Kubernetes (Amazon EKS)
-- **Infrastructure as Code**: eksctl (CloudFormation under the hood)
-- **Container Registry**: Amazon ECR with vulnerability scanning
-- **Load Balancing**: AWS Application Load Balancer with Ingress Controller
-- **Storage**: EBS CSI Driver (gp2 StorageClass)
-- **Secrets**: AWS Secrets Manager + External Secrets Operator
+- **Cloud Provider**: AWS (EKS, ECR, VPC, ALB, EBS, RDS)
+- **Container Orchestration**: Kubernetes (Amazon EKS) v1.30
+- **Infrastructure as Code**: eksctl (CloudFormation), Helm Charts
+- **Container Registry**: Amazon ECR with Trivy vulnerability scanning
+- **Load Balancing**: AWS Application Load Balancer with nginx Ingress Controller
+- **Storage**: EBS CSI Driver (gp3 StorageClass)
+- **Database**: AWS RDS PostgreSQL 15 (managed service)
+- **Secrets**: GitHub Actions Secrets + Kubernetes Secrets
 
 ### Application Layer
-- **Backend Services**: Go 1.21
-- **Frontend**: React 18 with Vite
-- **API Gateway**: NGINX Ingress Controller
-- **Database**: PostgreSQL 15 (separate DBs per service)
-- **Caching**: Redis 7
-- **Search Engine**: Elasticsearch 8.11
-- **Database Migrations**: goose
-- **Type-Safe Queries**: sqlc
+- **Backend Services**: Go 1.21 (4 microservices)
+- **Frontend**: React 18 with Vite 5
+- **API Gateway**: nginx-gateway (custom nginx configuration)
+- **Database**: AWS RDS PostgreSQL 15 (3 separate DBs: users_db, events_db, bookings_db)
+- **Caching**: Redis 7 (in-cluster)
+- **Search Engine**: Elasticsearch 8.11 (in-cluster)
+- **Database Migrations**: goose v3
+- **Type-Safe Queries**: sqlc v1.26
 
 ### DevOps & Observability
-- **CI/CD**: GitHub Actions
-- **Container Scanning**: Trivy
-- **Monitoring**: Prometheus + Grafana (planned)
-- **Logging**: CloudWatch Logs
-- **Version Control**: Git with protected branches
+- **CI/CD**: GitHub Actions (deploy-bookmyevent.yaml, setup-monitoring.yml)
+- **Container Scanning**: Trivy (integrated in pipeline)
+- **Monitoring**: Prometheus + Grafana (deployed via workflow_dispatch)
+- **Logging**: CloudWatch Logs + kubectl logs
+- **Version Control**: Git with protected main branch
+- **Deployment**: Helm 3 charts
 
 ## System Architecture
 
@@ -461,105 +618,153 @@ When an event sells out, users can join a waitlist. This waitlist is managed eff
 
 ```
 eks-microservices/
-├── build/                          # Build configuration & CI/CD docs
-│   ├── Dockerfile-*               # Multi-stage Dockerfiles for all services
-│   ├── docker-compose.yml         # Local development orchestration
-│   ├── Makefile                   # Build automation
-│   └── *.md                       # CI/CD documentation
+├── .github/                       # GitHub Actions CI/CD workflows
+│   └── workflows/                 # Automated build, deploy, monitoring pipelines
 │
-├── cmd/                           # Service entry points
-│   ├── user-service/main.go
-│   ├── event-service/main.go
-│   ├── search-service/main.go
-│   └── booking-service/main.go
+├── cmd/                           # Service entry points (main.go files)
+│   ├── user-service/main.go       # User authentication service
+│   ├── event-service/main.go      # Event management service
+│   ├── search-service/main.go     # Elasticsearch search service
+│   └── booking-service/main.go    # Booking & reservation service
 │
-├── docs/                          # Documentation
+├── docs/                          # Documentation (ENPM818R submission artifacts)
+│   ├── architecture.md            # System design & microservices architecture
+│   ├── build/                     # CI/CD pipeline documentation
+│   │   ├── ci-cd-guide.md         # GitHub Actions pipeline guide
+│   │   ├── ci-cd-quickstart.md    # 3-step pipeline setup
+│   │   └── ci-cd-testing-guide.md # Pipeline testing & validation
 │   ├── deployment/                # EKS deployment guides
-│   ├── secrets/                   # Secrets management docs
-│   └── *_api_documentation.md     # API specifications
+│   │   └── eks-deployment-guide.md # Complete AWS EKS deployment
+│   └── secrets/                   # Secrets management guides
+│       ├── secrets-manager-guide.md
+│       ├── secrets-quickstart.md
+│       └── README.md
 │
-├── frontend/                      # React application
-│   ├── src/
-│   ├── public/
-│   └── package.json
+├── frontend/                      # React application (Vite + React 18)
+│   ├── src/                       # React components, pages, contexts
+│   │   ├── components/            # Reusable UI components
+│   │   ├── pages/                 # Page-level components
+│   │   ├── contexts/              # React context providers
+│   │   └── services/              # API client functions
+│   ├── public/                    # Static assets
+│   ├── package.json               # NPM dependencies
+│   └── vite.config.js             # Vite bundler configuration
 │
-├── internal/                      # Shared Go packages
-│   ├── auth/                      # JWT authentication
+├── helm/                          # Helm charts for Kubernetes deployment
+│   ├── Chart.yaml                 # Helm chart metadata
+│   ├── values.yaml                # Default configuration values
+│   └── templates/                 # Kubernetes manifest templates
+│       ├── deployments/           # Service deployments
+│       ├── services/              # Service definitions
+│       ├── ingress/               # Ingress & nginx gateway
+│       └── infrastructure/        # Redis, Elasticsearch, PostgreSQL
+│
+├── init-container/                # Database initialization container
+│   ├── main.go                    # Database creation logic
+│   └── go.mod                     # Go module for init container
+│
+├── internal/                      # Shared Go packages (internal use only)
+│   ├── auth/                      # JWT authentication & authorization
+│   │   ├── jwt.go                 # Token generation & validation
+│   │   └── admin.go               # Admin authentication
 │   ├── config/                    # Configuration management
-│   ├── database/                  # PostgreSQL client
-│   ├── middleware/                # HTTP middleware
-│   ├── repository/                # Generated sqlc code
+│   ├── database/                  # PostgreSQL client & connection pooling
+│   ├── middleware/                # HTTP middleware (CORS, logging, auth)
+│   ├── repository/                # Generated sqlc database code
+│   ├── cache/                     # Redis cache client
+│   ├── logger/                    # Structured logging
 │   └── utils/                     # Helper functions
 │
-├── k8s/                          # Kubernetes manifests
-│   ├── 00-namespace.yaml
-│   ├── 01-configmap.yaml
-│   ├── 02-secrets.yaml.example
+├── k8s/                           # Kubernetes manifests (raw YAML)
+│   ├── 00-namespace.yml           # Namespace definition
+│   ├── 01-configmap.yml           # Configuration maps
+│   ├── 02-secrets-rds.yml         # RDS database secrets
 │   ├── infrastructure/            # PostgreSQL, Redis, Elasticsearch
-│   ├── services/                  # Microservice deployments
-│   └── secrets-management/        # External Secrets Operator
+│   ├── services/                  # Microservice deployments & services
+│   ├── jobs/                      # Migration & initialization jobs
+│   └── monitoring/                # Prometheus & Grafana stack
 │
 ├── migrations/                    # Database migrations (goose)
-│   ├── user-service/
-│   ├── event-service/
-│   └── booking-service/
+│   ├── user-service/              # User DB schema migrations
+│   ├── event-service/             # Event DB schema migrations
+│   └── booking-service/           # Booking DB schema migrations
 │
-├── scripts/                       # Automation scripts
+├── scripts/                       # Automation & helper scripts
+│   ├── apply-monitoring.sh        # Install Prometheus & Grafana
 │   ├── eks/                       # EKS deployment automation
-│   ├── github-actions/            # CI/CD setup
-│   ├── secrets/                   # Secrets management
-│   └── testing/                   # Test scripts & docs
+│   │   ├── deploy-helm.sh         # Helm deployment script
+│   │   ├── setup-rds.sh           # RDS setup script
+│   │   └── cleanup-all.ps1        # Resource cleanup
+│   └── testing/                   # Integration tests
+│       ├── test-endpoints.sh      # Main test suite (11 tests)
+│       ├── test_booking_flow.py   # Booking flow tests
+│       └── comprehensive_search_api_test.py
 │
-├── services/                      # Business logic
-│   ├── user/handler.go           # HTTP handlers
-│   ├── event/server.go           # Route definitions
+├── services/                      # Business logic (HTTP handlers & routes)
+│   ├── user/                      # User service handlers
+│   │   ├── handlers.go            # Auth, registration, profile
+│   │   ├── server.go              # Route definitions
+│   │   └── models.go              # Request/response models
+│   ├── event/                     # Event service handlers
 │   ├── search/                    # Search service logic
 │   └── booking/                   # Booking service logic
 │
-└── sqlc/                         # SQL queries for code generation
-    ├── user-service/
-    ├── event-service/
-    └── booking-service/
+├── sqlc/                          # SQL queries for type-safe code generation
+│   ├── user-service/              # User queries (sqlc.yaml + *.sql)
+│   ├── event-service/             # Event queries
+│   └── booking-service/           # Booking queries
+│
+├── tests-scripts/                 # Integration & API tests
+│   ├── test-endpoints.sh          # Main integration test suite
+│   ├── test_booking_flow.py       # Booking flow tests
+│   └── comprehensive_search_api_test.py  # Search API tests
+│
+├── docker-compose.yml             # Local development orchestration
+├── Makefile                       # Build automation & common commands
+├── go.mod & go.sum                # Go module dependencies
+├── DEPLOYMENT_GUIDE.md            # Production deployment guide
+├── README.md                      # This file (project overview)
+└── CHANGELOG.md                   # Version history & changes
 ```
 
 ### Key Directories
 
-- **`build/`**: All Docker and CI/CD configuration
-- **`k8s/`**: Kubernetes manifests for EKS deployment
-- **`scripts/eks/`**: Automated EKS cluster provisioning and deployment
-- **`.github/workflows/`**: GitHub Actions CI/CD pipelines
-- **`docs/deployment/`**: Comprehensive deployment documentation
+- **`.github/workflows/`**: GitHub Actions CI/CD pipelines for automated build, test, and deployment
+- **`helm/`**: Helm charts for deploying the entire application stack to Kubernetes
+- **`k8s/`**: Raw Kubernetes manifests (used by Helm or for manual deployment)
+- **`cmd/`**: Main entry points for each microservice (executable programs)
+- **`internal/`**: Shared Go packages used across services (not importable outside this repo)
+- **`services/`**: HTTP handlers and business logic for each microservice
+- **`migrations/`**: Database schema migrations managed by goose
+- **`sqlc/`**: SQL queries that generate type-safe Go code via sqlc
+- **`scripts/eks/`**: EKS deployment automation scripts
+- **`scripts/testing/`**: Test scripts and utilities
+- **`docs/`**: Comprehensive documentation including deployment guides and architecture
+- **`frontend/`**: React single-page application with Vite bundler
+- **`tests-scripts/`**: Integration tests and API validation scripts
+- **`tests-scripts/`**: Integration tests and API validation scripts
 
 ##  Documentation Index
 
 ###  Deployment & Infrastructure
 - **[EKS Deployment Guide](docs/deployment/eks-deployment-guide.md)** - Complete AWS EKS deployment walkthrough
-- **[Project Requirements](docs/deployment/eks-project-md.md)** - ENPM818R course project specifications
-- **[GitHub Setup](build/github-setup.md)** - Development environment and Git workflow
+- **[Production Deployment Guide](DEPLOYMENT_GUIDE.md)** - Main deployment guide for ENPM818R submission
 
 ###  Security & Secrets
 - **[Secrets Manager Guide](docs/secrets/secrets-manager-guide.md)** - AWS Secrets Manager integration
 - **[Secrets Quick Start](docs/secrets/secrets-quickstart.md)** - 2-command secrets setup
 
 ###  CI/CD & Automation
-- **[CI/CD Guide](build/ci-cd-guide.md)** - GitHub Actions pipeline documentation
-- **[CI/CD Quick Start](build/ci-cd-quickstart.md)** - 3-step pipeline setup
-- **[CI/CD Testing](build/ci-cd-testing-guide.md)** - Pipeline validation
+- **[CI/CD Guide](docs/build/ci-cd-guide.md)** - GitHub Actions pipeline documentation
+- **[CI/CD Quick Start](docs/build/ci-cd-quickstart.md)** - 3-step pipeline setup
+- **[CI/CD Testing](docs/build/ci-cd-testing-guide.md)** - Pipeline validation
 
 ###  Testing
-- **[Testing Quick Start](scripts/testing/testing-quickstart.md)** - Test automation and validation
-- **[Search Service Testing](scripts/testing/search_service_testing_guide.md)** - Search API tests
-
-###  API Documentation
-- [User Service API](docs/user_service_api_documentation.md) - Authentication & user management
-- [Event Service API](docs/event_service_api_documentation.md) - Event CRUD operations
-- [Search Service API](docs/search_service_api_documentation.md) - Elasticsearch search
-- [Booking Service API](docs/booking_service_api_documentation.md) - Ticket reservations
+- **[Testing Quick Start](tests-scripts/testing-quickstart.md)** - Test automation and validation
+- **[Testing Guide](tests-scripts/README.md)** - Integration test documentation
 
 ###  Architecture & Design
-- [Architecture Overview](docs/architecture.md) - System design and data flow
-- [Event Service Concurrency](docs/event_service_concurrency.md) - Concurrency handling
-- [Development Reference](docs/dev_commands_reference.md) - Common commands
+- **[Architecture Overview](docs/architecture.md)** - System design and microservices architecture
 ---
 
 ##  Project Milestones & Deliverables
@@ -570,7 +775,7 @@ This project follows a 5-week development cycle aligned with ENPM818R course req
 -  Architecture diagram and service definitions
 -  Git repository setup with branch protection
 -  IaC plan for EKS cluster provisioning
--  Database schema design (DBML)
+-  Database schema design & migrations
 
 ###  Week 2: Containerization
 -  Dockerfiles for all 6 services
@@ -595,7 +800,7 @@ This project follows a 5-week development cycle aligned with ENPM818R course req
 -  Automated build → scan → push → deploy workflow
 -  AWS Secrets Manager integration
 -  Monitoring and logging setup (CloudWatch)
--  Prometheus + Grafana dashboards (in progress)
+-  Prometheus + Grafana dashboards
 -  Final documentation and testing
 
 ### Team Contributions
@@ -640,28 +845,30 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for team roles and contribution guideline
 
 ### GitHub Actions Workflows
 
-The project includes three automated workflows:
+The project includes two automated workflows:
 
-1. **`ci-build-and-push.yml`** - Continuous Integration
-   - Triggers on push to `main`, `develop`, `build` branches
-   - Builds all Docker images in parallel
-   - Runs Trivy security scans
-   - Pushes images to Amazon ECR
-   - Tags with SHA and semantic versioning
+1. **`deploy-bookmyevent.yaml`** - Main CI/CD Pipeline
+   - **Trigger**: Push to `build` branch
+   - **Steps**:
+     - Builds all 6 Docker images in parallel
+     - Runs Trivy security scans on each image
+     - Pushes images to Amazon ECR with SHA tags
+     - Creates Kubernetes Secrets from GitHub Secrets
+     - Deploys Helm chart to EKS cluster
+     - Creates RDS databases conditionally (idempotent)
+     - Runs database migration Kubernetes Job
+     - Waits for all pods to be ready
+     - Runs integration test suite (test-endpoints.sh)
+   - **Duration**: ~15-20 minutes
 
-2. **`cd-deploy-to-eks.yml`** - Continuous Deployment
-   - Triggers after successful CI build
-   - Deploys to EKS cluster
-   - Runs database migrations
-   - Performs smoke tests
-   - Auto-rollback on failure
-
-3. **`pr-validation.yml`** - Pull Request Validation
-   - Runs on all PRs to `main`
-   - Go unit tests and linting
-   - Dockerfile validation (hadolint)
-   - Kubernetes manifest validation
-   - Secret detection (gitleaks)
+2. **`setup-monitoring.yml`** - Monitoring Stack Deployment
+   - **Trigger**: Manual workflow_dispatch
+   - **Steps**:
+     - Deploys Prometheus + Grafana via Helm
+     - Creates custom alert rules for BookMyEvent
+     - Provisions LoadBalancer services for external access
+     - Displays access URLs for Grafana, Prometheus, Alertmanager
+   - **Duration**: ~10-15 minutes
 
 ### Pipeline Security
 
@@ -670,7 +877,7 @@ The project includes three automated workflows:
 - Branch protection rules enforced
 - Mandatory code review for all PRs
 
-See [CI/CD Guide](build/ci-cd-guide.md) for detailed pipeline documentation.
+See [CI/CD Guide](docs/build/ci-cd-guide.md) for detailed pipeline documentation.
 
 ---
 
@@ -767,6 +974,6 @@ This project was developed as part of the ENPM818R course curriculum. Special th
 
 ---
 
-**Last Updated**: November 2025  
+**Last Updated**: December 2025  
 **Repository**: https://github.com/heena5498/eks-microservices  
 **Maintainers**: ENPM818R Project Group 5

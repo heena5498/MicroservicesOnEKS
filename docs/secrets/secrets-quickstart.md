@@ -10,7 +10,7 @@
 ./scripts/secrets/deploy-external-secrets.sh
 ```
 
-## ✅ Verify It's Working
+## Verify It's Working
 
 ```bash
 # Check sync status
@@ -72,12 +72,12 @@ secrets-manager-guide.md                # Full documentation
 
 ## 🎯 Benefits
 
-✅ **No secrets in Git** - Everything in AWS Secrets Manager
-✅ **Auto-rotation ready** - Change in AWS, auto-syncs to K8s
-✅ **Secure authentication** - IRSA (no API keys needed)
-✅ **Audit trail** - CloudTrail logs all secret access
-✅ **Encryption at rest** - AWS KMS encryption
-✅ **Auto-refresh** - Secrets sync every 1 hour
+**No secrets in Git** - Everything in AWS Secrets Manager
+**Auto-rotation ready** - Change in AWS, auto-syncs to K8s
+**Secure authentication** - IRSA (no API keys needed)
+**Audit trail** - CloudTrail logs all secret access
+**Encryption at rest** - AWS KMS encryption
+**Auto-refresh** - Secrets sync every 1 hour
 
 ## 🔧 Common Operations
 

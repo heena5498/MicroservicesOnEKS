@@ -54,4 +54,4 @@ Kubernetes Secrets (Consumed by Pods)
 
 - Setup scripts: `scripts/secrets/`
 - Kubernetes manifests: `k8s/secrets-management/`
-- CI/CD integration: `build/ci-cd-guide.md`
+- CI/CD integration: `../build/ci-cd-guide.md`

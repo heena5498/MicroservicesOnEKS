@@ -275,7 +275,7 @@ After basic testing works:
 For detailed testing procedures, see:
 - **Complete Guide:** `CI_CD_TESTING_GUIDE.md`
 - **Setup Guide:** `CI_CD_QUICKSTART.md`
-- **Full Documentation:** `../../build/ci-cd-guide.md`
+- **Full Documentation:** `../../docs/build/ci-cd-guide.md`
 
 ---
 

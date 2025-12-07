@@ -23,12 +23,14 @@ import sys
 import os
 from urllib.parse import urlencode
 
-# Configuration
+# Configuration - Read from environment or fall back to localhost
+API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost')
+
 BASE_URLS = {
-    'user': 'http://localhost:8001',
-    'event': 'http://localhost:8002', 
-    'search': 'http://localhost:8003',
-    'booking': 'http://localhost:8004'
+    'user': f"{API_BASE_URL}/api/user",
+    'event': f"{API_BASE_URL}/api/event",
+    'search': f"{API_BASE_URL}/api/search",
+    'booking': f"{API_BASE_URL}/api/booking"
 }
 
 INTERNAL_API_KEY = 'internal-service-communication-key-change-in-production'
@@ -201,7 +203,7 @@ class SearchAPITester:
         
         success, response, status = make_request(
             'POST',
-            f"{BASE_URLS['event']}/api/v1/auth/admin/register",
+            f"{BASE_URLS['event']}/auth/admin/register",
             data=admin_data
         )
         
