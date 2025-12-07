@@ -332,17 +332,28 @@ jobs:
                       - -c
                       - |
                         set -e
+                        echo "Testing connection to RDS endpoint: ${RDS_ENDPOINT}..."
+                        psql "host=${RDS_ENDPOINT} port=5432 user=postgres dbname=postgres sslmode=require" -c "SELECT version();"
+                        
                         echo "Creating databases on RDS if they don't exist..."
                         psql "host=${RDS_ENDPOINT} port=5432 user=postgres dbname=postgres sslmode=require" <<'SQL'
                         SELECT 'CREATE DATABASE users_db' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'users_db')\gexec
                         SELECT 'CREATE DATABASE events_db' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'events_db')\gexec
                         SELECT 'CREATE DATABASE bookings_db' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'bookings_db')\gexec
                         SQL
+                        
+                        echo "Verifying databases were created..."
+                        psql "host=${RDS_ENDPOINT} port=5432 user=postgres dbname=postgres sslmode=require" -c "\l"
                         echo "Database creation completed successfully"
           EOF
 
           echo "Waiting for migrations Job to complete..."
-          kubectl wait --for=condition=complete job/run-migrations-rds-${GITHUB_SHA::7} -n "$K8S_NAMESPACE" --timeout=300s || true
+          kubectl wait --for=condition=complete job/run-migrations-rds-${GITHUB_SHA::7} -n "$K8S_NAMESPACE" --timeout=120s || {
+            echo "Migration job did not complete in time, checking status..."
+            kubectl describe job/run-migrations-rds-${GITHUB_SHA::7} -n "$K8S_NAMESPACE"
+            kubectl logs job/run-migrations-rds-${GITHUB_SHA::7} -n "$K8S_NAMESPACE" || echo "No logs available"
+            exit 1
+          }
 
       - name: Wait for application pods
         run: |
