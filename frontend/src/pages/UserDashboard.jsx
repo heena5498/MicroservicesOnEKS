@@ -120,7 +120,7 @@ const UserDashboard = () => {
     if (loading) {
         return (
             <div className="flex justify-center items-center min-h-[400px]">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#e21833]"></div>
             </div>
         );
     }
@@ -130,7 +130,7 @@ const UserDashboard = () => {
             {/* Header */}
             <div className="bg-white rounded-lg shadow-md p-6">
                 <div className="flex items-center space-x-4">
-                    <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
+                    <div className="w-16 h-16 bg-[#e21833] rounded-full flex items-center justify-center">
                         <User className="h-8 w-8 text-white" />
                     </div>
                     <div>
@@ -157,7 +157,7 @@ const UserDashboard = () => {
                         <button
                             onClick={() => setActiveTab('bookings')}
                             className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'bookings'
-                                ? 'border-blue-500 text-blue-600'
+                                ? 'border-[#e21833] text-[#e21833]'
                                 : 'border-transparent text-gray-500 hover:text-gray-700'
                                 }`}
                         >
@@ -167,7 +167,7 @@ const UserDashboard = () => {
                         <button
                             onClick={() => setActiveTab('profile')}
                             className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'profile'
-                                ? 'border-blue-500 text-blue-600'
+                                ? 'border-[#e21833] text-[#e21833]'
                                 : 'border-transparent text-gray-500 hover:text-gray-700'
                                 }`}
                         >
@@ -206,11 +206,6 @@ const UserDashboard = () => {
                                             <div>
                                                 <p className="text-sm text-gray-600">Quantity</p>
                                                 <p className="font-medium">{booking.quantity} ticket{booking.quantity > 1 ? 's' : ''}</p>
-                                            </div>
-
-                                            <div>
-                                                <p className="text-sm text-gray-600">Total Amount</p>
-                                                <p className="font-medium">${booking.total_amount}</p>
                                             </div>
 
                                             <div>
@@ -278,7 +273,7 @@ const UserDashboard = () => {
                                     </p>
                                     <Link
                                         to="/events"
-                                        className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                                        className="bg-[#e21833] text-white px-6 py-2 rounded-lg hover:bg-black transition-colors"
                                     >
                                         Browse Events
                                     </Link>
@@ -302,7 +297,7 @@ const UserDashboard = () => {
                                             type="text"
                                             value={profileData.name}
                                             onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#e21833]"
                                             required
                                         />
                                     </div>
@@ -315,7 +310,7 @@ const UserDashboard = () => {
                                             type="tel"
                                             value={profileData.phone_number}
                                             onChange={(e) => setProfileData({ ...profileData, phone_number: e.target.value })}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#e21833]"
                                             placeholder="+1234567890"
                                         />
                                     </div>
@@ -323,7 +318,7 @@ const UserDashboard = () => {
                                     <div className="flex space-x-3">
                                         <button
                                             type="submit"
-                                            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                                            className="bg-[#e21833] text-white px-4 py-2 rounded-md hover:bg-black transition-colors"
                                         >
                                             Save Changes
                                         </button>
@@ -342,7 +337,7 @@ const UserDashboard = () => {
                                         <h3 className="text-lg font-semibold">Profile Information</h3>
                                         <button
                                             onClick={() => setEditingProfile(true)}
-                                            className="text-blue-600 hover:text-blue-700 flex items-center text-sm"
+                                            className="text-[#e21833] hover:text-black flex items-center text-sm"
                                         >
                                             <Edit className="h-4 w-4 mr-1" />
                                             Edit

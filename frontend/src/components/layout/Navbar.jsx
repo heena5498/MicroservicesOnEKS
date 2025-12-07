@@ -22,18 +22,18 @@ const Navbar = () => {
             <div className="container mx-auto px-4">
                 <div className="flex justify-between items-center h-16">
                     {/* Logo */}
-                    <Link to="/" className="flex items-center space-x-2 text-xl font-bold text-blue-600">
+                    <Link to="/" className="flex items-center space-x-2 text-xl font-bold text-[#e21833]">
                         <Calendar className="h-6 w-6" />
-                        <span>BookMyEvent</span>
+                        <span>CampusEventManager</span>
                     </Link>
 
                     {/* Navigation Links */}
                     <div className="hidden md:flex items-center space-x-6">
-                        <Link to="/" className="flex items-center space-x-1 text-gray-600 hover:text-blue-600">
+                        <Link to="/" className="flex items-center space-x-1 text-gray-600 hover:text-[#e21833]">
                             <Home className="h-4 w-4" />
                             <span>Home</span>
                         </Link>
-                        <Link to="/events" className="flex items-center space-x-1 text-gray-600 hover:text-blue-600">
+                        <Link to="/events" className="flex items-center space-x-1 text-gray-600 hover:text-[#e21833]">
                             <Search className="h-4 w-4" />
                             <span>Events</span>
                         </Link>
@@ -44,7 +44,7 @@ const Navbar = () => {
                         {isAuthenticated && user ? (
                             // User is logged in
                             <div className="flex items-center space-x-4">
-                                <Link to="/dashboard" className="flex items-center space-x-1 text-gray-600 hover:text-blue-600">
+                                <Link to="/dashboard" className="flex items-center space-x-1 text-gray-600 hover:text-[#e21833]">
                                     <User className="h-4 w-4" />
                                     <span>Dashboard</span>
                                 </Link>
@@ -62,7 +62,7 @@ const Navbar = () => {
                         ) : isAdminAuthenticated && admin ? (
                             // Admin is logged in
                             <div className="flex items-center space-x-4">
-                                <Link to="/admin/dashboard" className="flex items-center space-x-1 text-gray-600 hover:text-blue-600">
+                                <Link to="/admin/dashboard" className="flex items-center space-x-1 text-gray-600 hover:text-purple-500">
                                     <UserCog className="h-4 w-4" />
                                     <span>Admin</span>
                                 </Link>
@@ -80,14 +80,14 @@ const Navbar = () => {
                         ) : (
                             // Not logged in
                             <div className="flex items-center space-x-4">
-                                <Link to="/login" className="text-gray-600 hover:text-blue-600">
+                                <Link to="/login" className="text-gray-600 hover:text-[#e21833]">
                                     Login
                                 </Link>
-                                <Link to="/register" className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                                <Link to="/register" className="bg-[#e21833] text-white px-4 py-2 rounded-md hover:bg-black">
                                     Register
                                 </Link>
                                 <div className="border-l border-gray-300 h-6"></div>
-                                <Link to="/admin/login" className="text-sm text-gray-500 hover:text-blue-600">
+                                <Link to="/admin/login" className="text-sm text-gray-500 hover:text-purple-500">
                                     Admin
                                 </Link>
                             </div>
@@ -98,13 +98,13 @@ const Navbar = () => {
                 {/* Mobile menu */}
                 <div className="md:hidden py-4 border-t">
                     <div className="flex flex-col space-y-2">
-                        <Link to="/" className="text-gray-600 hover:text-blue-600 py-2">Home</Link>
-                        <Link to="/events" className="text-gray-600 hover:text-blue-600 py-2">Events</Link>
+                        <Link to="/" className="text-gray-600 hover:text-[#e21833] py-2">Home</Link>
+                        <Link to="/events" className="text-gray-600 hover:text-[#e21833] py-2">Events</Link>
                         {isAuthenticated && (
-                            <Link to="/dashboard" className="text-gray-600 hover:text-blue-600 py-2">Dashboard</Link>
+                            <Link to="/dashboard" className="text-gray-600 hover:text-[#e21833] py-2">Dashboard</Link>
                         )}
                         {isAdminAuthenticated && (
-                            <Link to="/admin/dashboard" className="text-gray-600 hover:text-blue-600 py-2">Admin Dashboard</Link>
+                            <Link to="/admin/dashboard" className="text-gray-600 hover:text-[#e21833] py-2">Admin Dashboard</Link>
                         )}
                     </div>
                 </div>
