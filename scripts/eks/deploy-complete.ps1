@@ -103,8 +103,24 @@ $ROLE_ARN = "arn:aws:iam::${env:AWS_ACCOUNT_ID}:role/AmazonEKS_EBS_CSI_DriverRol
 eksctl create addon --name aws-ebs-csi-driver --cluster $env:CLUSTER_NAME --region $env:AWS_REGION --service-account-role-arn $ROLE_ARN --force 2>$null
 Write-Host "  EBS CSI Driver installed" -ForegroundColor Green
 
+# Step 5c: Enable Network Policies
+Write-Host "`n  Enabling Network Policies..." -ForegroundColor Yellow
+$env:VPC_CNI_ADDON_NAME = "vpc-cni"
+$env:VPC_CNI_ADDON_VERSION = (aws eks describe-addon --cluster-name $env:CLUSTER_NAME --addon-name $env:VPC_CNI_ADDON_NAME --query "addon.addonVersion" --output text)
+aws eks update-addon
+    --cluster-name $env:CLUSTER_NAME
+    --addon-name $env:VPC_CNI_ADDON_NAME
+    --addon-version $env:VPC_CNI_ADDON_VERSION
+    --service-account-role-arn "arn:aws:iam::${env:AWS_ACCOUNT_ID}:role/AmazonEKSVPCCNIRole"
+    --resolve-conflicts PRESERVE
+    --configuration-values '{"enableNetworkPolicy": "true"}'
+Write-Host "  Network Policies Enabled" -ForegroundColor Green
+
 # Step 6: Deploy Kubernetes Resources
 Write-Host "`n[6/9] Deploying Kubernetes Resources..." -ForegroundColor Yellow
+
+# Update aws-node DaemonSet
+kubectl apply -f k8s/aws-node-daemonset.yaml
 
 # Namespace and configs
 kubectl apply -f k8s/00-namespace.yaml
@@ -114,7 +130,14 @@ kubectl apply -f k8s/03-env-file-configmap.yaml
 
 # Network Policy for security
 Write-Host "  Applying Network Policy..." -ForegroundColor White
-kubectl apply -f k8s/network-policy.yaml
+$env:RDS_VPC_ID = (aws rds describe-db-instances --db-instance-identifier bookmyevent-rds --query "DBInstances[0].DBSubnetGroup.VpcId" --output text)
+$env:RDS_VPC_CIDR = (aws ec2 describe-vpcs --vpc-ids $env:RDS_VPC_ID --query "Vpcs[0].CidrBlock" --output text)
+$networkPolicyFiles = @("namespace", "jobs", "deployments")
+foreach ($file in $networkPolicyFiles) {
+    $content = Get-Content "k8s/networkpolicies-bookmyevent-$file.yml" -Raw
+    $content = $content -replace '\$\{RDS_VPC_CIDR\}', $env:RDS_VPC_CIDR
+    $content | kubectl apply -f -
+}
 
 # Infrastructure
 Write-Host "  Deploying infrastructure..." -ForegroundColor White

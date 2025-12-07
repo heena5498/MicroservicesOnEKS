@@ -11,7 +11,7 @@ spec:
   resources:
     requests:
       storage: 10Gi
-  storageClassName: gp2  # EKS default storage class
+  storageClassName: gp2 # EKS default storage class
 ---
 # PostgreSQL ConfigMap for init script
 apiVersion: v1
@@ -111,4 +111,3 @@ spec:
     - port: 5432
       targetPort: 5432
   type: ClusterIP
-

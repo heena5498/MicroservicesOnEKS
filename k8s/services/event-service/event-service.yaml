@@ -85,4 +85,3 @@ spec:
     - port: 8002
       targetPort: 8002
   type: ClusterIP
-
