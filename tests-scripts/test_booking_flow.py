@@ -125,17 +125,27 @@ def confirm_booking(token, reservation_id):
 def main():
     print("=== Booking Service Flow Test ===")
     
+    # Generate unique emails for this test run
+    import time
+    import random
+    timestamp = int(time.time())
+    rand_suffix = random.randint(10000, 99999)
+    user_email = f"testuser_{timestamp}_{rand_suffix}@example.com"
+    admin_email = f"testadmin_{timestamp}_{rand_suffix}@example.com"
+    
     print("\n1. Creating regular user...")
-    claude_user = create_user("claude@example.com", "password123", "Claude", "AI")
+    print(f"Using email: {user_email}")
+    claude_user = create_user(user_email, "password123", "Claude", "AI")
     print(f"Claude user creation: {claude_user}")
     
     print("\n2. Creating admin user...")
-    admin_user = create_admin("claudeadmin@example.com", "admin123", "Claude Admin")
+    print(f"Using email: {admin_email}")
+    admin_user = create_admin(admin_email, "admin123", "Claude Admin")
     print(f"Admin user creation: {admin_user}")
     
     print("\n3. Logging in users...")
-    claude_login = login_user("claude@example.com", "password123")
-    admin_login = login_admin("claudeadmin@example.com", "admin123")
+    claude_login = login_user(user_email, "password123")
+    admin_login = login_admin(admin_email, "admin123")
     print(f"Claude login: {claude_login}")
     print(f"Admin login: {admin_login}")
     

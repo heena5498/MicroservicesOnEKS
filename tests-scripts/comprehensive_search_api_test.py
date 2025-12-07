@@ -730,22 +730,44 @@ def main():
     # Check if services are running
     print(f"{Colors.YELLOW}Checking service availability...{Colors.END}")
     
-    services_ok = True
-    for service, url in BASE_URLS.items():
+    # For production (nginx gateway), just check the gateway health endpoint
+    # For local, check individual service health endpoints
+    if 'localhost' in API_BASE_URL or ':800' in API_BASE_URL:
+        # Local development - check individual services
+        services_ok = True
+        for service, url in BASE_URLS.items():
+            try:
+                response = requests.get(f"{url}/healthz", timeout=5)
+                if response.status_code == 200:
+                    print(f"{Colors.GREEN}✓{Colors.END} {service.title()} Service: {url}")
+                else:
+                    print(f"{Colors.RED}✗{Colors.END} {service.title()} Service: {url} (Status: {response.status_code})")
+                    services_ok = False
+            except Exception as e:
+                print(f"{Colors.RED}✗{Colors.END} {service.title()} Service: {url} (Error: {str(e)})")
+                services_ok = False
+    else:
+        # Production (nginx gateway) - check gateway health
+        services_ok = True
         try:
-            response = requests.get(f"{url}/healthz", timeout=5)
+            gateway_url = API_BASE_URL
+            response = requests.get(f"{gateway_url}/health", timeout=5)
             if response.status_code == 200:
-                print(f"{Colors.GREEN}✓{Colors.END} {service.title()} Service: {url}")
+                print(f"{Colors.GREEN}✓{Colors.END} API Gateway: {gateway_url}")
+                print(f"{Colors.GREEN}✓{Colors.END} All services available through nginx gateway")
             else:
-                print(f"{Colors.RED}✗{Colors.END} {service.title()} Service: {url} (Status: {response.status_code})")
+                print(f"{Colors.RED}✗{Colors.END} API Gateway: {gateway_url} (Status: {response.status_code})")
                 services_ok = False
         except Exception as e:
-            print(f"{Colors.RED}✗{Colors.END} {service.title()} Service: {url} (Error: {str(e)})")
+            print(f"{Colors.RED}✗{Colors.END} API Gateway: {gateway_url} (Error: {str(e)})")
             services_ok = False
     
     if not services_ok:
-        print(f"\n{Colors.RED}Some services are not available. Please ensure all services are running.{Colors.END}")
-        print(f"{Colors.YELLOW}Run: make docker-full-up && make run SERVICE=user-service & make run SERVICE=event-service & make run SERVICE=search-service{Colors.END}")
+        print(f"\n{Colors.RED}Services are not available. Please ensure all services are running.{Colors.END}")
+        if 'localhost' in API_BASE_URL:
+            print(f"{Colors.YELLOW}Run: make docker-full-up && make run SERVICE=user-service & make run SERVICE=event-service & make run SERVICE=search-service{Colors.END}")
+        else:
+            print(f"{Colors.YELLOW}Check your EKS deployment and ALB configuration.{Colors.END}")
         return False
     
     print(f"\n{Colors.GREEN}All services are available!{Colors.END}")
