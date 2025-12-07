@@ -82,24 +82,3 @@ spec:
     - port: 6379
       targetPort: 6379
   type: ClusterIP
----
-# Redis Network Policy
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: redis-network-policy
-  namespace: bookmyevent
-spec:
-  podSelector:
-    matchLabels:
-      app: redis
-  policyTypes:
-    - Ingress
-  ingress:
-    - from:
-        - podSelector:
-            matchLabels:
-              app: search-service
-      ports:
-        - protocol: TCP
-          port: 6379
