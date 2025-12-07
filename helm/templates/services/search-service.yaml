@@ -81,6 +81,7 @@ spec:
   selector:
     app: search-service
   ports:
-    - port: {{ .Values.services.searchService.port }}
+    - name: http
+      port: {{ .Values.services.searchService.port }}
       targetPort: {{ .Values.services.searchService.targetPort }}
   type: {{ .Values.services.searchService.type }}

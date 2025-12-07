@@ -76,6 +76,7 @@ spec:
   selector:
     app: user-service
   ports:
-    - port: {{ .Values.services.userService.port }}
+    - name: http
+      port: {{ .Values.services.userService.port }}
       targetPort: {{ .Values.services.userService.targetPort }}
   type: {{ .Values.services.userService.type }}

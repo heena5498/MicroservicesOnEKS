@@ -157,6 +157,7 @@ spec:
   selector:
     app: nginx-gateway
   ports:
-    - port: {{ .Values.services.nginxGateway.port }}
+    - name: http
+      port: {{ .Values.services.nginxGateway.port }}
       targetPort: {{ .Values.services.nginxGateway.targetPort }}
   type: {{ .Values.services.nginxGateway.type }}
