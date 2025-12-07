@@ -9,7 +9,7 @@ spec:
   policyTypes:
     - Egress
   egress:
-    - from:
+    - to:
         - namespaceSelector:
             matchLabels:
               name: kube-system
