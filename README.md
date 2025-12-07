@@ -66,14 +66,14 @@ This application serves as a comprehensive implementation of modern cloud-native
    ./scripts/eks/deploy-complete.sh
    ```
 
-> ⚠️ **Security Best Practices**:
+>  **Security Best Practices**:
 > - Never commit AWS credentials or secrets to Git
 > - Use AWS Secrets Manager for production secrets
 > - Enable MFA on your AWS account
 > - Follow least-privilege IAM principles
 > - Review [Security & Compliance](docs/deployment/eks-project-md.md#security--compliance)
 
-## 🚀 AWS EKS Deployment
+## AWS EKS Deployment
 
 ### One-Command Deployment
 
@@ -212,7 +212,7 @@ See [Security & Compliance](docs/deployment/eks-project-md.md#security--complian
 
 **Events:** 25 sample events including concerts, workshops, sports events
 
-> ⚠️ **Production Note**: These test credentials are for development/demo only. In production deployments, use secure password policies and remove test accounts.
+> **Production Note**: These test credentials are for development/demo only. In production deployments, use secure password policies and remove test accounts.
 
 ---
 
@@ -287,7 +287,7 @@ docker-compose -f build/docker-compose.yml build
 - **Logging**: CloudWatch Logs
 - **Version Control**: Git with protected branches
 
-## 🏛️ System Architecture
+## System Architecture
 
 ### High-Level Architecture
 
@@ -359,7 +359,7 @@ graph TB
 - **Caching**: Redis for temporary reservations and high-speed operations
 - **Search**: Elasticsearch for complex queries and full-text search
 
-## 🔑 Key API Endpoints
+## Key API Endpoints
 
 This is not an exhaustive list but highlights the core functionality of the platform.
 
