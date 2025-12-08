@@ -5,6 +5,10 @@ import json
 import uuid
 import os
 from datetime import datetime, timedelta
+import urllib3
+
+# Disable SSL warnings when using ALB hostname directly (certificate is for domain, not ALB)
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Configuration - Read from environment or fall back to localhost
 API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost')
@@ -15,6 +19,12 @@ BASE_URLS = {
     'booking': f"{API_BASE_URL}/api/booking"
 }
 
+# Session with SSL verification disabled for ALB hostname
+session = requests.Session()
+session.verify = False
+# Add Host header to match ingress host rule (campuseventmanager.work.gd)
+session.headers.update({'Host': 'campuseventmanager.work.gd'})
+
 def create_user(email, password, first_name, last_name):
     url = f"{BASE_URLS['user']}/auth/register"
     data = {
@@ -22,7 +32,7 @@ def create_user(email, password, first_name, last_name):
         "password": password,
         "name": f"{first_name} {last_name}"
     }
-    response = requests.post(url, json=data)
+    response = session.post(url, json=data)
     print(f"Registration response status: {response.status_code}")
     print(f"Registration response: {response.text}")
     return response.json() if response.status_code == 201 else None
@@ -30,7 +40,7 @@ def create_user(email, password, first_name, last_name):
 def login_user(email, password):
     url = f"{BASE_URLS['user']}/auth/login"
     data = {"email": email, "password": password}
-    response = requests.post(url, json=data)
+    response = session.post(url, json=data)
     return response.json() if response.status_code == 200 else None
 
 def create_admin(email, password, name):
@@ -40,7 +50,7 @@ def create_admin(email, password, name):
         "password": password,
         "name": name
     }
-    response = requests.post(url, json=data)
+    response = session.post(url, json=data)
     print(f"Admin registration response status: {response.status_code}")
     print(f"Admin registration response: {response.text}")
     return response.json() if response.status_code == 201 else None
@@ -48,7 +58,7 @@ def create_admin(email, password, name):
 def login_admin(email, password):
     url = f"{BASE_URLS['event']}/auth/admin/login"
     data = {"email": email, "password": password}
-    response = requests.post(url, json=data)
+    response = session.post(url, json=data)
     print(f"Admin login response status: {response.status_code}")
     print(f"Admin login response: {response.text}")
     return response.json() if response.status_code == 200 else None
@@ -69,7 +79,7 @@ def create_venue(token, name="Test Venue", capacity=500):
         "postal_code": "12345",
         "capacity": capacity
     }
-    response = requests.post(url, json=data, headers=headers)
+    response = session.post(url, json=data, headers=headers)
     if response.status_code == 201:
         return response.json().get("venue_id")
     else:
@@ -105,7 +115,7 @@ def create_admin_event(token, name, venue_id=None, total_seats=100, base_price=2
         "status": "published"
     }
     print(f"Sending event data: start_datetime={start_date}, end_datetime={end_date}")
-    response = requests.post(url, json=data, headers=headers)
+    response = session.post(url, json=data, headers=headers)
     print(f"Event creation response status: {response.status_code}")
     print(f"Event creation response: {response.text}")
     
@@ -118,7 +128,7 @@ def create_admin_event(token, name, venue_id=None, total_seats=100, base_price=2
             "status": "published",
             "version": event_data.get('version', 1)  # Include version for optimistic locking
         }
-        publish_response = requests.put(publish_url, json=publish_data, headers=headers)
+        publish_response = session.put(publish_url, json=publish_data, headers=headers)
         if publish_response.status_code == 200:
             print(f"✓ Event published successfully")
             return publish_response.json()
@@ -130,13 +140,13 @@ def create_admin_event(token, name, venue_id=None, total_seats=100, base_price=2
 def get_events(token):
     url = f"{BASE_URLS['event']}/events"
     headers = {"Authorization": f"Bearer {token}"}
-    response = requests.get(url, headers=headers)
+    response = session.get(url, headers=headers)
     return response.json()
 
 def check_availability(event_id, quantity=2):
     url = f"{BASE_URLS['booking']}/bookings/check-availability"
     params = {"event_id": event_id, "quantity": quantity}
-    response = requests.get(url, params=params)
+    response = session.get(url, params=params)
     return response.json()
 
 def reserve_seats(token, event_id, quantity=2):
@@ -150,7 +160,7 @@ def reserve_seats(token, event_id, quantity=2):
         "quantity": quantity,
         "idempotency_key": str(uuid.uuid4())
     }
-    response = requests.post(url, json=data, headers=headers)
+    response = session.post(url, json=data, headers=headers)
     return response.json(), response.status_code
 
 def confirm_booking(token, reservation_id):
@@ -164,7 +174,7 @@ def confirm_booking(token, reservation_id):
         "payment_token": f"mock_token_{uuid.uuid4()}",
         "payment_method": "credit_card"
     }
-    response = requests.post(url, json=data, headers=headers)
+    response = session.post(url, json=data, headers=headers)
     return response.json(), response.status_code
 
 def main():

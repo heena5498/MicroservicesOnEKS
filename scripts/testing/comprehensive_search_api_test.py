@@ -465,7 +465,7 @@ class SearchAPITester:
         
         # Test 1: City filter
         params = {'city': 'New York'}
-        success, response, status = make_request('GET', f"{BASE_URLS["search"]}/search", params=params)
+        success, response, status = make_request('GET', f"{BASE_URLS['search']}/search", params=params)
         
         ny_events = 0
         if success and isinstance(response, dict) and 'results' in response:
@@ -493,7 +493,7 @@ class SearchAPITester:
         
         # Test 3: Price range filter
         params = {'min_price': 50, 'max_price': 100}
-        success, response, status = make_request('GET', f"{BASE_URLS["search"]}/search", params=params)
+        success, response, status = make_request('GET', f"{BASE_URLS['search']}/search", params=params)
         
         price_filtered = 0
         if success and isinstance(response, dict) and 'results' in response:
@@ -511,7 +511,7 @@ class SearchAPITester:
         far_future = (datetime.now() + timedelta(days=50)).isoformat() + "Z"
         
         params = {'date_from': future_date, 'date_to': far_future}
-        success, response, status = make_request('GET', f"{BASE_URLS["search"]}/search", params=params)
+        success, response, status = make_request('GET', f"{BASE_URLS['search']}/search", params=params)
         
         date_results = response.get('results', []) if isinstance(response, dict) else []
         date_count = len(date_results) if isinstance(date_results, list) else 0
@@ -528,7 +528,7 @@ class SearchAPITester:
             'city': 'Los Angeles',
             'min_price': 100
         }
-        success, response, status = make_request('GET', f"{BASE_URLS["search"]}/search", params=params)
+        success, response, status = make_request('GET', f"{BASE_URLS['search']}/search", params=params)
         
         combined_results = response.get('results', []) if isinstance(response, dict) else []
         combined_count = len(combined_results) if isinstance(combined_results, list) else 0
@@ -544,7 +544,7 @@ class SearchAPITester:
         
         # Test 1: Valid suggestion request
         params = {'q': 'jazz', 'limit': 5}
-        success, response, status = make_request('GET', f"{BASE_URLS["search"]}/search/suggestions", params=params)
+        success, response, status = make_request('GET', f"{BASE_URLS['search']}/search/suggestions", params=params)
         
         has_suggestions = (success and isinstance(response, dict) and 
                           'suggestions' in response and
@@ -558,7 +558,7 @@ class SearchAPITester:
         
         # Test 2: Empty query (should fail)
         params = {'q': ''}
-        success, response, status = make_request('GET', f"{BASE_URLS["search"]}/search/suggestions", params=params)
+        success, response, status = make_request('GET', f"{BASE_URLS['search']}/search/suggestions", params=params)
         
         self.results.add_result(
             "Search Suggestions - Empty Query",
@@ -640,9 +640,9 @@ class SearchAPITester:
         # Delete test events
         deleted_events = 0
         for event in self.test_events:
-            success, _, status = make_request(
+            success, _, _ = make_request(
                 'DELETE',
-                f"{BASE_URLS["event"]}/admin/events/{event['event_id']}",
+                f"{BASE_URLS['event']}/admin/events/{event['event_id']}",
                 headers=headers
             )
             if success:
@@ -651,9 +651,9 @@ class SearchAPITester:
         # Delete test venues  
         deleted_venues = 0
         for venue in self.test_venues:
-            success, _, status = make_request(
+            success, _, _ = make_request(
                 'DELETE',
-                f"{BASE_URLS["event"]}/admin/venues/{venue['venue_id']}",
+                f"{BASE_URLS['event']}/admin/venues/{venue['venue_id']}",
                 headers=headers
             )
             if success:
