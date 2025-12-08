@@ -9,8 +9,8 @@ API_BASE_URL="${API_BASE_URL:-http://localhost}"
 BASE_URL="${API_BASE_URL}/api/user"
 INTERNAL_API_KEY="internal-service-communication-key-change-in-production"
 
-# Curl options for ALB hostname (SSL verification disabled, Host header for ingress)
-CURL_OPTS="-k -H Host:campuseventmanager.work.gd"
+# Curl options for ALB (SSL verification disabled)
+CURL_OPTS="-k"
 
 # --- Helper Functions ---
 

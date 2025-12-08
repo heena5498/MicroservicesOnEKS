@@ -42,8 +42,6 @@ INTERNAL_API_KEY = 'internal-service-communication-key-change-in-production'
 # Session with SSL verification disabled for ALB hostname
 session = requests.Session()
 session.verify = False
-# Add Host header to match ingress host rule (campuseventmanager.work.gd)
-session.headers.update({'Host': 'campuseventmanager.work.gd'})
 
 class Colors:
     GREEN = '\033[92m'
@@ -479,7 +477,7 @@ class SearchAPITester:
         
         # Test 2: Event type filter
         params = {'type': 'concert'}
-        success, response, status = make_request('GET', f"{BASE_URLS["search"]}/search", params=params)
+        success, response, status = make_request('GET', f"{BASE_URLS['search']}/search", params=params)
         
         concert_events = 0
         if success and isinstance(response, dict) and 'results' in response:
@@ -571,7 +569,7 @@ class SearchAPITester:
         print(f"\n{Colors.CYAN}Testing Search Metadata{Colors.END}")
         
         # Test filters endpoint
-        success, response, status = make_request('GET', f"{BASE_URLS["search"]}/search/filters")
+        success, response, status = make_request('GET', f"{BASE_URLS['search']}/search/filters")
         
         has_metadata = (success and isinstance(response, dict) and
                        'cities' in response and

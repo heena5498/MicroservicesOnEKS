@@ -22,8 +22,6 @@ BASE_URLS = {
 # Session with SSL verification disabled for ALB hostname
 session = requests.Session()
 session.verify = False
-# Add Host header to match ingress host rule (campuseventmanager.work.gd)
-session.headers.update({'Host': 'campuseventmanager.work.gd'})
 
 def create_user(email, password, first_name, last_name):
     url = f"{BASE_URLS['user']}/auth/register"
