@@ -470,9 +470,9 @@ jobs:
       - name: Deployment notification
         run: |
           if [ "${{ needs.deploy.result }}" == "success" ]; then
-            echo "✅ Deployment succeeded for commit ${{ github.sha }}"
+            echo "Deployment succeeded for commit ${{ github.sha }}"
           else
-            echo "❌ Deployment failed for commit ${{ github.sha }}"
+            echo "Deployment failed for commit ${{ github.sha }}"
           fi
           
           echo "### Workflow Summary" >> $GITHUB_STEP_SUMMARY
