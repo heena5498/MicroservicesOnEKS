@@ -1,0 +1,68 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: migrate-databases
+  namespace: bookmyevent
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: migrations
+        image: gomicro/goose:3.26.0
+        command:
+          - sh
+          - -c
+          - |
+            set -e
+            
+            echo "==================================================="
+            echo "Running Database Migrations from ConfigMap"
+            echo "==================================================="
+            
+            # User Service Migrations
+            echo ""
+            echo "Running User Service Migrations..."
+            echo "------------------------------------"
+            cd /migrations/user-service
+            goose postgres "$USER_SERVICE_DB_URL" up
+            
+            # Event Service Migrations
+            echo ""
+            echo "Running Event Service Migrations..."
+            echo "------------------------------------"
+            cd /migrations/event-service
+            goose postgres "$EVENT_SERVICE_DB_URL" up
+            
+            # Booking Service Migrations
+            echo ""
+            echo "Running Booking Service Migrations..."
+            echo "------------------------------------"
+            cd /migrations/booking-service
+            goose postgres "$BOOKING_SERVICE_DB_URL" up
+            
+            echo ""
+            echo "==================================================="
+            echo "✅ All migrations completed successfully!"
+            echo "==================================================="
+        envFrom:
+          - secretRef:
+              name: bookmyevent-secrets
+        volumeMounts:
+          - name: user-migrations
+            mountPath: /migrations/user-service
+          - name: event-migrations
+            mountPath: /migrations/event-service
+          - name: booking-migrations
+            mountPath: /migrations/booking-service
+      volumes:
+        - name: user-migrations
+          configMap:
+            name: user-service-migrations
+        - name: event-migrations
+          configMap:
+            name: event-service-migrations
+        - name: booking-migrations
+          configMap:
+            name: booking-service-migrations

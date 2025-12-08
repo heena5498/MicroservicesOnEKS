@@ -1,0 +1,50 @@
+---
+# Init Container Job - Run once to seed data
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bookmyevent-init
+  namespace: bookmyevent
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        app: bookmyevent-init
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: init-container
+          image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/bookmyevent/init-container:latest
+          env:
+            - name: USER_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: bookmyevent-config
+                  key: USER_SERVICE_URL
+            - name: EVENT_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: bookmyevent-config
+                  key: EVENT_SERVICE_URL
+            - name: SEARCH_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: bookmyevent-config
+                  key: SEARCH_SERVICE_URL
+            - name: BOOKING_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: bookmyevent-config
+                  key: BOOKING_SERVICE_URL
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+
+
+
+

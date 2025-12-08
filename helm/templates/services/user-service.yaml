@@ -1,0 +1,82 @@
+---
+# User Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: user-service
+spec:
+  replicas: {{ .Values.replicaCount.userService }}
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+        - name: user-service
+          image: {{ .Values.global.imageRegistry }}/user-service:{{ .Values.imageTags.userService }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.services.userService.targetPort }}
+          env:
+            - name: USER_SERVICE_PORT
+              value: "{{ .Values.services.userService.targetPort }}"
+            - name: USER_SERVICE_DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: bookmyevent-secrets
+                  key: USER_SERVICE_DB_URL
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: bookmyevent-secrets
+                  key: JWT_SECRET
+            - name: INTERNAL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: bookmyevent-secrets
+                  key: INTERNAL_API_KEY
+            - name: REDIS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: bookmyevent-config
+                  key: REDIS_URL
+            - name: ENVIRONMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: bookmyevent-config
+                  key: ENVIRONMENT
+          resources:
+            {{- toYaml .Values.resources.userService | nindent 12 }}
+          {{- if .Values.healthCheck.enabled }}
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.services.userService.targetPort }}
+            {{- toYaml .Values.healthCheck.readinessProbe | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.services.userService.targetPort }}
+            {{- toYaml .Values.healthCheck.livenessProbe | nindent 12 }}
+          {{- end }}
+---
+# User Service Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: {{ .Values.global.namespace }}
+spec:
+  selector:
+    app: user-service
+  ports:
+    - name: http
+      port: {{ .Values.services.userService.port }}
+      targetPort: {{ .Values.services.userService.targetPort }}
+  type: {{ .Values.services.userService.type }}

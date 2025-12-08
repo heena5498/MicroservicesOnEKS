@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bookmyevent-config
+  namespace: {{ .Values.global.namespace }}
+data:
+  ENVIRONMENT: {{ .Values.global.environment | quote }}
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  # Service URLs (internal DNS within Kubernetes cluster)
+  USER_SERVICE_URL: "http://user-service:{{ .Values.services.userService.port }}"
+  EVENT_SERVICE_URL: "http://event-service:{{ .Values.services.eventService.port }}"
+  SEARCH_SERVICE_URL: "http://search-service:{{ .Values.services.searchService.port }}"
+  BOOKING_SERVICE_URL: "http://booking-service:{{ .Values.services.bookingService.port }}"
+  # Infrastructure URLs
+  REDIS_URL: {{ .Values.config.redisUrl | quote }}
+  ELASTICSEARCH_URL: {{ .Values.config.elasticsearchUrl | quote }}

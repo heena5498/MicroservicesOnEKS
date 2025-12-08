@@ -1,0 +1,54 @@
+
+# Git
+.git
+.gitignore
+
+# Node modules
+node_modules
+npm-debug.log
+yarn-error.log
+
+# IDE and editors
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build outputs
+dist
+build
+*.exe
+
+# Test files
+*_test.go
+scripts/testing/
+test-*.sh
+
+# Documentation
+*.md
+docs/
+
+# Kubernetes manifests (not needed in image)
+k8s/
+
+# Scripts
+scripts/
+
+# Database files
+*.sql
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.log

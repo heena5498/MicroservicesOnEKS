@@ -1,0 +1,32 @@
+# Production environment values
+global:
+  environment: production
+
+replicaCount:
+  userService: 3
+  eventService: 3
+  searchService: 3
+  bookingService: 3
+  frontend: 2
+  nginxGateway: 2
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+database:
+  postgres:
+    enabled: false
+    storageSize: 50Gi
+
+secrets:
+  create: false 
+
+elasticsearch:
+  storageSize: 50Gi
+
+config:
+  logLevel: info

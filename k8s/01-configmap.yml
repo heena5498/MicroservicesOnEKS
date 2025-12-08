@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bookmyevent-config
+  namespace: bookmyevent
+data:
+  ENVIRONMENT: "production"
+  # Service URLs (internal DNS within Kubernetes cluster)
+  USER_SERVICE_URL: "http://user-service:8001"
+  EVENT_SERVICE_URL: "http://event-service:8002"
+  SEARCH_SERVICE_URL: "http://search-service:8003"
+  BOOKING_SERVICE_URL: "http://booking-service:8004"
+  # Infrastructure URLs
+  REDIS_URL: "redis://redis:6379"
+  ELASTICSEARCH_URL: "http://elasticsearch:9200"
+
+
+
+

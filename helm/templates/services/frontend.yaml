@@ -1,0 +1,54 @@
+---
+# Frontend Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: frontend
+spec:
+  replicas: {{ .Values.replicaCount.frontend }}
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: {{ .Values.global.imageRegistry }}/frontend:{{ .Values.imageTags.frontend }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.services.frontend.targetPort }}
+          resources:
+            {{- toYaml .Values.resources.frontend | nindent 12 }}
+          {{- if .Values.healthCheck.enabled }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.services.frontend.targetPort }}
+            {{- toYaml .Values.healthCheck.readinessProbe | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.services.frontend.targetPort }}
+            {{- toYaml .Values.healthCheck.livenessProbe | nindent 12 }}
+          {{- end }}
+---
+# Frontend Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: {{ .Values.global.namespace }}
+spec:
+  selector:
+    app: frontend
+  ports:
+    - name: http
+      port: {{ .Values.services.frontend.port }}
+      targetPort: {{ .Values.services.frontend.targetPort }}
+  type: {{ .Values.services.frontend.type }}

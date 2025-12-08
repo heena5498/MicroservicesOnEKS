@@ -1,0 +1,97 @@
+# Go build artifacts
+/bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go test files
+*.test
+
+# Go coverage files
+*.out
+coverage.html
+coverage.txt
+
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+*.env
+!*.env.example
+!*.env.template
+
+# Docker volumes and data
+/data/
+docker-data/
+postgres_data/
+redis_data/
+elasticsearch_data/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-*
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+*~
+
+# Node modules (frontend)
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# AWS credentials
+.aws/
+*.pem
+*.key
+github-actions-credentials.txt
+aws-auth-backup*.yaml
+
+# Kubernetes secrets
+k8s/secrets.local.yaml
+k8s/*-secrets.yaml
+k8s/02-secrets-rds.yml
+!k8s/02-secrets.yaml.example
+k8s/03-env-file-configmap.yaml
+!k8s/03-env-file-configmap.yaml.example
+
+# Build outputs
+dist/
+build/dist/
+build/build/
+*.tar.gz
+*.zip
+ENPM818R Group Project_ Microservices on EKS.txt
