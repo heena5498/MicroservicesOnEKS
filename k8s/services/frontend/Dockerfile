@@ -13,7 +13,8 @@ RUN npm install
 COPY frontend/ .
 
 # Build the production bundle
-ARG VITE_API_URL=http://localhost
+# Empty VITE_API_URL means use relative URLs (same origin as frontend)
+ARG VITE_API_URL=
 ENV VITE_API_URL=${VITE_API_URL}
 RUN npm run build
 
