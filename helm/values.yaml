@@ -7,6 +7,8 @@ global:
   imageRegistry: "" # Will be set by CI/CD
   imagePullPolicy: IfNotPresent
   environment: production
+  rdsEnabled: false # Set to true when using AWS RDS instead of in-cluster PostgreSQL
+  imageTag: latest # Can be overridden by CI/CD
 
 # Image tags - can be overridden by CI/CD
 imageTags:

@@ -1,117 +1,61 @@
 # Testing Scripts
 
-This directory contains all testing and validation scripts for the BookMyEvent application.
+This directory contains integration tests and validation scripts for the BookMyEvent application.
 
-## Documentation
+## 📋 Available Tests
 
-- `testing-quickstart.md` - Quick testing reference and commands
-- `search_service_testing_guide.md` - Search service testing documentation
+### Integration Tests (Used by CI/CD)
 
-## Test Categories
+**`test-endpoints.sh`** - Main integration test suite
+- Tests complete user authentication flow through production ALB
+- Validates all API endpoints (register, login, profile, refresh, logout)
+- Checks error handling (401, 409 status codes)
+- **Status:** All 11 tests passing
+- **Usage:** `./test-endpoints.sh`
 
-### CI/CD Pipeline Tests
+### Additional Test Scripts
 
-- `test-cicd-pipeline.sh` - Automated CI/CD pipeline validation
+**`test_booking_flow.py`** - Booking flow integration tests
+- Tests user registration with unique emails
+- Validates event creation and booking
+- **Usage:** `python3 test_booking_flow.py`
 
-### Service-Specific Tests
+**`comprehensive_search_api_test.py`** - Search API comprehensive tests
+- Tests search functionality through nginx-gateway
+- Validates pagination, filtering, and sorting
+- **Usage:** `python3 comprehensive_search_api_test.py`
 
-**Event Service:**
-- `event-service-test.sh` - Event service API tests
-- `event-service-test-config.sh` - Configuration for event service tests
-- `test_event_service.sh` - Comprehensive event service testing
+## 📖 Documentation
 
-**Search Service:**
-- `test-search-endpoints.sh` - Search API endpoint tests
-- `test-search-endpoints.py` - Python-based search tests
-- `test-event-search-integration.sh` - Event-search integration tests
-- `search-service-data-generator.sh` - Test data generation for search
-- `search-service-data-generator.py` - Python data generator
-- `comprehensive_search_api_test.py` - Full search API test suite
-- `quick_search_test.sh` - Quick search functionality test
-- `step_by_step_search_test.py` - Step-by-step search validation
+- **[Testing Quick Start](testing-quickstart.md)** - Quick testing reference
+- **[CI/CD Testing Guide](../docs/build/ci-cd-testing-guide.md)** - Pipeline testing documentation
 
-**Booking Service:**
-- `booking-service-test.sh` - Booking service tests
-- `test_booking_flow.py` - End-to-end booking flow
-- `test_booking_flow_complete.py` - Complete booking scenarios
-- `test_concurrent_booking.py` - Concurrent booking tests
-- `test_extreme_concurrency.py` - High-concurrency stress tests
-- `test_waitlist.py` - Waitlist functionality tests
+## 🚀 Quick Start
 
-**User Service:**
-- `user-service-seed.py` - User data seeding
-
-### Integration Tests
-
-- `test-endpoints.sh` - All endpoints validation
-- `test-env.config` - Test environment configuration
-
-### Load Testing
-
-- `stress-test.sh` - Basic load testing
-- `stress-test-concurrent.sh` - Concurrent user simulation
-
-## Quick Start
-
-### Run CI/CD Validation
-
+Run all integration tests:
 ```bash
-./scripts/testing/test-cicd-pipeline.sh
+# Make executable
+chmod +x test-endpoints.sh
+
+# Run tests
+./test-endpoints.sh
 ```
 
-### Run Service Tests
+Expected output: All 11 tests pass
 
-```bash
-# Test event service
-./scripts/testing/event-service-test.sh
+## 🔗 Related Documentation
 
-# Test search service
-./scripts/testing/test-search-endpoints.sh
+- CI/CD pipeline testing: `../docs/build/ci-cd-testing-guide.md`
+- Main README: `../README.md`
 
-# Test booking service
-./scripts/testing/booking-service-test.sh
-```
+## 📝 Notes
 
-### Run Load Tests
+- Tests use the production ALB endpoint or custom domain
+- Integration tests run automatically in GitHub Actions CI/CD pipeline
+- All tests validate against live AWS EKS deployment
+- Test data uses unique timestamps to avoid conflicts
 
-```bash
-# Basic stress test
-./scripts/testing/stress-test.sh
+---
 
-# Concurrent stress test
-./scripts/testing/stress-test-concurrent.sh
-```
-
-### Run Python Tests
-
-```bash
-# Booking flow tests
-python3 scripts/testing/test_booking_flow.py
-
-# Search tests
-python3 scripts/testing/comprehensive_search_api_test.py
-
-# Concurrency tests
-python3 scripts/testing/test_concurrent_booking.py
-```
-
-## Test Environment
-
-Configure test environment variables in `test-env.config`:
-
-```bash
-source scripts/testing/test-env.config
-```
-
-## Documentation
-
-Detailed testing guides:
-- `testing-quickstart.md` - Quick testing reference (this directory)
-- `search_service_testing_guide.md` - Search service testing (this directory)
-- `../../build/ci-cd-testing-guide.md` - CI/CD pipeline testing
-
-## CI Integration
-
-These tests are automatically run by GitHub Actions:
-- PR validation: `.github/workflows/pr-validation.yml`
-- Post-deployment: `.github/workflows/cd-deploy-to-eks.yml`
+**Last Updated:** December 2025  
+**Maintained by:** ENPM818R Group 5

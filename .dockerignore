@@ -26,7 +26,7 @@ build
 
 # Test files
 *_test.go
-tests-scripts/
+scripts/testing/
 test-*.sh
 
 # Documentation

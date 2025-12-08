@@ -1,0 +1,48 @@
+{{- if .Values.global.rdsEnabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-db-migrations
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  ttlSecondsAfterFinished: 300
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: db-migrations
+        release: {{ .Release.Name }}
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: migrations
+          image: {{ .Values.global.imageRegistry }}/init-container:{{ .Values.global.imageTag }}
+          imagePullPolicy: Always
+          env:
+            - name: USER_SERVICE_DB_URL
+              value: "host={{ .Values.global.rds.endpoint }} port=5432 user=postgres dbname=users_db password={{ .Values.global.rds.password }} sslmode=require"
+            - name: EVENT_SERVICE_DB_URL
+              value: "host={{ .Values.global.rds.endpoint }} port=5432 user=postgres dbname=events_db password={{ .Values.global.rds.password }} sslmode=require"
+            - name: BOOKING_SERVICE_DB_URL
+              value: "host={{ .Values.global.rds.endpoint }} port=5432 user=postgres dbname=bookings_db password={{ .Values.global.rds.password }} sslmode=require"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              echo "=========================================="
+              echo "Running BookMyEvent Database Migrations"
+              echo "=========================================="
+              
+              # Run migrations using the init-container binary
+              /app/init-container
+              
+              echo ""
+              echo "=========================================="
+              echo "All migrations completed successfully!"
+              echo "=========================================="
+{{- end }}

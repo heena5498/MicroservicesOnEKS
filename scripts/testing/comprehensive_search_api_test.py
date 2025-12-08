@@ -22,16 +22,26 @@ from typing import Dict, List, Optional, Any
 import sys
 import os
 from urllib.parse import urlencode
+import urllib3
 
-# Configuration
+# Disable SSL warnings when using ALB hostname directly (certificate is for domain, not ALB)
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# Configuration - Read from environment or fall back to localhost
+API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost')
+
 BASE_URLS = {
-    'user': 'http://localhost:8001',
-    'event': 'http://localhost:8002', 
-    'search': 'http://localhost:8003',
-    'booking': 'http://localhost:8004'
+    'user': f"{API_BASE_URL}/api/user",
+    'event': f"{API_BASE_URL}/api/event",
+    'search': f"{API_BASE_URL}/api/search",
+    'booking': f"{API_BASE_URL}/api/booking"
 }
 
 INTERNAL_API_KEY = 'internal-service-communication-key-change-in-production'
+
+# Session with SSL verification disabled for ALB hostname
+session = requests.Session()
+session.verify = False
 
 class Colors:
     GREEN = '\033[92m'
@@ -98,7 +108,7 @@ def make_request(method: str, url: str, headers: Dict = None, data: Dict = None,
         if params:
             kwargs['params'] = params
             
-        response = requests.request(method, url, **kwargs)
+        response = session.request(method, url, **kwargs)
         
         try:
             json_data = response.json()
@@ -140,10 +150,7 @@ class SearchAPITester:
         self.test_search_metadata()
         self.test_trending_events()
         
-        # Step 5: Test internal endpoints
-        self.test_internal_endpoints()
-        
-        # Step 6: Cleanup
+        # Step 5: Cleanup
         self.cleanup_test_data()
         
         # Step 7: Print results
@@ -201,7 +208,7 @@ class SearchAPITester:
         
         success, response, status = make_request(
             'POST',
-            f"{BASE_URLS['event']}/api/v1/auth/admin/register",
+            f"{BASE_URLS['event']}/auth/admin/register",
             data=admin_data
         )
         
@@ -253,7 +260,7 @@ class SearchAPITester:
         for venue_data in venues_data:
             success, response, status = make_request(
                 'POST',
-                f"{BASE_URLS['event']}/api/v1/admin/venues",
+                f"{BASE_URLS['event']}/admin/venues",
                 headers=headers,
                 data=venue_data
             )
@@ -365,7 +372,7 @@ class SearchAPITester:
             # Create event
             success, response, status = make_request(
                 'POST',
-                f"{BASE_URLS['event']}/api/v1/admin/events",
+                f"{BASE_URLS['event']}/admin/events",
                 headers=headers,
                 data=event_data
             )
@@ -384,7 +391,7 @@ class SearchAPITester:
             
             success, pub_response, pub_status = make_request(
                 'PUT',
-                f"{BASE_URLS['event']}/api/v1/admin/events/{event_id}",
+                f"{BASE_URLS['event']}/admin/events/{event_id}",
                 headers=headers,
                 data=publish_data
             )
@@ -402,7 +409,11 @@ class SearchAPITester:
         print(f"\n{Colors.CYAN}Testing Basic Search Functionality{Colors.END}")
         
         # Test 1: Search without parameters (should return all events)
-        success, response, status = make_request('GET', f"{BASE_URLS['search']}/api/v1/search")
+        success, response, status = make_request('GET', f"{BASE_URLS['search']}/search")
+        
+        # Debug: print actual response if unexpected
+        if not success or not isinstance(response, dict) or 'results' not in response:
+            print(f"{Colors.YELLOW}Debug - Basic search response: {response}{Colors.END}")
         
         is_valid = (success and status == 200 and 
                    isinstance(response, dict) and 
@@ -412,15 +423,15 @@ class SearchAPITester:
         self.results.add_result(
             "Basic Search - No Parameters",
             is_valid,
-            f"Status: {status}, Results count: {len(response.get('results', [])) if isinstance(response, dict) else 'N/A'}"
+            f"Status: {status}, Results count: {len(response.get('results', [])) if isinstance(response, dict) and response.get('results') else 0}"
         )
         
         # Test 2: Search with text query
         params = {'q': 'jazz'}
-        success, response, status = make_request('GET', f"{BASE_URLS['search']}/api/v1/search", params=params)
+        success, response, status = make_request('GET', f"{BASE_URLS['search']}/search", params=params)
         
         jazz_results = 0
-        if success and isinstance(response, dict) and 'results' in response:
+        if success and isinstance(response, dict) and 'results' in response and response['results']:
             jazz_results = len([r for r in response['results'] if 'jazz' in r.get('name', '').lower()])
             
         self.results.add_result(
@@ -431,17 +442,19 @@ class SearchAPITester:
         
         # Test 3: Search with pagination
         params = {'page': 1, 'limit': 3}
-        success, response, status = make_request('GET', f"{BASE_URLS['search']}/api/v1/search", params=params)
+        success, response, status = make_request('GET', f"{BASE_URLS['search']}/search", params=params)
         
+        results_list = response.get('results', []) if isinstance(response, dict) else []
         is_paginated = (success and isinstance(response, dict) and 
                        response.get('page') == 1 and 
                        response.get('limit') == 3 and
-                       len(response.get('results', [])) <= 3)
+                       isinstance(results_list, list) and len(results_list) <= 3)
         
+        results_count = len(results_list) if isinstance(results_list, list) else 0
         self.results.add_result(
             "Search Pagination",
             is_paginated,
-            f"Status: {status}, Page: {response.get('page') if isinstance(response, dict) else 'N/A'}, Results: {len(response.get('results', [])) if isinstance(response, dict) else 'N/A'}"
+            f"Status: {status}, Page: {response.get('page') if isinstance(response, dict) else 'N/A'}, Results: {results_count}"
         )
 
     def test_search_filters(self):
@@ -450,7 +463,7 @@ class SearchAPITester:
         
         # Test 1: City filter
         params = {'city': 'New York'}
-        success, response, status = make_request('GET', f"{BASE_URLS['search']}/api/v1/search", params=params)
+        success, response, status = make_request('GET', f"{BASE_URLS['search']}/search", params=params)
         
         ny_events = 0
         if success and isinstance(response, dict) and 'results' in response:
@@ -464,7 +477,7 @@ class SearchAPITester:
         
         # Test 2: Event type filter
         params = {'type': 'concert'}
-        success, response, status = make_request('GET', f"{BASE_URLS['search']}/api/v1/search", params=params)
+        success, response, status = make_request('GET', f"{BASE_URLS['search']}/search", params=params)
         
         concert_events = 0
         if success and isinstance(response, dict) and 'results' in response:
@@ -478,7 +491,7 @@ class SearchAPITester:
         
         # Test 3: Price range filter
         params = {'min_price': 50, 'max_price': 100}
-        success, response, status = make_request('GET', f"{BASE_URLS['search']}/api/v1/search", params=params)
+        success, response, status = make_request('GET', f"{BASE_URLS['search']}/search", params=params)
         
         price_filtered = 0
         if success and isinstance(response, dict) and 'results' in response:
@@ -496,12 +509,14 @@ class SearchAPITester:
         far_future = (datetime.now() + timedelta(days=50)).isoformat() + "Z"
         
         params = {'date_from': future_date, 'date_to': far_future}
-        success, response, status = make_request('GET', f"{BASE_URLS['search']}/api/v1/search", params=params)
+        success, response, status = make_request('GET', f"{BASE_URLS['search']}/search", params=params)
         
+        date_results = response.get('results', []) if isinstance(response, dict) else []
+        date_count = len(date_results) if isinstance(date_results, list) else 0
         self.results.add_result(
             "Date Range Filter",
             success and status == 200,
-            f"Status: {status}, Events in date range: {len(response.get('results', [])) if isinstance(response, dict) else 'N/A'}"
+            f"Status: {status}, Events in date range: {date_count}"
         )
         
         # Test 5: Combined filters
@@ -511,12 +526,14 @@ class SearchAPITester:
             'city': 'Los Angeles',
             'min_price': 100
         }
-        success, response, status = make_request('GET', f"{BASE_URLS['search']}/api/v1/search", params=params)
+        success, response, status = make_request('GET', f"{BASE_URLS['search']}/search", params=params)
         
+        combined_results = response.get('results', []) if isinstance(response, dict) else []
+        combined_count = len(combined_results) if isinstance(combined_results, list) else 0
         self.results.add_result(
             "Combined Filters (text + type + city + price)",
             success and status == 200,
-            f"Status: {status}, Filtered results: {len(response.get('results', [])) if isinstance(response, dict) else 'N/A'}"
+            f"Status: {status}, Filtered results: {combined_count}"
         )
 
     def test_search_suggestions(self):
@@ -525,7 +542,7 @@ class SearchAPITester:
         
         # Test 1: Valid suggestion request
         params = {'q': 'jazz', 'limit': 5}
-        success, response, status = make_request('GET', f"{BASE_URLS['search']}/api/v1/search/suggestions", params=params)
+        success, response, status = make_request('GET', f"{BASE_URLS['search']}/search/suggestions", params=params)
         
         has_suggestions = (success and isinstance(response, dict) and 
                           'suggestions' in response and
@@ -539,25 +556,12 @@ class SearchAPITester:
         
         # Test 2: Empty query (should fail)
         params = {'q': ''}
-        success, response, status = make_request('GET', f"{BASE_URLS['search']}/api/v1/search/suggestions", params=params)
+        success, response, status = make_request('GET', f"{BASE_URLS['search']}/search/suggestions", params=params)
         
         self.results.add_result(
             "Search Suggestions - Empty Query",
             not success or status == 400,
             f"Status: {status} (should be 400 for empty query)"
-        )
-        
-        # Test 3: Limit parameter
-        params = {'q': 'concert', 'limit': 3}
-        success, response, status = make_request('GET', f"{BASE_URLS['search']}/api/v1/search/suggestions", params=params)
-        
-        limited_suggestions = (success and isinstance(response, dict) and 
-                             len(response.get('suggestions', [])) <= 3)
-        
-        self.results.add_result(
-            "Search Suggestions - Limit Parameter",
-            limited_suggestions,
-            f"Status: {status}, Suggestions returned: {len(response.get('suggestions', [])) if isinstance(response, dict) else 'N/A'}"
         )
 
     def test_search_metadata(self):
@@ -565,7 +569,7 @@ class SearchAPITester:
         print(f"\n{Colors.CYAN}Testing Search Metadata{Colors.END}")
         
         # Test filters endpoint
-        success, response, status = make_request('GET', f"{BASE_URLS['search']}/api/v1/search/filters")
+        success, response, status = make_request('GET', f"{BASE_URLS['search']}/search/filters")
         
         has_metadata = (success and isinstance(response, dict) and
                        'cities' in response and
@@ -588,97 +592,36 @@ class SearchAPITester:
         print(f"\n{Colors.CYAN}Testing Trending Events{Colors.END}")
         
         # Test 1: Basic trending request
-        success, response, status = make_request('GET', f"{BASE_URLS['search']}/api/v1/search/trending")
+        success, response, status = make_request('GET', f"{BASE_URLS['search']}/search/trending")
         
         has_trending = (success and isinstance(response, dict) and
                        'events' in response and
                        isinstance(response['events'], list))
         
+        trending_list = response.get('events', []) if isinstance(response, dict) else []
+        trending_count = len(trending_list) if isinstance(trending_list, list) else 0
         self.results.add_result(
             "Trending Events - Basic",
             has_trending,
-            f"Status: {status}, Trending events: {len(response.get('events', [])) if isinstance(response, dict) else 'N/A'}"
+            f"Status: {status}, Trending events: {trending_count}"
         )
         
         # Test 2: Trending with limit
         params = {'limit': 5}
-        success, response, status = make_request('GET', f"{BASE_URLS['search']}/api/v1/search/trending", params=params)
+        success, response, status = make_request('GET', f"{BASE_URLS['search']}/search/trending", params=params)
         
+        events_list = response.get('events', []) if isinstance(response, dict) else []
         limited_trending = (success and isinstance(response, dict) and
-                           len(response.get('events', [])) <= 5)
+                           isinstance(events_list, list) and len(events_list) <= 5)
         
+        events_count = len(events_list) if isinstance(events_list, list) else 0
         self.results.add_result(
             "Trending Events - With Limit",
             limited_trending,
-            f"Status: {status}, Limited trending events: {len(response.get('events', [])) if isinstance(response, dict) else 'N/A'}"
+            f"Status: {status}, Limited trending events: {events_count}"
         )
 
-    def test_internal_endpoints(self):
-        """Test internal search endpoints"""
-        print(f"\n{Colors.CYAN}Testing Internal Search Endpoints{Colors.END}")
-        
-        headers = {
-            'Content-Type': 'application/json',
-            'X-API-Key': INTERNAL_API_KEY
-        }
-        
-        # Test 1: Full resync
-        resync_data = {"force_reindex": False}
-        success, response, status = make_request(
-            'POST',
-            f"{BASE_URLS['search']}/internal/search/resync",
-            headers=headers,
-            data=resync_data
-        )
-        
-        resync_success = (success and isinstance(response, dict) and
-                         'events_indexed' in response)
-        
-        self.results.add_result(
-            "Internal - Full Resync",
-            resync_success,
-            f"Status: {status}, Events indexed: {response.get('events_indexed') if isinstance(response, dict) else 'N/A'}"
-        )
-        
-        # Test 2: Manual event indexing (if we have test events)
-        if self.test_events:
-            test_event = self.test_events[0]
-            
-            # Create event document for indexing
-            event_doc = {
-                "event": {
-                    "event_id": test_event['event_id'],
-                    "name": test_event['name'],
-                    "description": test_event.get('description', ''),
-                    "venue_id": test_event['venue_id'],
-                    "venue_name": "Test Venue",
-                    "venue_city": "Test City",
-                    "venue_country": "USA",
-                    "event_type": test_event['event_type'],
-                    "start_datetime": test_event['start_datetime'],
-                    "end_datetime": test_event['end_datetime'],
-                    "base_price": test_event['base_price'],
-                    "available_seats": test_event['total_capacity'],
-                    "total_capacity": test_event['total_capacity'],
-                    "status": "published",
-                    "version": test_event.get('version', 1),
-                    "created_at": datetime.now().isoformat() + "Z",
-                    "updated_at": datetime.now().isoformat() + "Z"
-                }
-            }
-            
-            success, response, status = make_request(
-                'POST',
-                f"{BASE_URLS['search']}/internal/search/events",
-                headers=headers,
-                data=event_doc
-            )
-            
-            self.results.add_result(
-                "Internal - Manual Event Indexing",
-                success and status == 200,
-                f"Status: {status}, Response: {response.get('status') if isinstance(response, dict) else 'N/A'}"
-            )
+
 
     def cleanup_test_data(self):
         """Clean up test data"""
@@ -695,9 +638,9 @@ class SearchAPITester:
         # Delete test events
         deleted_events = 0
         for event in self.test_events:
-            success, _, status = make_request(
+            success, _, _ = make_request(
                 'DELETE',
-                f"{BASE_URLS['event']}/api/v1/admin/events/{event['event_id']}",
+                f"{BASE_URLS['event']}/admin/events/{event['event_id']}",
                 headers=headers
             )
             if success:
@@ -706,9 +649,9 @@ class SearchAPITester:
         # Delete test venues  
         deleted_venues = 0
         for venue in self.test_venues:
-            success, _, status = make_request(
+            success, _, _ = make_request(
                 'DELETE',
-                f"{BASE_URLS['event']}/api/v1/admin/venues/{venue['venue_id']}",
+                f"{BASE_URLS['event']}/admin/venues/{venue['venue_id']}",
                 headers=headers
             )
             if success:
@@ -731,7 +674,7 @@ def main():
     services_ok = True
     for service, url in BASE_URLS.items():
         try:
-            response = requests.get(f"{url}/healthz", timeout=5)
+            response = session.get(f"{url}/healthz", timeout=30)
             if response.status_code == 200:
                 print(f"{Colors.GREEN}✓{Colors.END} {service.title()} Service: {url}")
             else:

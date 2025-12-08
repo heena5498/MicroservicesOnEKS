@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/heena5498/eks-microservices/internal/auth"
 	"github.com/heena5498/eks-microservices/internal/repository/bookings"
 	"github.com/heena5498/eks-microservices/internal/utils"
-	"github.com/google/uuid"
 )
 
 func (cfg *APIConfig) HandleReadiness(w http.ResponseWriter, r *http.Request) {
@@ -285,11 +285,14 @@ func (cfg *APIConfig) ConfirmBooking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.ReservationID == uuid.Nil || req.PaymentToken == "" || req.PaymentMethod == "" {
-		cfg.Logger.WithFields(map[string]any{"user_id": userID, "reservation_id": req.ReservationID}).Warn("Booking confirmation with missing required fields")
-		utils.RespondWithError(w, http.StatusBadRequest, "reservation_id, payment_token, and payment_method are required")
+	if req.ReservationID == uuid.Nil {
+		cfg.Logger.WithFields(map[string]any{"user_id": userID, "reservation_id": req.ReservationID}).Warn("Booking confirmation with missing reservation_id")
+		utils.RespondWithError(w, http.StatusBadRequest, "reservation_id is required")
 		return
 	}
+
+	// Campus event system - no payment processing required
+	// PaymentToken and PaymentMethod are optional for free campus events
 
 	var booking bookings.Booking
 
@@ -342,33 +345,12 @@ func (cfg *APIConfig) ConfirmBooking(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	gatewayTxnID := utils.GenerateGatewayTransactionID()
+	// Campus event system - skip payment processing for free events
 	ticketURL := utils.GenerateTicketURL(booking.BookingReference)
-
-	payment, err := cfg.DB.CreatePayment(r.Context(), cfg.DB_Conn, bookings.CreatePaymentParams{
-		BookingID:            booking.BookingID,
-		UserID:               userID,
-		EventID:              booking.EventID,
-		Amount:               booking.TotalAmount,
-		Currency:             sql.NullString{String: "INR", Valid: true},
-		PaymentMethod:        sql.NullString{String: req.PaymentMethod, Valid: true},
-		PaymentGateway:       sql.NullString{String: "mock_gateway", Valid: true},
-		GatewayTransactionID: sql.NullString{String: gatewayTxnID, Valid: true},
-		Status:               "completed",
-	})
-	if err != nil {
-		cfg.Logger.Error("Failed to create payment", "error", err)
-		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to process payment")
-		return
-	}
-
-	_, err = cfg.DB.UpdatePaymentTicketURL(r.Context(), cfg.DB_Conn, bookings.UpdatePaymentTicketURLParams{
-		PaymentID: payment.PaymentID,
-		TicketUrl: sql.NullString{String: ticketURL, Valid: true},
-	})
-	if err != nil {
-		cfg.Logger.Error("Failed to update ticket URL", "error", err)
-	}
+	cfg.Logger.Info("Confirming campus event booking without payment",
+		"booking_id", booking.BookingID,
+		"user_id", userID,
+		"event_id", booking.EventID)
 
 	_, err = cfg.DB.UpdateBookingStatus(r.Context(), cfg.DB_Conn, bookings.UpdateBookingStatusParams{
 		BookingID: booking.BookingID,
@@ -380,13 +362,10 @@ func (cfg *APIConfig) ConfirmBooking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = cfg.DB.UpdateBookingPaymentStatus(r.Context(), cfg.DB_Conn, bookings.UpdateBookingPaymentStatusParams{
-		BookingID:     booking.BookingID,
-		PaymentStatus: "completed",
-	})
-	if err != nil {
-		cfg.Logger.Error("Failed to update payment status", "error", err)
-	}
+	// Campus event system - no separate payment tracking needed
+	cfg.Logger.Info("Campus event booking confirmed without payment processing",
+		"booking_id", booking.BookingID,
+		"status", "confirmed")
 
 	cfg.RedisClient.DeleteReservation(r.Context(), req.ReservationID)
 	cfg.RedisClient.InvalidateEventAvailabilityCache(r.Context(), booking.EventID)
@@ -411,8 +390,7 @@ func (cfg *APIConfig) ConfirmBooking(w http.ResponseWriter, r *http.Request) {
 	cfg.Logger.Info("Booking confirmed successfully",
 		"booking_id", booking.BookingID,
 		"user_id", userID,
-		"event_id", booking.EventID,
-		"payment_id", payment.PaymentID)
+		"event_id", booking.EventID)
 
 	response := ConfirmationResponse{
 		BookingID:        booking.BookingID,
@@ -420,7 +398,7 @@ func (cfg *APIConfig) ConfirmBooking(w http.ResponseWriter, r *http.Request) {
 		Status:           "confirmed",
 		TicketURL:        ticketURL,
 		Payment: PaymentInfo{
-			TransactionID: gatewayTxnID,
+			TransactionID: "CAMPUS-FREE-" + booking.BookingReference,
 			Status:        "completed",
 			Amount:        utils.ParseAmount(booking.TotalAmount),
 		},
@@ -443,47 +421,46 @@ func (cfg *APIConfig) GetBookingDetails(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	bookingWithPayment, err := cfg.DB.GetBookingWithPayment(r.Context(), cfg.DB_Conn, bookingID)
+	booking, err := cfg.DB.GetBookingByID(r.Context(), cfg.DB_Conn, bookingID)
 	if err != nil {
 		cfg.Logger.Error("Failed to get booking", "error", err, "booking_id", bookingID)
 		utils.RespondWithError(w, http.StatusNotFound, "Booking not found")
 		return
 	}
 
-	if bookingWithPayment.UserID != userID {
+	if booking.UserID != userID {
 		utils.RespondWithError(w, http.StatusForbidden, "Access denied")
 		return
 	}
 
-	event, err := cfg.EventServiceClient.GetEventForBooking(r.Context(), bookingWithPayment.EventID)
+	event, err := cfg.EventServiceClient.GetEventForBooking(r.Context(), booking.EventID)
 	if err != nil {
-		cfg.Logger.Error("Failed to get event details", "error", err, "event_id", bookingWithPayment.EventID)
+		cfg.Logger.Error("Failed to get event details", "error", err, "event_id", booking.EventID)
 		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to get event details")
 		return
 	}
 
 	response := BookingDetailsResponse{
-		BookingID:        bookingWithPayment.BookingID,
-		BookingReference: bookingWithPayment.BookingReference,
+		BookingID:        booking.BookingID,
+		BookingReference: booking.BookingReference,
 		Event: EventInfo{
 			Name:     event.Name,
 			Venue:    "Event Venue",
 			DateTime: time.Now().Add(24 * time.Hour),
 		},
-		Quantity:      bookingWithPayment.Quantity,
-		TotalAmount:   utils.ParseAmount(bookingWithPayment.TotalAmount),
-		Status:        bookingWithPayment.Status,
-		PaymentStatus: bookingWithPayment.PaymentStatus,
-		BookedAt:      bookingWithPayment.BookedAt.Time,
+		Quantity:      booking.Quantity,
+		TotalAmount:   utils.ParseAmount(booking.TotalAmount),
+		Status:        booking.Status,
+		PaymentStatus: booking.PaymentStatus,
+		BookedAt:      booking.BookedAt.Time,
 	}
 
-	if bookingWithPayment.ConfirmedAt.Valid {
-		response.ConfirmedAt = &bookingWithPayment.ConfirmedAt.Time
+	if booking.ConfirmedAt.Valid {
+		response.ConfirmedAt = &booking.ConfirmedAt.Time
 	}
 
-	if bookingWithPayment.TicketUrl.Valid {
-		response.TicketURL = bookingWithPayment.TicketUrl.String
-	}
+	// For campus events, ticket URL is generated on confirmation
+	// No separate payment tracking
 
 	utils.RespondWithJSON(w, http.StatusOK, response)
 }

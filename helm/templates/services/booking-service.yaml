@@ -86,6 +86,7 @@ spec:
   selector:
     app: booking-service
   ports:
-    - port: {{ .Values.services.bookingService.port }}
+    - name: http
+      port: {{ .Values.services.bookingService.port }}
       targetPort: {{ .Values.services.bookingService.targetPort }}
   type: {{ .Values.services.bookingService.type }}

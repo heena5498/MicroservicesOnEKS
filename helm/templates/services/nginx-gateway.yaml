@@ -69,6 +69,40 @@ data:
                 proxy_set_header X-Forwarded-Proto $scheme;
             }
 
+            # Search service health endpoints
+            location /api/search/healthz {
+                proxy_pass http://search-service/healthz;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+            }
+
+            location /api/search/health/ready {
+                proxy_pass http://search-service/health/ready;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+            }
+
+            # User service health endpoints
+            location /api/user/healthz {
+                proxy_pass http://user-service/healthz;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+            }
+
+            # Event service health endpoints  
+            location /api/event/healthz {
+                proxy_pass http://event-service/healthz;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+            }
+
+            # Booking service health endpoints
+            location /api/booking/healthz {
+                proxy_pass http://booking-service/healthz;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+            }
+
             location /api/booking/ {
                 proxy_hide_header Access-Control-Allow-Origin;
                 add_header Access-Control-Allow-Origin '*' always;
@@ -157,6 +191,7 @@ spec:
   selector:
     app: nginx-gateway
   ports:
-    - port: {{ .Values.services.nginxGateway.port }}
+    - name: http
+      port: {{ .Values.services.nginxGateway.port }}
       targetPort: {{ .Values.services.nginxGateway.targetPort }}
   type: {{ .Values.services.nginxGateway.type }}

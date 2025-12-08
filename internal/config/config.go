@@ -63,11 +63,10 @@ func LoadEventServiceConfig() *EventServiceConfig {
 }
 
 type BookingServiceConfig struct {
-	Port               string
-	DatabaseURL        string
-	DatabaseReplicaURL string
-	RedisURL           string
-	// RedisReplicaURL          string
+	Port                      string
+	DatabaseURL               string
+	DatabaseReplicaURL        string
+	RedisURL                  string
 	JWTSecret                 string
 	JWTAccessDuration         time.Duration
 	JWTRefreshDuration        time.Duration
@@ -88,11 +87,10 @@ type BookingServiceConfig struct {
 
 func LoadBookingServiceConfig() *BookingServiceConfig {
 	return &BookingServiceConfig{
-		Port:               getEnv("BOOKING_SERVICE_PORT", "8004"),
-		DatabaseURL:        getEnvRequired("BOOKING_SERVICE_DB_URL"),
-		DatabaseReplicaURL: getEnv("BOOKING_SERVICE_DB_REPLICA_URL", ""),
-		RedisURL:           getEnvRequired("REDIS_URL"),
-		// RedisReplicaURL:          getEnv("REDIS_REPLICA_URL", ""),  // Future: Redis read replica
+		Port:                      getEnv("BOOKING_SERVICE_PORT", "8004"),
+		DatabaseURL:               getEnvRequired("BOOKING_SERVICE_DB_URL"),
+		DatabaseReplicaURL:        getEnv("BOOKING_SERVICE_DB_REPLICA_URL", ""),
+		RedisURL:                  getEnvRequired("REDIS_URL"),
 		JWTSecret:                 getEnvRequired("JWT_SECRET"),
 		JWTAccessDuration:         getDuration("JWT_ACCESS_TOKEN_DURATION", 15*time.Minute),
 		JWTRefreshDuration:        getDuration("JWT_REFRESH_TOKEN_DURATION", 7*24*time.Hour),
@@ -183,7 +181,6 @@ type SearchServiceConfig struct {
 	Port             string
 	ElasticsearchURL string
 	RedisURL         string
-	// RedisReplicaURL     string
 	EventServiceURL  string
 	InternalAPIKey   string
 	IndexName        string
@@ -199,7 +196,6 @@ func LoadSearchServiceConfig() *SearchServiceConfig {
 		Port:             getEnv("SEARCH_SERVICE_PORT", "8003"),
 		ElasticsearchURL: getEnvRequired("ELASTICSEARCH_URL"),
 		RedisURL:         getEnvRequired("REDIS_URL"),
-		// RedisReplicaURL:  getEnv("REDIS_REPLICA_URL", ""),
 		EventServiceURL:  getEnvRequired("EVENT_SERVICE_URL"),
 		InternalAPIKey:   getEnvRequired("INTERNAL_API_KEY"),
 		IndexName:        getEnv("ELASTICSEARCH_INDEX_NAME", "events"),

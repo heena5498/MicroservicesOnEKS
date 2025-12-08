@@ -86,6 +86,7 @@ spec:
   selector:
     app: event-service
   ports:
-    - port: {{ .Values.services.eventService.port }}
+    - name: http
+      port: {{ .Values.services.eventService.port }}
       targetPort: {{ .Values.services.eventService.targetPort }}
   type: {{ .Values.services.eventService.type }}
