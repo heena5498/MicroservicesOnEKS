@@ -19,6 +19,7 @@ spec:
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
+            readOnlyRootFilesystem: true
           env:
             - name: USER_SERVICE_URL
               valueFrom:

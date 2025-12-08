@@ -26,6 +26,7 @@ spec:
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
+            readOnlyRootFilesystem: true
           env:
             - name: EVENT_SERVICE_DB_URL
               valueFrom:

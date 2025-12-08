@@ -25,6 +25,7 @@ spec:
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
+            readOnlyRootFilesystem: true
           resources:
             requests:
               memory: "64Mi"
