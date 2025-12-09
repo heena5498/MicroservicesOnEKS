@@ -1,0 +1,173 @@
+{
+  "dashboard": {
+    "title": "BookMyEvent - Service Overview",
+    "tags": ["bookmyevent", "overview", "services"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 1,
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Request Rate by Service",
+        "type": "graph",
+        "gridPos": {"h": 6, "w": 8, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{namespace=\"bookmyevent\"}[5m])) by (service)",
+            "legendFormat": "{{service}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "reqps", "label": "Requests/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Error Rate by Service",
+        "type": "stat",
+        "gridPos": {"h": 6, "w": 4, "x": 8, "y": 0},
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{namespace=\"bookmyevent\",status=~\"5..\"}[5m])) by (service) / sum(rate(http_requests_total{namespace=\"bookmyevent\"}[5m])) by (service) * 100",
+            "legendFormat": "{{service}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value",
+          "thresholds": [
+            {"value": 0, "color": "green"},
+            {"value": 1, "color": "yellow"},
+            {"value": 5, "color": "red"}
+          ]
+        }
+      },
+      {
+        "id": 3,
+        "title": "Average Response Time",
+        "type": "stat",
+        "gridPos": {"h": 6, "w": 4, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "avg(rate(http_request_duration_seconds_sum{namespace=\"bookmyevent\"}[5m]) / rate(http_request_duration_seconds_count{namespace=\"bookmyevent\"}[5m])) by (service)",
+            "legendFormat": "{{service}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value",
+          "unit": "s"
+        }
+      },
+      {
+        "id": 4,
+        "title": "Active Pods by Service",
+        "type": "stat",
+        "gridPos": {"h": 6, "w": 4, "x": 16, "y": 0},
+        "targets": [
+          {
+            "expr": "count(kube_pod_info{namespace=\"bookmyevent\"}) by (service)",
+            "legendFormat": "{{service}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "none",
+          "colorMode": "value"
+        }
+      },
+      {
+        "id": 5,
+        "title": "CPU Usage by Service",
+        "type": "graph",
+        "gridPos": {"h": 6, "w": 8, "x": 0, "y": 6},
+        "targets": [
+          {
+            "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"bookmyevent\"}[5m])) by (service) * 100",
+            "legendFormat": "{{service}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "CPU %"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Memory Usage by Service",
+        "type": "graph",
+        "gridPos": {"h": 6, "w": 8, "x": 8, "y": 6},
+        "targets": [
+          {
+            "expr": "sum(container_memory_working_set_bytes{namespace=\"bookmyevent\"}) by (service) / 1024 / 1024",
+            "legendFormat": "{{service}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "mbytes", "label": "Memory (MB)"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Service Health Status",
+        "type": "table",
+        "gridPos": {"h": 6, "w": 8, "x": 0, "y": 12},
+        "targets": [
+          {
+            "expr": "up{namespace=\"bookmyevent\"}",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {"Time": true},
+              "indexByName": {"Value": 0, "service": 1, "pod": 2},
+              "renameByName": {"Value": "Status", "service": "Service", "pod": "Pod"}
+            }
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Top 10 Slowest Endpoints",
+        "type": "table",
+        "gridPos": {"h": 6, "w": 8, "x": 8, "y": 12},
+        "targets": [
+          {
+            "expr": "topk(10, sum(rate(http_request_duration_seconds_sum{namespace=\"bookmyevent\"}[5m]) / rate(http_request_duration_seconds_count{namespace=\"bookmyevent\"}[5m])) by (service, endpoint))",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {"Time": true},
+              "indexByName": {"Value": 0, "service": 1, "endpoint": 2},
+              "renameByName": {"Value": "Avg Latency (s)", "service": "Service", "endpoint": "Endpoint"}
+            }
+          }
+        ]
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    }
+  }
+}
+
