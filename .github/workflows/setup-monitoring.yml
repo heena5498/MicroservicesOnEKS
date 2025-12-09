@@ -58,6 +58,20 @@ jobs:
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
           helm repo update
 
+      - name: Cleanup existing Prometheus release (if any)
+        run: |
+          echo "Checking for existing 'prometheus' release across all namespaces..."
+          helm list --all-namespaces | grep prometheus || echo "No prometheus release found"
+
+          # Try to uninstall from monitoring namespace
+          helm uninstall prometheus -n $MONITORING_NAMESPACE 2>/dev/null || echo "No release in $MONITORING_NAMESPACE"
+
+          # Try to uninstall from default namespace (common mistake)
+          helm uninstall prometheus -n default 2>/dev/null || echo "No release in default namespace"
+
+          # Wait for cleanup
+          sleep 5
+
       - name: Deploy Prometheus Stack
         run: |
           # Set Grafana password (use secret or default)
@@ -193,7 +207,7 @@ jobs:
               echo ""
               echo "Grafana: http://${GRAFANA_URL}"
               echo "  Username: admin"
-              echo "  Password: (check GRAFANA_ADMIN_PASSWORD secret or default 'admin')"
+              echo "  Password: (check GRAFANA_ADMIN_PASSWORD secret or default 'admin')" 
               echo ""
               echo "Prometheus: http://${PROMETHEUS_URL}:9090"
               echo "Alertmanager: http://${ALERTMANAGER_URL}:9093"
