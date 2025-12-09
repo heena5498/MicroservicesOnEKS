@@ -59,6 +59,36 @@ jobs:
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
           helm repo update
 
+      - name: Check and cleanup stuck Helm releases
+        run: |
+          # Check if release exists
+          if helm list -n $MONITORING_NAMESPACE | grep -q "^${{ env.RELEASE_NAME }}"; then
+            echo "Helm release exists. Checking status..."
+            
+            # Try to get status using jq if available, otherwise use grep
+            if command -v jq &> /dev/null; then
+              HELM_STATUS=$(helm status ${{ env.RELEASE_NAME }} -n $MONITORING_NAMESPACE -o json 2>/dev/null | jq -r '.info.status' || echo "none")
+            else
+              HELM_STATUS=$(helm status ${{ env.RELEASE_NAME }} -n $MONITORING_NAMESPACE 2>/dev/null | grep -i "status:" | awk '{print $2}' || echo "none")
+            fi
+            
+            echo "Current Helm release status: $HELM_STATUS"
+            
+            # If release is stuck in pending state, clean it up
+            if [ "$HELM_STATUS" = "pending-upgrade" ] || \
+               [ "$HELM_STATUS" = "pending-install" ] || \
+               [ "$HELM_STATUS" = "pending-rollback" ]; then
+              echo "Helm release is stuck in pending state. Cleaning up..."
+              helm uninstall ${{ env.RELEASE_NAME }} -n $MONITORING_NAMESPACE || true
+              echo "Waiting for cleanup to complete..."
+              sleep 10
+            else
+              echo "Helm release status is OK. Proceeding with upgrade."
+            fi
+          else
+            echo "No existing Helm release found. Proceeding with fresh install."
+          fi
+
       - name: Deploy Prometheus Stack
         run: |
           # Use values-monitoring.yaml which has ClusterIP and subpath config
