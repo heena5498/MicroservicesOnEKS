@@ -409,8 +409,8 @@ jobs:
         id: alb
         run: |
           LB_URL=$(kubectl get ingress bookmyevent-ingress -n "$K8S_NAMESPACE" -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-          echo "API_BASE_URL=http://${LB_URL}" >> $GITHUB_ENV
-          echo "ALB URL: http://${LB_URL}"
+          echo "API_BASE_URL=https://${LB_URL}" >> $GITHUB_ENV
+          echo "ALB URL: https://${LB_URL}"
           
           # Wait for ALB health checks
           echo "Waiting for services to stabilize..."
@@ -418,7 +418,7 @@ jobs:
           ELAPSED=0
           
           while [ $ELAPSED -lt $TIMEOUT ]; do
-            if curl -sf "http://${LB_URL}/api/user/healthz" > /dev/null 2>&1; then
+            if curl -skf "https://${LB_URL}/api/user/healthz" > /dev/null 2>&1; then
               echo "✅ Services are healthy"
               break
             fi
