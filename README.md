@@ -166,7 +166,7 @@ eks-microservices-build/
 - External Services (ECR, Secrets Manager, CloudWatch)
 -->
 
-![High-Level Architecture Diagram](docs/architecture-diagram.png)
+![High-Level Architecture Diagram](docs/architecture.png)
 
 **Key Components:**
 
