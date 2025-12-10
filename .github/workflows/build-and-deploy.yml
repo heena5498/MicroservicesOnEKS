@@ -283,9 +283,16 @@ jobs:
             --set imageTags.initContainer="${IMAGE_TAG}" \
             --set database.postgres.enabled=false \
             --set secrets.create=false \
-            --timeout 30m \
-            --wait \
-            --wait-for-jobs
+            --set healthCheck.readinessProbe.initialDelaySeconds=60 \
+            --set healthCheck.readinessProbe.periodSeconds=15 \
+            --set healthCheck.readinessProbe.timeoutSeconds=10 \
+            --set healthCheck.readinessProbe.failureThreshold=10 \
+            --set healthCheck.livenessProbe.initialDelaySeconds=120 \
+            --set healthCheck.livenessProbe.periodSeconds=30 \
+            --set healthCheck.livenessProbe.timeoutSeconds=10 \
+            --set healthCheck.livenessProbe.failureThreshold=6 \
+            --timeout 45m \
+            --wait
 
           echo "Helm deployment completed"
       
