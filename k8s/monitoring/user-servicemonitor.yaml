@@ -11,6 +11,7 @@ spec:
     matchLabels:
       app: user-service
   endpoints:
-    - targetPort: 8081
+    - port: http
       path: /metrics
       interval: 15s
+      scheme: http

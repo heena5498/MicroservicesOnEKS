@@ -23,6 +23,10 @@ spec:
           image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/bookmyevent/user-service:latest
           ports:
             - containerPort: 8001
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
           env:
             - name: USER_SERVICE_DB_URL
               valueFrom:

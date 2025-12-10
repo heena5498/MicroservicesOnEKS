@@ -11,6 +11,7 @@ spec:
     matchLabels:
       app: event-service
   endpoints:
-    - targetPort: 8082
+    - port: http
       path: /metrics
       interval: 15s
+      scheme: http
