@@ -11,7 +11,7 @@ spec:
     matchLabels:
       app: booking-service          
   endpoints:
-    - port: 8004
-      path: /metrics               
+    - port: http
+      path: /metrics
       interval: 15s
       scheme: http
