@@ -23,6 +23,10 @@ spec:
           image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/bookmyevent/booking-service:latest
           ports:
             - containerPort: 8004
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
           env:
             - name: BOOKING_SERVICE_DB_URL
               valueFrom:
@@ -90,4 +94,3 @@ spec:
     - port: 8004
       targetPort: 8004
   type: ClusterIP
-
