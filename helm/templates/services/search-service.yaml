@@ -17,12 +17,27 @@ spec:
       labels:
         app: search-service
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: bookmyevent-backend-sa
       containers:
         - name: search-service
           image: {{ .Values.global.imageRegistry }}/search-service:{{ .Values.imageTags.searchService }}
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
           ports:
             - containerPort: {{ .Values.services.searchService.targetPort }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop:
+                - ALL
           env:
             - name: SEARCH_SERVICE_PORT
               value: "{{ .Values.services.searchService.targetPort }}"
