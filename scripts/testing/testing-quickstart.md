@@ -8,12 +8,12 @@
 ```
 
 This script automatically tests:
-- ✅ IAM user and permissions
-- ✅ GitHub workflow files
-- ✅ EKS cluster access
-- ✅ ECR repositories
-- ✅ Current deployments
-- ✅ LoadBalancer status
+- IAM user and permissions
+- GitHub workflow files
+- EKS cluster access
+- ECR repositories
+- Current deployments
+- LoadBalancer status
 
 **Expected output:**
 ```
@@ -118,7 +118,7 @@ curl http://$API_URL/api/event/events
 
 ---
 
-## ✅ Quick Verification Checklist
+## Quick Verification Checklist
 
 ### Before Testing:
 - [ ] EKS cluster is running
@@ -221,9 +221,9 @@ kubectl describe svc nginx-gateway -n bookmyevent
 ## 🎯 Success Indicators
 
 ### In GitHub Actions:
-- ✅ All workflows show green checkmarks
-- ✅ Security scans complete
-- ✅ Deployment summary posted
+- All workflows show green checkmarks
+- Security scans complete
+- Deployment summary posted
 
 ### In EKS:
 ```bash
@@ -232,9 +232,9 @@ kubectl get pods -n bookmyevent
 ```
 
 ### In Browser:
-- ✅ Frontend URL loads
-- ✅ Can navigate the app
-- ✅ Can log in with test credentials
+- Frontend URL loads
+- Can navigate the app
+- Can log in with test credentials
 
 ---
 
@@ -275,7 +275,7 @@ After basic testing works:
 For detailed testing procedures, see:
 - **Complete Guide:** `CI_CD_TESTING_GUIDE.md`
 - **Setup Guide:** `CI_CD_QUICKSTART.md`
-- **Full Documentation:** `../../build/ci-cd-guide.md`
+- **Full Documentation:** `../../docs/build/ci-cd-guide.md`
 
 ---
 

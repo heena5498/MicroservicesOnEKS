@@ -16,6 +16,10 @@ spec:
       containers:
         - name: init-container
           image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/bookmyevent/init-container:latest
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
           env:
             - name: USER_SERVICE_URL
               valueFrom:

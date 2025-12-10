@@ -1,12 +1,13 @@
 name: OSSF Scorecard Security Analysis
 
 on:
-  branch_protection_rule:
-  schedule:
-    - cron: '0 0 * * 0'
+  # Disabled for private repos - OSSF Scorecard requires public repo or GitHub App
+  # branch_protection_rule:
+  # schedule:
+  #   - cron: '0 0 * * 0'
   workflow_dispatch:
-  push:
-    branches: [ main ]
+  # push:
+  #   branches: [ main ]
 
 permissions: read-all
 
@@ -19,6 +20,11 @@ jobs:
       id-token: write
       contents: read
       actions: read
+      issues: read
+      pull-requests: read
+      checks: read
+      repository-projects: read
+      statuses: read
 
     steps:
       - name: Checkout code
@@ -28,10 +34,11 @@ jobs:
 
       - name: Run OSSF Scorecard
         uses: ossf/scorecard-action@v2.4.0
+        continue-on-error: true
         with:
           results_file: results.sarif
           results_format: sarif
-          publish_results: true
+          publish_results: false
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -53,4 +60,4 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Security scorecard results have been uploaded to the Security tab." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📊 View results: [Security > Code scanning alerts](https://github.com/${{ github.repository }}/security/code-scanning)" >> $GITHUB_STEP_SUMMARY
+          echo " View results: [Security > Code scanning alerts](https://github.com/${{ github.repository }}/security/code-scanning)" >> $GITHUB_STEP_SUMMARY

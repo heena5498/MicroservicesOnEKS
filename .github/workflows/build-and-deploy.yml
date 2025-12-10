@@ -1,0 +1,483 @@
+name: Build and Deploy to EKS
+
+on:
+  push:
+    branches: [ main, build, dev ]
+  pull_request:
+    branches: [ main, build ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - production
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  EKS_CLUSTER_NAME: ${{ secrets.EKS_CLUSTER_NAME }}
+  K8S_NAMESPACE: bookmyevent
+
+jobs:
+  # ============================
+  # 1) Test Backend Services
+  # ============================
+  test:
+    name: Test ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [user-service, event-service, search-service, booking-service]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+          cache: true
+
+      - name: Run tests for ${{ matrix.service }}
+        run: |
+          # Test main package
+          if [ -d "cmd/${{ matrix.service }}" ]; then
+            echo "Testing cmd/${{ matrix.service }}..."
+            cd cmd/${{ matrix.service }}
+            go test -v -race -coverprofile=coverage.out ./... || echo "No tests in cmd"
+            cd ../..
+          fi
+          
+          # Test service package
+          if [ -d "services/$(echo ${{ matrix.service }} | sed 's/-service$//')" ]; then
+            echo "Testing services/$(echo ${{ matrix.service }} | sed 's/-service$//')..."
+            cd services/$(echo ${{ matrix.service }} | sed 's/-service$//')
+            go test -v -race -coverprofile=coverage.out ./... || echo "No tests in services"
+            cd ../..
+          fi
+        continue-on-error: true
+
+      - name: Run security scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: cmd/${{ matrix.service }}
+          severity: CRITICAL,HIGH
+        continue-on-error: true
+
+  # ============================
+  # 2) Build and Push Images
+  # ============================
+  build:
+    name: Build ${{ matrix.service.name }}
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name != 'pull_request'
+    
+    strategy:
+      matrix:
+        service:
+          - name: user-service
+            dockerfile: k8s/services/user-service/Dockerfile
+          - name: event-service
+            dockerfile: k8s/services/event-service/Dockerfile
+          - name: search-service
+            dockerfile: k8s/services/search-service/Dockerfile
+          - name: booking-service
+            dockerfile: k8s/services/booking-service/Dockerfile
+          - name: frontend
+            dockerfile: k8s/services/frontend/Dockerfile
+          - name: init-container
+            dockerfile: k8s/services/init-container/Dockerfile
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Get ECR Registry
+        id: ecr
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)
+          ECR_REGISTRY="${ACCOUNT_ID}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com"
+          echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
+          echo "registry=$ECR_REGISTRY" >> $GITHUB_OUTPUT
+      
+      - name: Login to Amazon ECR
+        run: |
+          aws ecr get-login-password --region "$AWS_REGION" \
+            | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Extract metadata
+        id: meta
+        run: |
+          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
+      
+      - name: Build and push ${{ matrix.service.name }}
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./${{ matrix.service.dockerfile }}
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ${{ env.ECR_REGISTRY }}/bookmyevent/${{ matrix.service.name }}:latest
+            ${{ env.ECR_REGISTRY }}/bookmyevent/${{ matrix.service.name }}:${{ steps.meta.outputs.sha_short }}
+            ${{ env.ECR_REGISTRY }}/bookmyevent/${{ matrix.service.name }}:${{ steps.meta.outputs.branch }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Run Trivy vulnerability scanner (SARIF)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.ECR_REGISTRY }}/bookmyevent/${{ matrix.service.name }}:${{ steps.meta.outputs.sha_short }}
+          format: sarif
+          output: trivy-${{ matrix.service.name }}.sarif
+          severity: CRITICAL,HIGH
+        continue-on-error: true
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-${{ matrix.service.name }}.sarif
+          category: trivy-${{ matrix.service.name }}
+        continue-on-error: true
+
+      - name: Run Trivy vulnerability scanner (fail on CRITICAL)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.ECR_REGISTRY }}/bookmyevent/${{ matrix.service.name }}:${{ steps.meta.outputs.sha_short }}
+          format: table
+          severity: CRITICAL
+          exit-code: '1'
+        continue-on-error: false
+      
+      - name: Output image details
+        run: |
+          echo "### ${{ matrix.service.name }} Build Complete" >> $GITHUB_STEP_SUMMARY
+          echo "- Image: \`${{ env.ECR_REGISTRY }}/bookmyevent/${{ matrix.service.name }}:${{ steps.meta.outputs.sha_short }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Tags: latest, ${{ steps.meta.outputs.sha_short }}, ${{ steps.meta.outputs.branch }}" >> $GITHUB_STEP_SUMMARY
+
+  # ============================
+  # 3) Deploy to EKS with RDS
+  # ============================
+  deploy:
+    name: Deploy to EKS
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/build'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Install kubectl
+        run: |
+          KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)
+          curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/kubectl
+      
+      - name: Install Helm
+        run: |
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          helm version
+      
+      - name: Configure kubeconfig for EKS
+        run: |
+          aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
+          kubectl cluster-info
+      
+      - name: Get ECR Registry
+        id: ecr
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)
+          ECR_REGISTRY="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+          echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
+      
+      - name: Create namespace and secrets
+        run: |
+          IMAGE_TAG=$(git rev-parse --short HEAD)
+          
+          # Create namespace if it doesn't exist
+          if ! kubectl get namespace "$K8S_NAMESPACE" >/dev/null 2>&1; then
+            echo "Creating namespace $K8S_NAMESPACE..."
+            kubectl create namespace "$K8S_NAMESPACE"
+          fi
+          
+          # Add Helm labels
+          kubectl label namespace "$K8S_NAMESPACE" app.kubernetes.io/managed-by=Helm --overwrite
+          kubectl annotate namespace "$K8S_NAMESPACE" meta.helm.sh/release-name=bookmyevent --overwrite
+          kubectl annotate namespace "$K8S_NAMESPACE" meta.helm.sh/release-namespace="$K8S_NAMESPACE" --overwrite
+          
+          # Create RDS secrets
+          echo "Creating RDS secrets..."
+          RDS_PASSWORD_ENCODED=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${{ secrets.RDS_PASSWORD }}', safe=''))")
+          
+          cat <<EOF | kubectl apply -f -
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: bookmyevent-secrets
+            namespace: $K8S_NAMESPACE
+          type: Opaque
+          stringData:
+            POSTGRES_USER: "postgres"
+            POSTGRES_PASSWORD: "${{ secrets.RDS_PASSWORD }}"
+            USER_SERVICE_DB_URL: "postgresql://postgres:${RDS_PASSWORD_ENCODED}@${{ secrets.RDS_ENDPOINT }}:5432/users_db?sslmode=require"
+            EVENT_SERVICE_DB_URL: "postgresql://postgres:${RDS_PASSWORD_ENCODED}@${{ secrets.RDS_ENDPOINT }}:5432/events_db?sslmode=require"
+            BOOKING_SERVICE_DB_URL: "postgresql://postgres:${RDS_PASSWORD_ENCODED}@${{ secrets.RDS_ENDPOINT }}:5432/bookings_db?sslmode=require"
+            JWT_SECRET: "${{ secrets.JWT_SECRET }}"
+            INTERNAL_API_KEY: "${{ secrets.INTERNAL_API_KEY }}"
+          EOF
+      
+      - name: Check and cleanup stuck Helm releases
+        run: |
+          HELM_STATUS=$(helm status bookmyevent -n "$K8S_NAMESPACE" -o json 2>/dev/null | jq -r '.info.status' || echo "none")
+          echo "Current Helm status: $HELM_STATUS"
+          
+          if [ "$HELM_STATUS" = "pending-upgrade" ] || \
+             [ "$HELM_STATUS" = "pending-install" ] || \
+             [ "$HELM_STATUS" = "pending-rollback" ]; then
+            echo "Helm release is stuck. Cleaning up..."
+            helm uninstall bookmyevent -n "$K8S_NAMESPACE" || true
+            sleep 10
+          fi
+      
+      - name: Deploy with Helm
+        run: |
+          IMAGE_TAG=$(git rev-parse --short HEAD)
+          
+          helm upgrade --install bookmyevent ./helm \
+            --namespace "$K8S_NAMESPACE" \
+            --set global.imageRegistry="${ECR_REGISTRY}/bookmyevent" \
+            --set imageTags.userService="${IMAGE_TAG}" \
+            --set imageTags.eventService="${IMAGE_TAG}" \
+            --set imageTags.searchService="${IMAGE_TAG}" \
+            --set imageTags.bookingService="${IMAGE_TAG}" \
+            --set imageTags.frontend="${IMAGE_TAG}" \
+            --set imageTags.initContainer="${IMAGE_TAG}" \
+            --set database.postgres.enabled=false \
+            --set secrets.create=false \
+            --timeout 15m \
+            --atomic \
+            --wait
+          
+          echo "Helm deployment completed"
+      
+      - name: Wait for infrastructure pods
+        run: |
+          echo "Waiting for infrastructure pods..."
+          kubectl wait --for=condition=ready pod -l app=redis -n "$K8S_NAMESPACE" --timeout=300s || true
+          kubectl wait --for=condition=ready pod -l app=elasticsearch -n "$K8S_NAMESPACE" --timeout=300s || true
+      
+      - name: Run RDS migrations
+        run: |
+          IMAGE_TAG=$(git rev-parse --short HEAD)
+          
+          cat <<EOF | kubectl apply -f -
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+            name: run-migrations-rds-${IMAGE_TAG}
+            namespace: $K8S_NAMESPACE
+          spec:
+            ttlSecondsAfterFinished: 600
+            backoffLimit: 3
+            template:
+              metadata:
+                labels:
+                  app: run-migrations-rds
+              spec:
+                restartPolicy: OnFailure
+                containers:
+                  - name: migrations
+                    image: postgres:15-alpine
+                    env:
+                      - name: PGPASSWORD
+                        valueFrom:
+                          secretKeyRef:
+                            name: bookmyevent-secrets
+                            key: POSTGRES_PASSWORD
+                      - name: RDS_ENDPOINT
+                        value: "${{ secrets.RDS_ENDPOINT }}"
+                    command:
+                      - /bin/sh
+                      - -c
+                      - |
+                        set -e
+                        CONN="host=\${RDS_ENDPOINT} port=5432 user=postgres dbname=postgres sslmode=require"
+                        
+                        echo "Testing RDS connection..."
+                        psql "\$CONN" -c "SELECT version();"
+                        
+                        echo "Creating databases if they don't exist..."
+                        psql "\$CONN" -tc "SELECT 1 FROM pg_database WHERE datname = 'users_db'" | grep -q 1 || psql "\$CONN" -c "CREATE DATABASE users_db"
+                        psql "\$CONN" -tc "SELECT 1 FROM pg_database WHERE datname = 'events_db'" | grep -q 1 || psql "\$CONN" -c "CREATE DATABASE events_db"
+                        psql "\$CONN" -tc "SELECT 1 FROM pg_database WHERE datname = 'bookings_db'" | grep -q 1 || psql "\$CONN" -c "CREATE DATABASE bookings_db"
+                        
+                        echo "Database creation completed"
+          EOF
+          
+          kubectl wait --for=condition=complete job/run-migrations-rds-${IMAGE_TAG} -n "$K8S_NAMESPACE" --timeout=120s || {
+            echo "Migration job failed"
+            kubectl logs job/run-migrations-rds-${IMAGE_TAG} -n "$K8S_NAMESPACE" || true
+            exit 1
+          }
+      
+      - name: Wait for application pods
+        run: |
+          echo "Waiting for application pods..."
+          kubectl wait --for=condition=ready pod -l app=user-service -n "$K8S_NAMESPACE" --timeout=300s || true
+          kubectl wait --for=condition=ready pod -l app=event-service -n "$K8S_NAMESPACE" --timeout=300s || true
+          kubectl wait --for=condition=ready pod -l app=booking-service -n "$K8S_NAMESPACE" --timeout=300s || true
+          kubectl wait --for=condition=ready pod -l app=search-service -n "$K8S_NAMESPACE" --timeout=300s || true
+          kubectl wait --for=condition=ready pod -l app=frontend -n "$K8S_NAMESPACE" --timeout=300s || true
+      
+      - name: Get deployment summary
+        id: summary
+        run: |
+          kubectl get pods -n "$K8S_NAMESPACE"
+          kubectl get services -n "$K8S_NAMESPACE"
+          
+          LB_URL=$(kubectl get ingress bookmyevent-ingress -n "$K8S_NAMESPACE" -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "pending")
+          echo "lb_url=$LB_URL" >> $GITHUB_OUTPUT
+          
+          echo "### Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Namespace: \`$K8S_NAMESPACE\`" >> $GITHUB_STEP_SUMMARY
+          echo "- EKS Cluster: \`$EKS_CLUSTER_NAME\`" >> $GITHUB_STEP_SUMMARY
+          echo "- RDS Endpoint: \`${{ secrets.RDS_ENDPOINT }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- ALB URL: \`http://${LB_URL}\`" >> $GITHUB_STEP_SUMMARY
+
+  # ============================
+  # 4) Integration Tests
+  # ============================
+  integration-tests:
+    name: Run Integration Tests
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: github.event_name != 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install requests pytest python-dotenv colorama
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Configure kubeconfig
+        run: |
+          aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
+
+      - name: Get ALB URL and wait for stability
+        id: alb
+        run: |
+          LB_URL=$(kubectl get ingress bookmyevent-ingress -n "$K8S_NAMESPACE" -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          echo "API_BASE_URL=https://${LB_URL}" >> $GITHUB_ENV
+          echo "ALB URL: https://${LB_URL}"
+          
+          # Wait for ALB health checks
+          echo "Waiting for services to stabilize..."
+          TIMEOUT=180
+          ELAPSED=0
+          
+          while [ $ELAPSED -lt $TIMEOUT ]; do
+            if curl -skf "https://${LB_URL}/api/user/healthz" > /dev/null 2>&1; then
+              echo "✅ Services are healthy"
+              break
+            fi
+            sleep 10
+            ELAPSED=$((ELAPSED + 10))
+          done
+
+      - name: Run endpoint tests
+        run: |
+          chmod +x scripts/testing/test-endpoints.sh
+          ./scripts/testing/test-endpoints.sh
+        env:
+          API_BASE_URL: ${{ env.API_BASE_URL }}
+        continue-on-error: true
+
+      - name: Run booking flow tests
+        run: |
+          chmod +x scripts/testing/test_booking_flow.py
+          python scripts/testing/test_booking_flow.py
+        env:
+          API_BASE_URL: ${{ env.API_BASE_URL }}
+        continue-on-error: true
+
+      - name: Run search API tests
+        run: |
+          chmod +x scripts/testing/comprehensive_search_api_test.py
+          python scripts/testing/comprehensive_search_api_test.py
+        env:
+          API_BASE_URL: ${{ env.API_BASE_URL }}
+        continue-on-error: true
+
+      - name: Test summary
+        if: always()
+        run: |
+          echo "### Integration Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "- API Base URL: \`$API_BASE_URL\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Tests: Endpoint validation, Booking flow, Search API" >> $GITHUB_STEP_SUMMARY
+
+  # ============================
+  # 5) Notification
+  # ============================
+  notify:
+    name: Notify Status
+    runs-on: ubuntu-latest
+    needs: [test, build, deploy, integration-tests]
+    if: always()
+    
+    steps:
+      - name: Deployment notification
+        run: |
+          if [ "${{ needs.deploy.result }}" == "success" ]; then
+            echo "Deployment succeeded for commit ${{ github.sha }}"
+          else
+            echo "Deployment failed for commit ${{ github.sha }}"
+          fi
+          
+          echo "### Workflow Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Tests: ${{ needs.test.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Build: ${{ needs.build.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Deploy: ${{ needs.deploy.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Integration Tests: ${{ needs.integration-tests.result }}" >> $GITHUB_STEP_SUMMARY

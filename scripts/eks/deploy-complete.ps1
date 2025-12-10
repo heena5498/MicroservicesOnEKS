@@ -83,6 +83,7 @@ if ($clusterExists) {
         --nodes-max 5 `
         --managed `
         --with-oidc `
+        --logging "api,authenticator,audit,controllerManager,scheduler" `
         --full-ecr-access
 }
 Write-Host "  EKS Cluster ready" -ForegroundColor Green

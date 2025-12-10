@@ -515,7 +515,6 @@ Services:
 
   # Caching & Search
   - redis-master
-  - redis-replica
   - elasticsearch-node-1
   - elasticsearch-node-2
   - elasticsearch-node-3

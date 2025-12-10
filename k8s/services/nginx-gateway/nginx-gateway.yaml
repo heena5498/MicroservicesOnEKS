@@ -28,6 +28,14 @@ data:
             server booking-service:8004;
         }
 
+        upstream prometheus {
+            server prometheus-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090;
+        }
+
+        upstream grafana {
+            server prometheus-grafana.monitoring.svc.cluster.local:80;
+        }
+
         server {
             listen 80;
             server_name _;
@@ -102,6 +110,36 @@ data:
                 proxy_set_header X-Forwarded-Proto $scheme;
             }
 
+            # Prometheus metrics endpoint
+            location /prometheus/ {
+                proxy_pass http://prometheus/;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                proxy_set_header X-Forwarded-Host $host;
+                proxy_set_header X-Forwarded-Prefix /prometheus;
+                # WebSocket support for Prometheus UI
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection "upgrade";
+            }
+
+            # Grafana dashboard
+            location /grafana/ {
+                proxy_pass http://grafana/;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                proxy_set_header X-Forwarded-Host $host;
+                proxy_set_header X-Forwarded-Prefix /grafana;
+                # WebSocket support for Grafana
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection "upgrade";
+            }
+
             # Health check endpoint
             location /health {
                 access_log off;
@@ -111,7 +149,7 @@ data:
 
             # Default route - API documentation
             location / {
-                return 200 '{"message": "BookMyEvent API Gateway", "gateway_access": {"user": "/api/user/", "event": "/api/event/", "search": "/api/search/", "booking": "/api/booking/"}, "health": "/health"}';
+                return 200 '{"message": "BookMyEvent API Gateway", "gateway_access": {"user": "/api/user/", "event": "/api/event/", "search": "/api/search/", "booking": "/api/booking/"}, "monitoring": {"prometheus": "/prometheus/", "grafana": "/grafana/"}, "health": "/health"}';
                 add_header Content-Type application/json;
             }
         }
@@ -140,6 +178,10 @@ spec:
           image: nginx:alpine
           ports:
             - containerPort: 80
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
           volumeMounts:
             - name: nginx-config
               mountPath: /etc/nginx/nginx.conf
@@ -168,7 +210,7 @@ spec:
           configMap:
             name: nginx-config
 ---
-# Nginx Gateway Service (ClusterIP - exposed via ALB Ingress)
+# Nginx Gateway Service (ClusterIP - exposed via ALB Ingress managed by Helm)
 apiVersion: v1
 kind: Service
 metadata:
@@ -181,33 +223,8 @@ spec:
     - port: 80
       targetPort: 80
   type: ClusterIP
----
-# ALB Ingress for external access
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: bookmyevent-ingress
-  namespace: bookmyevent
-  annotations:
-    alb.ingress.kubernetes.io/scheme: internet-facing
-    alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/healthcheck-path: /health
-    alb.ingress.kubernetes.io/healthcheck-interval-seconds: "15"
-    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: "5"
-    alb.ingress.kubernetes.io/healthy-threshold-count: "2"
-    alb.ingress.kubernetes.io/unhealthy-threshold-count: "2"
-spec:
-  ingressClassName: alb
-  rules:
-    - http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: nginx-gateway
-                port:
-                  number: 80
+# Note: ALB Ingress is managed by Helm (helm/templates/core/ingress.yaml)
+# Do not define Ingress here to avoid Helm ownership conflicts
 
 
 

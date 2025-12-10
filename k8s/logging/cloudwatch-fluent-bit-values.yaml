@@ -1,0 +1,35 @@
+serviceAccount:
+  create: false
+  name: aws-for-fluent-bit
+
+cloudWatch:
+  enabled: true
+  region: us-east-1
+  logGroupName: /eks/bookmyevent/cluster
+  logRetentionDays: 14
+  autoCreateGroup: true
+  logStreamPrefix: from-fluent-bit-
+
+kinesis:
+  enabled: false
+
+firehose:
+  enabled: false
+
+elasticsearch:
+  enabled: false
+
+tolerations:
+  - operator: Exists
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 100Mi
+  limits:
+    cpu: 200m
+    memory: 200Mi
+
+daemonset:
+  updateStrategy:
+    type: RollingUpdate

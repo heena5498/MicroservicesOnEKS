@@ -17,12 +17,27 @@ spec:
       labels:
         app: booking-service
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: bookmyevent-backend-sa
       containers:
         - name: booking-service
           image: {{ .Values.global.imageRegistry }}/booking-service:{{ .Values.imageTags.bookingService }}
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
           ports:
             - containerPort: {{ .Values.services.bookingService.targetPort }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop:
+                - ALL
           env:
             - name: BOOKING_SERVICE_PORT
               value: "{{ .Values.services.bookingService.targetPort }}"
@@ -86,6 +101,7 @@ spec:
   selector:
     app: booking-service
   ports:
-    - port: {{ .Values.services.bookingService.port }}
+    - name: http
+      port: {{ .Values.services.bookingService.port }}
       targetPort: {{ .Values.services.bookingService.targetPort }}
   type: {{ .Values.services.bookingService.type }}

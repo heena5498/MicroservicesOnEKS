@@ -1,0 +1,15 @@
+grafana:
+  adminUser: admin
+  # adminPassword is auto-generated and stored in secret
+  # To get password: kubectl get secret -n monitoring prometheus-grafana -o jsonpath="{.data.admin-password}" | base64 -d
+  service:
+    type: ClusterIP
+  # Configure Grafana to work behind reverse proxy at /grafana/
+  grafana.ini:
+    server:
+      root_url: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
+      serve_from_sub_path: true
+
+prometheus:
+  serviceMonitor:
+    scrapeInterval: 15s

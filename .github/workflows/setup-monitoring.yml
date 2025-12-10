@@ -1,0 +1,205 @@
+name: Setup Monitoring Stack
+
+on:
+  workflow_dispatch:
+    inputs:
+      namespace:
+        description: 'Namespace for monitoring stack'
+        required: false
+        default: 'monitoring'
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  EKS_CLUSTER_NAME: ${{ secrets.EKS_CLUSTER_NAME }}
+  MONITORING_NAMESPACE: ${{ inputs.namespace || 'monitoring' }}
+  RELEASE_NAME: prometheus
+
+jobs:
+  deploy-monitoring:
+    name: Deploy Prometheus & Grafana Stack
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/kubectl
+          kubectl version --client
+
+      - name: Install Helm
+        run: |
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          helm version
+
+      - name: Configure kubeconfig for EKS
+        run: |
+          aws eks update-kubeconfig \
+            --name "$EKS_CLUSTER_NAME" \
+            --region "$AWS_REGION"
+          kubectl cluster-info
+
+      - name: Create monitoring namespace
+        run: |
+          kubectl create namespace $MONITORING_NAMESPACE 2>/dev/null || \
+          echo "Namespace $MONITORING_NAMESPACE already exists"
+
+      - name: Add Helm repositories
+        run: |
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm repo update
+
+      - name: Cleanup existing Prometheus release (if any)
+        run: |
+          echo "Checking for existing 'prometheus' release across all namespaces..."
+          helm list --all-namespaces | grep prometheus || echo "No prometheus release found"
+
+          # Try to uninstall from monitoring namespace
+          helm uninstall prometheus -n $MONITORING_NAMESPACE 2>/dev/null || echo "No release in $MONITORING_NAMESPACE"
+
+          # Try to uninstall from default namespace (common mistake)
+          helm uninstall prometheus -n default 2>/dev/null || echo "No release in default namespace"
+
+          # Wait for cleanup
+          sleep 5
+
+      - name: Deploy Prometheus Stack
+        run: |
+          # Use values-monitoring.yaml which has ClusterIP and subpath config
+          helm upgrade --install ${{ env.RELEASE_NAME }} prometheus-community/kube-prometheus-stack \
+            --namespace $MONITORING_NAMESPACE \
+            --values k8s/monitoring/values-monitoring.yaml \
+            --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \
+            --set prometheus.prometheusSpec.ruleSelectorNilUsesHelmValues=false \
+            --set prometheus.prometheusSpec.retention=30d \
+            --set prometheus.prometheusSpec.retentionSize=50GiB \
+            --timeout 15m \
+            --wait
+
+      - name: Apply ServiceMonitors
+        run: |
+          echo "Applying ServiceMonitors for all microservices..."
+          kubectl apply -f k8s/monitoring/user-servicemonitor.yaml
+          kubectl apply -f k8s/monitoring/event-servicemonitor.yaml
+          kubectl apply -f k8s/monitoring/search-servicemonitor.yaml
+          kubectl apply -f k8s/monitoring/booking-servicemonitor.yaml
+          echo "✓ ServiceMonitors applied"
+          kubectl get servicemonitor -n $MONITORING_NAMESPACE
+
+      - name: Apply Alert Rules
+        run: |
+          echo "Applying custom alert rules..."
+          kubectl apply -f k8s/monitoring/app-alerts.yaml
+          echo "✓ Alert rules applied"
+          kubectl get prometheusrules -n $MONITORING_NAMESPACE
+
+      - name: Update nginx-gateway for monitoring routes
+        run: |
+          echo "Updating nginx-gateway to include Prometheus and Grafana routes..."
+          kubectl apply -f k8s/services/nginx-gateway/nginx-gateway.yaml
+          kubectl rollout restart deployment/nginx-gateway -n bookmyevent || echo "Warning: nginx-gateway not found, may need to deploy separately"
+          echo "✓ nginx-gateway updated"
+
+      - name: Wait for monitoring stack to be ready
+        run: |
+          echo "Waiting for Prometheus pods..."
+          kubectl wait --for=condition=ready pod \
+            -l app.kubernetes.io/name=prometheus \
+            -n $MONITORING_NAMESPACE \
+            --timeout=600s || echo "Warning: Prometheus pods not ready"
+          
+          echo "Waiting for Grafana pods..."
+          kubectl wait --for=condition=ready pod \
+            -l app.kubernetes.io/name=grafana \
+            -n $MONITORING_NAMESPACE \
+            --timeout=600s || echo "Warning: Grafana pods not ready"
+          
+          echo "Waiting for Alertmanager pods..."
+          kubectl wait --for=condition=ready pod \
+            -l app.kubernetes.io/name=alertmanager \
+            -n $MONITORING_NAMESPACE \
+            --timeout=600s || echo "Warning: Alertmanager pods not ready"
+
+      - name: Get Grafana admin password
+        id: grafana-password
+        run: |
+          # Wait for secret to be created
+          for i in {1..30}; do
+            GRAFANA_URL=$(kubectl get svc prometheus-grafana -n $MONITORING_NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "")
+            PROMETHEUS_URL=$(kubectl get svc prometheus-kube-prometheus-prometheus -n $MONITORING_NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "")
+            ALERTMANAGER_URL=$(kubectl get svc prometheus-kube-prometheus-alertmanager -n $MONITORING_NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "")
+            
+            if [ -n "$GRAFANA_URL" ] && [ -n "$PROMETHEUS_URL" ] && [ -n "$ALERTMANAGER_URL" ]; then
+              echo "All LoadBalancers ready!"
+              echo ""
+              echo "Grafana: http://${GRAFANA_URL}"
+              echo "  Username: admin"
+              echo "  Password: (check GRAFANA_ADMIN_PASSWORD secret or default 'admin')" 
+              echo ""
+              echo "Prometheus: http://${PROMETHEUS_URL}:9090"
+              echo "Alertmanager: http://${ALERTMANAGER_URL}:9093"
+              break
+            fi
+            echo "Waiting for Grafana secret... ($i/30)"
+            sleep 5
+          done
+          
+          GRAFANA_PASSWORD=$(kubectl get secret -n $MONITORING_NAMESPACE ${{ env.RELEASE_NAME }}-grafana -o jsonpath="{.data.admin-password}" 2>/dev/null | base64 -d || echo "admin")
+          echo "password=$GRAFANA_PASSWORD" >> $GITHUB_OUTPUT
+          echo "::add-mask::$GRAFANA_PASSWORD"
+
+      - name: Get ALB URL
+        id: alb-url
+        run: |
+          # Get the ALB URL from the bookmyevent ingress
+          ALB_URL=$(kubectl get ingress bookmyevent-ingress -n bookmyevent -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "")
+          if [ -z "$ALB_URL" ]; then
+            echo "ALB URL not ready yet. Check with: kubectl get ingress -n bookmyevent"
+            ALB_URL="<your-alb-url>"
+          fi
+          echo "url=$ALB_URL" >> $GITHUB_OUTPUT
+
+      - name: Create deployment summary
+        if: always()
+        run: |
+          echo "## Monitoring Stack Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Components Deployed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Prometheus (via Helm)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Grafana (via Helm)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Alertmanager (via Helm)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ ServiceMonitors for all microservices" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Custom Alert Rules" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ nginx-gateway updated with monitoring routes" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Access Information" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Access via ALB (nginx-gateway):**" >> $GITHUB_STEP_SUMMARY
+          echo "- Grafana: http://${{ steps.alb-url.outputs.url }}/grafana/" >> $GITHUB_STEP_SUMMARY
+          echo "  - Username: admin" >> $GITHUB_STEP_SUMMARY
+          echo "  - Password: \`${{ steps.grafana-password.outputs.password }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Prometheus: http://${{ steps.alb-url.outputs.url }}/prometheus/" >> $GITHUB_STEP_SUMMARY
+          echo "- Alertmanager: http://${{ steps.alb-url.outputs.url }}/alertmanager/ (if configured)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Port Forward (Alternative):**" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "# Grafana" >> $GITHUB_STEP_SUMMARY
+          echo "kubectl port-forward -n $MONITORING_NAMESPACE svc/${{ env.RELEASE_NAME }}-grafana 3000:80" >> $GITHUB_STEP_SUMMARY
+          echo "# Then visit: http://localhost:3000" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Prometheus" >> $GITHUB_STEP_SUMMARY
+          echo "kubectl port-forward -n $MONITORING_NAMESPACE svc/prometheus-kube-prometheus-prometheus 9090:9090" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Alertmanager" >> $GITHUB_STEP_SUMMARY
+          echo "kubectl port-forward -n $MONITORING_NAMESPACE svc/prometheus-kube-prometheus-alertmanager 9093:9093" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

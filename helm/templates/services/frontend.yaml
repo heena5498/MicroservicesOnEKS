@@ -48,6 +48,7 @@ spec:
   selector:
     app: frontend
   ports:
-    - port: {{ .Values.services.frontend.port }}
+    - name: http
+      port: {{ .Values.services.frontend.port }}
       targetPort: {{ .Values.services.frontend.targetPort }}
   type: {{ .Values.services.frontend.type }}

@@ -1,0 +1,17 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: event-service-alerts
+  namespace: monitoring
+spec:
+  groups:
+    - name: event-service.rules
+      rules:
+        - alert: HighErrorRate
+          expr: sum(rate(http_requests_total{app="event-service",status=~"5.."}[5m])) > 1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High 5xx error rate for event-service"
+            description: "More than 1 5xx requests/sec in the last 5 minutes."
