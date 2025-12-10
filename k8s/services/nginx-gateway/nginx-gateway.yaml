@@ -29,11 +29,11 @@ data:
         }
 
         upstream prometheus {
-            server monitoring-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090;
+            server prometheus-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090;
         }
 
         upstream grafana {
-            server monitoring-grafana.monitoring.svc.cluster.local:80;
+            server prometheus-grafana.monitoring.svc.cluster.local:80;
         }
 
         server {

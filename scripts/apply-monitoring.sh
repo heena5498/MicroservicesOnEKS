@@ -2,12 +2,13 @@
 
 # Monitoring Setup Script
 # This script installs Prometheus and Grafana using Helm and applies monitoring manifests
+# Usage: ./scripts/apply-monitoring.sh [namespace] [release-name] [skip-helm-install]
 
 set -e
 
 # Default values
 NAMESPACE="${1:-monitoring}"
-RELEASE_NAME="${2:-kube-prometheus-stack}"
+RELEASE_NAME="${2:-prometheus}"
 SKIP_HELM_INSTALL="${3:-false}"
 
 echo "========================================="
@@ -50,8 +51,6 @@ create_namespace() {
 setup_helm_repos() {
     echo "Adding Helm repositories..."
     helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-    helm repo add grafana https://grafana.github.io/helm-charts
-    echo "Updating Helm repositories..."
     helm repo update
     echo "✓ Helm repos configured"
 }
@@ -71,37 +70,75 @@ install_monitoring_stack() {
         helm upgrade --install "$RELEASE_NAME" prometheus-community/kube-prometheus-stack \
             --namespace "$NAMESPACE" \
             --values "$VALUES_FILE" \
-            --wait
+            --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \
+            --set prometheus.prometheusSpec.ruleSelectorNilUsesHelmValues=false \
+            --wait \
+            --timeout 15m
     else
         echo "Warning: $VALUES_FILE not found, using default values"
         helm upgrade --install "$RELEASE_NAME" prometheus-community/kube-prometheus-stack \
             --namespace "$NAMESPACE" \
-            --wait
+            --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \
+            --set prometheus.prometheusSpec.ruleSelectorNilUsesHelmValues=false \
+            --wait \
+            --timeout 15m
     fi
     
     echo "✓ kube-prometheus-stack installed/upgraded"
 }
 
-# Function to apply custom monitoring manifests
-apply_monitoring_manifests() {
-    echo "Applying custom monitoring manifests from k8s/monitoring/..."
+# Function to apply ServiceMonitors
+apply_servicemonitors() {
+    echo "Applying ServiceMonitors for microservices..."
     
     MONITORING_DIR="k8s/monitoring"
     
     if [ ! -d "$MONITORING_DIR" ]; then
-        echo "Warning: $MONITORING_DIR directory not found, skipping custom manifests"
+        echo "Warning: $MONITORING_DIR directory not found"
         return
     fi
     
-    # Apply all YAML files except values-monitoring.yaml
-    for file in "$MONITORING_DIR"/*.yaml "$MONITORING_DIR"/*.yml; do
-        if [ -f "$file" ] && [[ ! "$file" =~ values-monitoring.yaml ]]; then
-            echo "Applying $file..."
-            kubectl apply -f "$file" -n "$NAMESPACE" || echo "Warning: Failed to apply $file"
+    # Apply all ServiceMonitor files
+    for file in "$MONITORING_DIR"/*servicemonitor.yaml; do
+        if [ -f "$file" ]; then
+            echo "  Applying $(basename $file)..."
+            kubectl apply -f "$file" || echo "    Warning: Failed to apply $file"
         fi
     done
     
-    echo "✓ Custom monitoring manifests applied"
+    echo "✓ ServiceMonitors applied"
+    kubectl get servicemonitor -n "$NAMESPACE"
+}
+
+# Function to apply alert rules
+apply_alert_rules() {
+    echo "Applying alert rules..."
+    
+    if [ -f "k8s/monitoring/app-alerts.yaml" ]; then
+        kubectl apply -f k8s/monitoring/app-alerts.yaml
+        echo "✓ Alert rules applied"
+        kubectl get prometheusrules -n "$NAMESPACE"
+    else
+        echo "  Warning: app-alerts.yaml not found"
+    fi
+}
+
+# Function to update nginx-gateway
+update_nginx_gateway() {
+    echo "Updating nginx-gateway with monitoring routes..."
+    
+    if [ -f "k8s/services/nginx-gateway/nginx-gateway.yaml" ]; then
+        kubectl apply -f k8s/services/nginx-gateway/nginx-gateway.yaml
+        if kubectl get deployment nginx-gateway -n bookmyevent &> /dev/null; then
+            kubectl rollout restart deployment/nginx-gateway -n bookmyevent
+            echo "✓ nginx-gateway updated and restarted"
+        else
+            echo "  Warning: nginx-gateway not found in bookmyevent namespace"
+            echo "  You may need to deploy nginx-gateway separately"
+        fi
+    else
+        echo "  Warning: nginx-gateway.yaml not found"
+    fi
 }
 
 # Function to display access information
@@ -117,24 +154,35 @@ display_access_info() {
     
     # Get Grafana admin password
     echo "Retrieving Grafana admin password..."
-    GRAFANA_PASSWORD=$(kubectl get secret -n "$NAMESPACE" "$RELEASE_NAME-grafana" -o jsonpath="{.data.admin-password}" 2>/dev/null | base64 --decode)
+    GRAFANA_SECRET="$RELEASE_NAME-grafana"
+    GRAFANA_PASSWORD=$(kubectl get secret -n "$NAMESPACE" "$GRAFANA_SECRET" -o jsonpath="{.data.admin-password}" 2>/dev/null | base64 -d || echo "admin")
+    
+    # Get ALB URL
+    ALB_URL=$(kubectl get ingress bookmyevent-ingress -n bookmyevent -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "<your-alb-url>")
     
     if [ -n "$GRAFANA_PASSWORD" ]; then
         echo ""
         echo "========================================="
         echo "Access Information:"
         echo "========================================="
-        echo "Grafana:"
+        echo ""
+        echo "Access via ALB (nginx-gateway):"
+        echo "  Grafana:    http://${ALB_URL}/grafana/"
+        echo "  Prometheus: http://${ALB_URL}/prometheus/"
+        echo ""
+        echo "Grafana Credentials:"
         echo "  Username: admin"
         echo "  Password: $GRAFANA_PASSWORD"
         echo ""
-        echo "To access Grafana, run:"
-        echo "  kubectl port-forward -n $NAMESPACE svc/$RELEASE_NAME-grafana 3000:80"
-        echo "  Then visit: http://localhost:3000"
+        echo "Port Forward (Alternative):"
+        echo "  kubectl port-forward -n $NAMESPACE svc/$GRAFANA_SECRET 3000:80"
+        echo "  kubectl port-forward -n $NAMESPACE svc/$RELEASE_NAME-kube-prometheus-prometheus 9090:9090"
         echo ""
-        echo "To access Prometheus, run:"
-        echo "  kubectl port-forward -n $NAMESPACE svc/$RELEASE_NAME-kube-prome-prometheus 9090:9090"
-        echo "  Then visit: http://localhost:9090"
+        echo "ServiceMonitors:"
+        kubectl get servicemonitor -n "$NAMESPACE" 2>/dev/null || echo "  No ServiceMonitors found"
+        echo ""
+        echo "PrometheusRules:"
+        kubectl get prometheusrules -n "$NAMESPACE" 2>/dev/null || echo "  No PrometheusRules found"
         echo "========================================="
     else
         echo "Warning: Could not retrieve Grafana password"
@@ -150,7 +198,9 @@ main() {
     create_namespace
     setup_helm_repos
     install_monitoring_stack
-    apply_monitoring_manifests
+    apply_servicemonitors
+    apply_alert_rules
+    update_nginx_gateway
     display_access_info
     
     echo ""
