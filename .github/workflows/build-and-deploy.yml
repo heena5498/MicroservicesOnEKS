@@ -271,7 +271,7 @@ jobs:
       - name: Deploy with Helm
         run: |
           IMAGE_TAG=$(git rev-parse --short HEAD)
-          
+
           helm upgrade --install bookmyevent ./helm \
             --namespace "$K8S_NAMESPACE" \
             --set global.imageRegistry="${ECR_REGISTRY}/bookmyevent" \
@@ -284,8 +284,9 @@ jobs:
             --set database.postgres.enabled=false \
             --set secrets.create=false \
             --timeout 30m \
-            --wait
-          
+            --wait \
+            --wait-for-jobs
+
           echo "Helm deployment completed"
       
       - name: Wait for infrastructure pods
