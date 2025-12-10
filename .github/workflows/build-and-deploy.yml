@@ -283,8 +283,7 @@ jobs:
             --set imageTags.initContainer="${IMAGE_TAG}" \
             --set database.postgres.enabled=false \
             --set secrets.create=false \
-            --timeout 15m \
-            --atomic \
+            --timeout 30m \
             --wait
           
           echo "Helm deployment completed"
