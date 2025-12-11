@@ -122,7 +122,7 @@ services:
     type: ClusterIP
   nginxGateway:
     port: 80
-    targetPort: 80
+    targetPort: 8080
     type: ClusterIP  # Changed from LoadBalancer - using ALB Ingress instead
   postgres:
     port: 5432
