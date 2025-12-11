@@ -29,7 +29,7 @@ data:
         }
 
         server {
-            listen 80;
+            listen 8080;
             server_name _;
 
             # Gateway API routes
@@ -160,6 +160,10 @@ spec:
             - name: nginx-config
               mountPath: /etc/nginx/nginx.conf
               subPath: nginx.conf
+            - name: cache
+              mountPath: /var/cache/nginx
+            - name: run
+              mountPath: /var/run
           resources:
             {{- toYaml .Values.resources.nginxGateway | nindent 12 }}
           {{- if .Values.healthCheck.enabled }}
@@ -180,6 +184,10 @@ spec:
         - name: nginx-config
           configMap:
             name: nginx-config
+        - name: cache
+          emptyDir: {}
+        - name: run
+          emptyDir: {}
 ---
 # Nginx Gateway Service
 apiVersion: v1

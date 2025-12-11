@@ -299,8 +299,19 @@ jobs:
       - name: Wait for infrastructure pods
         run: |
           echo "Waiting for infrastructure pods..."
-          kubectl wait --for=condition=ready pod -l app=redis -n "$K8S_NAMESPACE" --timeout=300s || true
-          kubectl wait --for=condition=ready pod -l app=elasticsearch -n "$K8S_NAMESPACE" --timeout=300s || true
+          kubectl wait --for=condition=ready pod -l app=redis -n "$K8S_NAMESPACE" --timeout=600s || {
+            echo "Redis pod not ready, checking status:"
+            kubectl get pods -l app=redis -n "$K8S_NAMESPACE"
+            kubectl describe pod -l app=redis -n "$K8S_NAMESPACE"
+            kubectl logs -l app=redis -n "$K8S_NAMESPACE" --tail=50 || true
+          }
+
+          kubectl wait --for=condition=ready pod -l app=elasticsearch -n "$K8S_NAMESPACE" --timeout=600s || {
+            echo "Elasticsearch pod not ready, checking status:"
+            kubectl get pods -l app=elasticsearch -n "$K8S_NAMESPACE"
+            kubectl describe pod -l app=elasticsearch -n "$K8S_NAMESPACE"
+            kubectl logs -l app=elasticsearch -n "$K8S_NAMESPACE" --tail=50 || true
+          }
       
       - name: Run RDS migrations
         run: |
@@ -359,11 +370,24 @@ jobs:
       - name: Wait for application pods
         run: |
           echo "Waiting for application pods..."
-          kubectl wait --for=condition=ready pod -l app=user-service -n "$K8S_NAMESPACE" --timeout=300s || true
-          kubectl wait --for=condition=ready pod -l app=event-service -n "$K8S_NAMESPACE" --timeout=300s || true
-          kubectl wait --for=condition=ready pod -l app=booking-service -n "$K8S_NAMESPACE" --timeout=300s || true
-          kubectl wait --for=condition=ready pod -l app=search-service -n "$K8S_NAMESPACE" --timeout=300s || true
-          kubectl wait --for=condition=ready pod -l app=frontend -n "$K8S_NAMESPACE" --timeout=300s || true
+
+          # Check all pods status
+          echo "Current pod status:"
+          kubectl get pods -n "$K8S_NAMESPACE"
+
+          # Wait for each service with detailed error reporting
+          for service in user-service event-service booking-service search-service frontend; do
+            echo "Waiting for $service..."
+            kubectl wait --for=condition=ready pod -l app=$service -n "$K8S_NAMESPACE" --timeout=600s || {
+              echo "⚠️ $service pods not ready, checking status:"
+              kubectl get pods -l app=$service -n "$K8S_NAMESPACE"
+              kubectl describe pod -l app=$service -n "$K8S_NAMESPACE" | tail -100
+              kubectl logs -l app=$service -n "$K8S_NAMESPACE" --tail=50 || true
+            }
+          done
+
+          echo "Final pod status:"
+          kubectl get pods -n "$K8S_NAMESPACE"
       
       - name: Get deployment summary
         id: summary
